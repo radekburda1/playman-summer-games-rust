@@ -1,0 +1,11 @@
+[package]
+name = "playman-rust"
+version = "0.1.0"
+edition = "2024"
+description = "Native Rust reconstruction of Playman Summer Games 3"
+
+[dependencies]
+macroquad = { version = "=0.4.16", features = ["audio"] }
+
+[profile.release]
+lto = "thin"

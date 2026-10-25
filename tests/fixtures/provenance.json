@@ -1,0 +1,31 @@
+{
+  "source_jar_sha256": "abeba23badbf5e937b806c7e24165420c7dde08301c694f798b2d3c12f16962b",
+  "projection_samples": 384,
+  "sine_samples": 512,
+  "selected_pose_samples": 19,
+  "pose_rgb_tolerance": 4,
+  "fresh_session_exports_reproduced": true,
+  "fixtures": {
+    "poses/000.png": "f6a06428716f4cca43562515f739a211163db4283be27ea9307a020f10721f7e",
+    "poses/004.png": "83d536c5d881ef4270b0235c0eb647752234250788ef2c73449a00fdaaef118f",
+    "poses/053.png": "23c22682790548e760e92026b5dcb440dfaacdc8596a93bd21954f642e7e2905",
+    "poses/110.png": "870c2d9bac3c7f6232c6dbb196288ce5c3c035403dca9b00cde858fd38057fd0",
+    "poses/118.png": "641f4fd7294e2460c7bfe57199feedc7a3c22c67f7b37f89b36ba93078ab8d56",
+    "poses/126.png": "5c1a3359696589d27fd4aeb17680844bf87cf380db5ce2c5324d986ab9a1a868",
+    "poses/135.png": "303f99a566da8ada8bce32d41e5372ea2be687355e74aeec5781a123d2fe1a0e",
+    "poses/150.png": "fef3ccd5709269727aea0ef515e07d219bff8d013f655b160f177cbed6d43455",
+    "poses/189.png": "59bf7e212a149ad6080f8090fc0073d9ecf69c399c875dc46b487e4fc9912eb8",
+    "poses/199.png": "b1418831ed4d1e3c2eedd05f87191757533d67deddfbf1bb16ee129813902eca",
+    "poses/210.png": "2fa56d911e310ee5fa776110d6d799898b0fa6d136e4e6b34f2913d4573b22cc",
+    "poses/240.png": "fdc2f40c8b7c70e10e4ef61b9c1e40b768ba3f3bd03b3ffe5e57896c1cf52866",
+    "poses/278.png": "897256dfa673eb49c4b8dbfec6fae70bb0ac92e3c13ad162b4acd836e65382cb",
+    "poses/300.png": "bb253052e6cf0c4c095eff7b5ad600b4181455018aae443e1ed017af812b3719",
+    "poses/317.png": "f84f4717f084c8b43f3d4d776a4d95a6ec2b022568eaa11cafd36f1237eb4ff1",
+    "poses/interp-125-126-49152.png": "b2be34d10709a87b5681eb65dbac832b4d6a1114707a81e84e5306b825da0b89",
+    "poses/interp-4-5-16384.png": "0b720bebe6fe32ab78518e9ec67c0ee9b18d20c2a87f1fae95a2c350ad4ea21f",
+    "poses/interp-4-5-32768.png": "95365fab6b70e5da3bb909cc7b63b19a10f2aa4b40044c6b77cd3e0c8f196e5e",
+    "poses/interp-4-5-49152.png": "a0b46ff2973035c1ae98f7b78167499ef192a412d23707cc8187b06e75b5a534",
+    "projection.csv": "0d9c6ea6d4a458e2b64f1b4b02ed1830f5537858e2297c9677524d81472492cf",
+    "sine.txt": "940b0d65ad6c8bb3e3c5457d3058e65294f76e95dadf612e5e18ea5667a98b2c"
+  }
+}

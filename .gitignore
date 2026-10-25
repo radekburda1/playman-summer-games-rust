@@ -1,0 +1,7 @@
+/target/
+*.tmp
+playman-records.txt
+smoke-test.png
+
+/web/game.wasm
+/web/mq_js_bundle.js
