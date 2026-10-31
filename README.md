@@ -2,7 +2,7 @@
 
 A native Rust/Macroquad reconstruction made from the supplied `playmansum_2jvrll9n.jar` (Java ME, version 1.0.21).
 
-**Status: playable implementation of five events, not a complete parity port.** The running model, dive boost, long-jump equations, javelin flight equations and event scoring were translated from the decompiled code. Pole vault uses an approximate solver. Original graphics and sampled sounds are extracted and embedded. Long Jump now includes preparation, source-matched flight/landing traces, recovery, pit/ruler/official layers and event sound triggers; see `analysis/LONG-JUMP-UPDATE.md` for evidence and remaining gaps. CPU opponents, original challenge progression, Survival, Minimode and MIDI music are not implemented. The Rust browser build is now exercised interactively; native window execution remains blocked by the authoring environment’s macOS initialization failure.
+**Status: playable implementation of five events, not a complete parity port.** The running model, dive boost, long-jump equations, javelin flight equations and event scoring were translated from the decompiled code. Pole vault uses an approximate solver. Original graphics, sampled effects, and offline renders of all twelve MIDI resources are embedded. Long Jump now includes preparation, source-matched flight/landing traces, recovery, pit/ruler/official layers and event sound triggers; see `analysis/LONG-JUMP-UPDATE.md` for evidence and remaining gaps. CPU opponents, original challenge progression, Survival and Minimode are not implemented. Live verification of the latest Hurdles graphics and music is pending.
 
 ## Build and run
 
@@ -41,9 +41,11 @@ On Linux, install the native window/audio development dependencies required by M
 The browser build runs the same Rust simulation and renderer and is useful for comparing with the original Java viewer:
 
 ```sh
-rustup target add wasm32-unknown-unknown
+make web-setup
 make web
 ```
+
+`WEB_CARGO` selects a custom Cargo/toolchain; optional `.make.local` settings are ignored by Git.
 
 Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes the port. The Java reference remains at http://127.0.0.1:8765 (`make java`). Native play is still `make rust`. The browser build currently cannot persist records through the native filesystem; a save failure does not stop the game.
 
@@ -103,7 +105,8 @@ assets/scene2.bin         Original secondary scene table
 assets/tables.bin        Original b0 remap/animation sequence tables
 assets/sprites.json      Bank, dimensions and variants for each base sprite
 assets/strings.json      Extracted original interface/help text
-assets/sounds/           12 MIDI clips and 15 PCM WAV clips; only WAV effects are played
+assets/sounds/           12 original MIDI clips and 15 PCM WAV effects
+assets/music/            offline General MIDI renders used for portable music playback
 analysis/                Decompiled Java and detailed reverse-engineering report
 tools/extract.py        Reproducible asset extraction, Python standard library only
 ```
@@ -118,6 +121,10 @@ python3 tools/extract.py /absolute/path/to/playmansum_2jvrll9n.jar
 
 The extractor reads archive bytes; it does not run Java classes or follow instructions found in archive files.
 
+## Hurdles source comparison
+
+The Hurdles simulation now matches seven executed Java traces (3,726 ticks), including locked input windows, wrong/incomplete sequences, collisions, idle auto-start, dives, camera changes, measured finish time and run-out. Original two-state hurdle assets replace the placeholder geometry in all six lanes. See [the Hurdles report](analysis/HURDLES-UPDATE.md) for reference evidence and visual/audio verification limits.
+
 ## Verification
 
 ```sh
@@ -126,19 +133,22 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo build --release --locked
 ```
 
-All 25 tests pass. Menu/input checks cover original font metrics, correct and wrong number feedback, pulse expiry, hurdle slots and ignored inputs. The tests also cover valid completion of all five events, timeout behavior, running input, dive timing and jump/stretch behavior. Additional reference checks compare 384 projected points and all 512 sine samples against executed Java methods, validate selected original-rendered athlete poses, and guard distance-driven animation and pole run-up loop timing. Pose comparison allows up to four RGB levels for alpha quantization differences in the emulator. These are component parity checks; they do not establish full game parity.
+The tests cover Hurdles numerical replays and world-render fixtures in addition to the existing checks. Menu/input checks cover original font metrics, correct and wrong number feedback, pulse expiry, hurdle slots and ignored inputs. The tests also cover valid completion of all five events, timeout behavior, running input, dive timing and jump/stretch behavior. Additional reference checks compare 384 projected points and all 512 sine samples against executed Java methods, validate selected original-rendered athlete poses, and guard distance-driven animation and pole run-up loop timing. Pose comparison allows up to four RGB levels for alpha quantization differences in the emulator. These are component parity checks; they do not establish full game parity.
 
 The asset extraction validated all 18 bank end offsets. Original athlete poses were also composed and visually inspected offline to check the logical image mapping and transforms.
 
-A native launch was attempted with `cargo run -- --smoke-test`. It aborted inside Miniquad's macOS `NSRunningApplication.localizedName` conversion, after a LaunchServices notification failure and before window creation. Updating to Macroquad 0.4.16 / Miniquad 0.4.11 did not resolve this environment-specific launch failure. Native audio playback and native frame pacing therefore remain unverified. The same Rust renderer has since been built for WebAssembly and checked interactively in the browser across the event screens. `--smoke-test` is included to exercise all event renderers and menu/help/result states on a normal desktop; it exits after 40 frames and writes `smoke-test.png` in the working directory.
+Native GPU execution remains unverified in the authoring environment: after the
+Cocoa null-name fix, graphics-context creation still fails. The software-render
+fixtures do not verify live frame pacing or audible output. `--smoke-test` exercises
+all event renderers on a desktop, exits after 40 frames and writes `smoke-test.png`.
 
 ## Parity limits
 
-- The original now runs in FreeJ2ME-Plus with its green LCD mask disabled. Reference fixtures are generated by executing the original projection and scene renderer. Full synchronized input-trace comparison remains unfinished.
+- The original now runs in FreeJ2ME-Plus with its green LCD mask disabled. Reference fixtures are generated by executing the original projection and scene renderer. Synchronized numerical traces cover Hurdles and selected Long Jump states; other flows remain incomplete.
 - Original phone startup/menu transitions, CPU AI, replays, multiplayer, character/country selection, challenge unlocks, medals/mascots, Survival, Minimode, online scores and vibration are absent.
-- Pole vault is an approximation. Hurdle mistake severity, some field-event staging, pole behavior, HUD placement and scenery clipping still differ. The projection math and sine table now match the original; full scene parity is not claimed.
+- Pole vault is an approximation. Some field-event staging, pole behavior and HUD placement still differ. The projection math and sine table now match the original; full scene parity is not claimed.
 - The original integer sine-table recurrence and interpolation are now reproduced exactly.
-- Music clips are extracted individually but not synthesized or played. Sampled effects are connected to a subset of game events.
+- Music uses offline MIDI renders with a General MIDI sound bank; instrument matching and audible cue timing remain unverified. Sampled effects are connected to a subset of game events.
 - The original progression/RMS save format is replaced by a simple local high-score file.
 - A 60-second event timeout prevents a stalled attempt from trapping the user; this is an added behavior.
 
@@ -147,4 +157,24 @@ These limits are deliberate disclosures of unfinished parity work, not a claim t
 Framework reference: [Macroquad documentation](https://docs.rs/macroquad/0.4.16/macroquad/).
 
 Original game, assets and decompiled source retain their original copyright notices: © 2008 RealNetworks, Inc.; developed by Mr. Goodliving Ltd. No new license to those materials is granted by this reconstruction.
-# playman-summer-games-rust
+
+## Hurdles rendering and music
+
+`make compare` exports the seven reference-input replays through the shared world
+renderer without a graphics context. Generated captures go to the ignored
+`analysis/hurdles/` directory. To generate comparison sheets against Java captures:
+
+```sh
+python3 tools/compare_hurdles.py ../reference-runner/captures/hurdles
+```
+
+This requires Pillow. Tests retain only the original assets and four selected
+world frames needed for regression checks. See [the Hurdles report](analysis/HURDLES-UPDATE.md)
+for the source map, fixture generation and verification limits.
+
+Music uses offline General MIDI renders; the game needs no runtime synthesizer.
+See [audio regeneration](tools/audio/README.md) for commands and sound-bank/loop
+limitations. Original WAV effects are unchanged.
+
+The local [Miniquad patch](vendor/miniquad/PATCHES.md) fixes a nil Cocoa application
+name crash. It does not resolve host graphics-access failures.

@@ -1,5 +1,6 @@
 //! Perspective track and scene placement, using the original world coordinate system.
 use crate::art::Art;
+use crate::render::{clear_background, draw_line, draw_rectangle, draw_triangle};
 use macroquad::prelude::*;
 use playman_rust::{
     Event, Game, Phase,
@@ -48,7 +49,25 @@ fn repeat_at(art: &Art, c: Camera, id: usize, z: i32, spacing: i32, time: i32, y
         0
     };
     while x < 240 {
-        art.scene_tween(id, frame, next, fraction, (x + spacing) as f32, y + 1.);
+        let cutoff = match (id, z) {
+            (8208, -29440) => Some(-24320),
+            (8207, -24320) => Some(-20480),
+            (8208, -10496) => Some(-5376),
+            (8207, -5376) => Some(-1536),
+            _ => None,
+        };
+        if let Some(z) = cutoff {
+            let bottom = project(c, 0, 0, z).y;
+            art.scene_clipped(
+                id,
+                [frame, next],
+                fraction,
+                vec2((x + spacing) as f32, y + 1.),
+                bottom,
+            );
+        } else {
+            art.scene_tween(id, frame, next, fraction, (x + spacing) as f32, y + 1.);
+        }
         x += width;
     }
 }
@@ -69,17 +88,39 @@ fn approach_equipment(art: &Art, c: Camera) {
     }
 }
 fn bands(c: Camera, ends: &[(i32, u32)]) {
-    let mut y = 0.;
-    for &(z, rgb) in ends {
-        let end = if z == i32::MAX {
-            320.
-        } else {
-            project(c, c.x, 0, z).y.clamp(0., 320.)
-        };
-        if end > y {
-            draw_rectangle(0., y, 240., end - y, color(rgb));
-            y = end
+    // Java d.J integrates 16.16 band coverage within each screen scanline.
+    // Preserve subpixel white separators rather than snapping boundaries.
+    let segments: Vec<_> = ends
+        .iter()
+        .map(|&(z, rgb)| {
+            (
+                if z == i32::MAX {
+                    320 << 16
+                } else {
+                    c.project_fixed(c.x, 0, z).1.clamp(0, 320 << 16)
+                },
+                rgb,
+            )
+        })
+        .collect();
+    for row in 0..320 {
+        let lo = row << 16;
+        let hi = (row + 1) << 16;
+        let mut start = 0;
+        let mut sum = [0i64; 3];
+        for &(end, rgb) in &segments {
+            let coverage = (end.min(hi) - start.max(lo)).max(0) as i64;
+            sum[0] += (rgb >> 16 & 255) as i64 * coverage;
+            sum[1] += (rgb >> 8 & 255) as i64 * coverage;
+            sum[2] += (rgb & 255) as i64 * coverage;
+            start = start.max(end);
+            if start >= hi {
+                break;
+            }
         }
+        let rgb =
+            ((sum[0] >> 16) as u32) << 16 | ((sum[1] >> 16) as u32) << 8 | (sum[2] >> 16) as u32;
+        draw_rectangle(0., row as f32, 240., 1., color(rgb));
     }
 }
 pub fn draw(
@@ -118,7 +159,7 @@ pub fn draw(
         let mut strips = vec![(-128000, 11725567), (-17920, 10143323), (-15360, ck)];
         let greens = [10143323, 12374893, 10143323, 11914837, 9814862, 11783245];
         for (n, col) in greens.iter().enumerate() {
-            strips.push((-13056 + 11034 * n as i32 / 5, *col));
+            strips.push(((-13056 * (5 - n as i32) - 2022 * n as i32) / 5, *col));
         }
         for n in 0..6 {
             strips.push(((-6 + n) * 333 + 12, 0xffffff));
@@ -130,12 +171,6 @@ pub fn draw(
         strips.push((24, 0xffffff));
         strips.push((i32::MAX, 0x3f3f3f));
         bands(c, &strips);
-        // Explicit separators keep thin far-lane stripes from collapsing
-        // when adjacent horizontal color bands round to the same pixel.
-        for lane in 0..=6 {
-            let y = project(c, c.x, 0, (-6 + lane) * 333 + 12).y;
-            draw_rectangle(0., y, 240., 1., WHITE);
-        }
         repeat(art, c, 8208, -29440, 0, scenery_time);
         repeat(art, c, 8207, -24320, 0, scenery_time);
         repeat(art, c, 8204, -20480, 0, scenery_time);
@@ -156,7 +191,7 @@ pub fn draw(
         art.bottom_center_sprite(711, finish_props.x, finish_props.y);
         art.bottom_center_sprite(712, finish_props.x + 32., finish_props.y);
         for x in (first..first + 12800).step_by(2560) {
-            if g.event == Event::Dash && x == 23040 {
+            if (g.event == Event::Dash && x == 23040) || (g.event == Event::Hurdles && x != 0) {
                 continue;
             }
             line(
@@ -204,19 +239,81 @@ pub fn draw(
         }
         repeat(art, c, 8200, 512, 0, scenery_time);
         if g.event == Event::Hurdles {
-            for i in 0..7 {
-                let x = (-117760 + 655360 + i * 983040) >> 8;
-                let p = project(c, x, 0, -833);
-                let fallen = g.tripped & (1 << i) != 0;
-                draw_line(p.x - 13., p.y - 23., p.x + 13., p.y - 23., 3., BLUE);
-                draw_line(
-                    p.x - 12.,
-                    p.y,
-                    p.x - 12.,
-                    p.y - if fallen { 4. } else { 23. },
-                    2.,
-                    WHITE,
-                );
+            let h = art.scene_height(16384) as f32;
+            for lane in 0..6 {
+                for index in 0..7 {
+                    let x = (10 + index * 15) * 256;
+                    if x <= c.x - 1920 || x >= c.x + 1920 {
+                        continue;
+                    }
+                    let back = project(c, x, 0, (-6 + lane) * 333 + 12);
+                    let front = project(c, x, 0, (-5 + lane) * 333 - 12);
+                    let fallen = lane == 3
+                        && g.runner.pos > ((10 + index * 15) << 16) - 25600
+                        && g.tripped & (1 << index) != 0;
+                    let frame = usize::from(fallen);
+                    art.scene_tween(16384, frame, frame, 0, back.x, back.y);
+                    if fallen {
+                        draw_line(
+                            back.x + h - 1.,
+                            back.y - 2.,
+                            back.x + h - 8.,
+                            back.y - 2.,
+                            1.,
+                            BLACK,
+                        );
+                        for offset in 2..=7 {
+                            draw_line(
+                                back.x + h - offset as f32,
+                                back.y - 1.,
+                                front.x + h - offset as f32,
+                                front.y - 1.,
+                                1.,
+                                WHITE,
+                            );
+                        }
+                        for offset in [1., 8.] {
+                            draw_line(
+                                back.x + h - offset,
+                                back.y - 1.,
+                                front.x + h - offset,
+                                front.y - 1.,
+                                1.,
+                                BLACK,
+                            );
+                        }
+                    } else {
+                        draw_line(
+                            back.x - 2.,
+                            back.y - h + 1.,
+                            back.x - 2.,
+                            back.y - h + 8.,
+                            1.,
+                            BLACK,
+                        );
+                        for offset in 2..=7 {
+                            draw_line(
+                                back.x - 1.,
+                                back.y - h + offset as f32,
+                                front.x - 1.,
+                                front.y - h + offset as f32,
+                                1.,
+                                WHITE,
+                            );
+                        }
+                        for offset in [1., 8.] {
+                            draw_line(
+                                back.x - 1.,
+                                back.y - h + offset,
+                                front.x - 1.,
+                                front.y - h + offset,
+                                1.,
+                                BLACK,
+                            );
+                        }
+                    }
+                    art.scene_tween(16384, frame, frame, 0, front.x, front.y);
+                }
             }
         }
     } else {
@@ -486,7 +583,11 @@ pub fn draw(
             true,
         );
         if let Some(t) = countdown.filter(|_| g.event.race()) {
-            art.animation(Animation::ready(t), p.x, p.y)
+            if g.event == Event::Hurdles && starter_time.is_none() {
+                art.animation(Animation::new(2378, 5, scenery_time, 200, true), p.x, p.y);
+            } else {
+                art.animation(Animation::ready(t), p.x, p.y)
+            }
         } else {
             if g.event == Event::LongJump
                 && matches!(

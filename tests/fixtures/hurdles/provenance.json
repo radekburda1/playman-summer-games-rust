@@ -1,0 +1,84 @@
+{
+  "method": "Isolated original-method replay; unmodified JAR, seed 12345, 32 ms simulation ticks. World renders, not a complete UI replay. Appearance normalized to the Rust default athlete for visual comparisons.",
+  "total_ticks_compared": 3726,
+  "scenarios": {
+    "boundary": {
+      "ticks_compared": 426,
+      "finish_centiseconds": 1056,
+      "fallen_mask": 0,
+      "stopped_position": 8847360,
+      "stopped_speed": -1
+    },
+    "clean": {
+      "ticks_compared": 452,
+      "finish_centiseconds": 1134,
+      "fallen_mask": 0,
+      "stopped_position": 8847360,
+      "stopped_speed": -1
+    },
+    "dive": {
+      "ticks_compared": 462,
+      "finish_centiseconds": 1146,
+      "fallen_mask": 0,
+      "stopped_position": 8847360,
+      "stopped_speed": -1
+    },
+    "idle": {
+      "ticks_compared": 753,
+      "finish_centiseconds": 2025,
+      "fallen_mask": 127,
+      "stopped_position": 8847360,
+      "stopped_speed": -1
+    },
+    "incomplete": {
+      "ticks_compared": 583,
+      "finish_centiseconds": 1490,
+      "fallen_mask": 127,
+      "stopped_position": 8847360,
+      "stopped_speed": -1
+    },
+    "late-dive": {
+      "ticks_compared": 453,
+      "finish_centiseconds": 1128,
+      "fallen_mask": 0,
+      "stopped_position": 8847360,
+      "stopped_speed": -1
+    },
+    "wrong": {
+      "ticks_compared": 597,
+      "finish_centiseconds": 1537,
+      "fallen_mask": 127,
+      "stopped_position": 8847360,
+      "stopped_speed": -1
+    }
+  },
+  "sha256": {
+    "HurdlesOracle.java": "24e83b8746799e2efe4b51e96a96c057a65d6636e1434d3801db1c87fb7fbb86",
+    "playmansum_2jvrll9n.jar": "abeba23badbf5e937b806c7e24165420c7dde08301c694f798b2d3c12f16962b",
+    "boundary.csv": "5f978a33cc80b7932baf38ff1e92a5329c0b4ca0a990456859df1cc9be684a43",
+    "clean.csv": "e69148dd6d64e026b9bdcef40bcb21fd83f39ede9a84773152dcda439052920e",
+    "dive.csv": "0cb000913bf81977a0bcc7cdbce03def773fbb81958b1246ebd2b7868051e411",
+    "idle.csv": "0fb7d6583cc32bc3265305cc497761e65939b292dcc3b211a6272c79be6071b1",
+    "incomplete.csv": "69154a0812be5580aa5673831bbe5f2bef9a4f1e429c45d80ad34bd7148cab57",
+    "late-dive.csv": "bc161ead845d8e31796dbbd52b06b1939e581b3fff56ebbfa5a5777c8d9e6bb4",
+    "wrong.csv": "9a098ba95e7956b42980b25780e0bc893aaac91e1a35d1303093ffaf5ddc3d33"
+  },
+  "fixture_images_sha256": {
+    "assets/asset-16384.png": "fd641a309275c602cf7c23d7e6df733da258628aa19f2e2de32d2255e5666779",
+    "assets/asset-8192.png": "e6ce91f6879a249fb65d4d55d98895de5cc3c2f419041fd2af5b3b02fb13a341",
+    "assets/asset-8195.png": "cfa01329fb3a3bb2272d77175515348b647a42c94ad981b9d5202c61ba495a94",
+    "assets/asset-8196.png": "97990cb9d90c8ecb5429e89498bf0cb3feb132a03e497cd102cb4ad3a38f62f1",
+    "assets/asset-8197.png": "02a1f850e6d72c8ec5ab59e33d4923b05d7d5906add3ed088556106e1a4c2bd0",
+    "assets/asset-8200.png": "cb4c1e9bccfad74d9dcf87c4c26db4a6926c7f3d0f80383a97eadb745bce7ecd",
+    "assets/asset-8201.png": "b93ed24b1695d264cb1b17ffb702c97decd1f9e304422fe4622eb27675370b93",
+    "assets/asset-8202.png": "0f1fd740da631364d3043a13f13c1b1a442220fd55cefe17a1623e28db66ae62",
+    "assets/asset-8204.png": "a31b1d1222fb89b35a92b8101544e8a45cb35af5a59456291fa0153f6f2f6832",
+    "assets/asset-8206.png": "79c09a08439d00f8ec7db45881c4dc52d002da3c94d64b4b923df8d5151d401e",
+    "assets/asset-8207.png": "00e699f877e9f48daed12ef05ab15e686fe76424759eb178f4affd948feb55c2",
+    "assets/asset-8208.png": "52973396c197f15a33cdd0615246d42baf3489bde5bc104603f4c481f8c1d82a",
+    "world/boundary-160.png": "9e29c2abb2742d88b695a6a4db47349b3fb9f512ad8af429b2ea7f61a0bae7bc",
+    "world/clean-80.png": "4cb3be03a4f373796910d2ddd9c786d7d02f126196bda097e6d98dcc627234b9",
+    "world/dive-320.png": "92917617512d7d992938f1d86e115fa429773fe7cd4e2c8aaf49eb1c8b5d7be1",
+    "world/wrong-160.png": "21f2c8e58c8c911d13be36c9612c7368720c0d5ce3672b393d844d5dc3f0b972"
+  }
+}

@@ -156,6 +156,7 @@ pub struct Runner {
     pub sequence: [usize; 3],
     pub sequence_index: usize,
     pub mistakes: i32,
+    pub previous_mistakes: i32,
     pub tick: i32,
     last_press: i32,
     burst: i32,
@@ -179,6 +180,7 @@ impl Runner {
             ],
             sequence_index: 0,
             mistakes: 0,
+            previous_mistakes: 0,
             tick: 0,
             last_press: 0,
             burst: 0,
@@ -197,6 +199,8 @@ impl Runner {
         ];
         self.sequence_index = 0;
         self.penalty(50 * self.mistakes / 3);
+        self.speed = 24000 - 8000 * (self.ages.iter().sum::<i32>() - 80) / 140;
+        self.previous_mistakes = self.mistakes;
         self.mistakes = 0;
     }
     fn penalty(&mut self, mut amount: i32) {
@@ -377,8 +381,10 @@ impl Game {
                     self.phase_time = 0;
                     self.runner.speed = 0;
                 }
+                let hurdle_window = (self.runner.pos + 327680) % 983040;
                 let permitted = self.phase == Phase::Run
-                    && (self.event != Event::Dash || self.runner.pos < 0x500000);
+                    && (self.event != Event::Dash || self.runner.pos < 0x500000)
+                    && (self.event != Event::Hurdles || (0..865280).contains(&hurdle_window));
                 if permitted {
                     let key = usize::from(matches!(input, Input::Right));
                     let slot = self.runner.sequence_index;
@@ -393,8 +399,8 @@ impl Game {
                             slot,
                         });
                     }
-                    if self.event == Event::LongJump {
-                        if !good {
+                    if self.event == Event::LongJump || self.event == Event::Hurdles {
+                        if !good && self.event == Event::LongJump {
                             self.sound_events.push(19);
                         }
                     } else {
@@ -411,7 +417,11 @@ impl Game {
                     };
                     if self.runner.pos >= min && self.runner.dive.is_none() {
                         self.runner.dive = Some(self.runner.pos);
-                        self.message("DIVE!")
+                        if self.event == Event::Hurdles {
+                            self.sound_events.push(20);
+                        } else {
+                            self.message("DIVE!");
+                        }
                     }
                 }
                 Event::LongJump => {
@@ -520,6 +530,21 @@ impl Game {
             self.phase_time += 32;
             return;
         }
+        if self.event == Event::Hurdles && self.runner.speed >= 0 {
+            let adjustment = self.runner.dive.map_or(0, |start| {
+                if self.runner.pos - start < 409600 {
+                    3900
+                } else {
+                    -3900
+                }
+            });
+            let ticks = (self.runner.speed - 4000 + adjustment) / 630;
+            let distance = ticks * (self.runner.speed + adjustment) - ticks * ticks * 630 / 2;
+            if 0x870000 > self.runner.pos + distance {
+                self.runner.pos += self.runner.speed + adjustment;
+                return;
+            }
+        }
         if self.runner.speed >= 4000 {
             self.runner.speed -= 630;
             if self.runner.speed < 4000 {
@@ -536,6 +561,10 @@ impl Game {
             }
         } else {
             self.phase_time += 32;
+        }
+        if self.event == Event::Hurdles && self.runner.pos > 0x870000 {
+            self.runner.pos = 0x870000;
+            self.runner.speed = -1;
         }
     }
     pub fn step(&mut self) {
@@ -571,6 +600,9 @@ impl Game {
             }
         } else {
             let old = r.pos;
+            if r.speed < 0 && self.elapsed > 5000 {
+                r.speed = 0;
+            }
             if r.sequence_index < 3 {
                 r.run(true)
             } else {
@@ -592,9 +624,11 @@ impl Game {
                 if self.hurdle_index >= 7 {
                     r.sequence_index = 3
                 }
-                self.message(if missed { "OUCH!" } else { "CLEAR!" });
+                self.sound_events
+                    .push(if r.previous_mistakes > 1 { 22 } else { 18 });
             }
             if self.runner.pos >= 0x780000 {
+                self.sound_events.push(13);
                 self.finish(Some(self.elapsed * 100 / 1024))
             }
         }

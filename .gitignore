@@ -5,3 +5,9 @@ smoke-test.png
 
 /web/game.wasm
 /web/mq_js_bundle.js
+
+# Local builds, replay exports and developer toolchain overrides.
+/dist/
+/analysis/hurdles/
+/.make.local
+__pycache__/

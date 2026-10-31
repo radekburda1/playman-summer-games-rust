@@ -53,6 +53,10 @@ impl Camera {
     }
     /// x,y,z are original projection units (simulation values shifted right by 8).
     pub fn project(self, x: i32, y: i32, z: i32) -> (i32, i32) {
+        let (x, y) = self.project_fixed(x, y, z);
+        (x >> 16, y >> 16)
+    }
+    pub fn project_fixed(self, x: i32, y: i32, z: i32) -> (i32, i32) {
         let x = x - self.x - 128;
         let y = y - self.y;
         let z = z - self.z;
@@ -61,11 +65,11 @@ impl Camera {
         let ry = ((c * y as i64 + s * z as i64) >> 14) as i32;
         let rz = ((-s * y as i64 + c * z as i64) >> 14) as i32;
         if rz >= 0 {
-            return (if x < 0 { 0 } else { 239 }, 319);
+            return (if x < 0 { 0 } else { 239 << 16 }, 319 << 16);
         }
         let sx = 0x780000 + (24641536i64 * x as i64 / (-rz) as i64) as i32;
         let sy = ((319 - 16 + 22) >> 1 << 16) - (24641536i64 * ry as i64 / (-rz) as i64) as i32;
-        (sx >> 16, sy >> 16)
+        (sx, sy)
     }
     /// Original d.B camera, before athlete-follow offsets are applied.
     pub fn race_at(target: i32) -> Self {
@@ -260,15 +264,13 @@ impl Animation {
                     return Self::new(2834, 16, p, 140, false);
                 }
                 if p < 28990 {
-                    let tripped =
-                        g.hurdle_index > 0 && g.tripped & (1 << (g.hurdle_index - 1)) != 0;
-                    return Self::new(
-                        if tripped { 2912 } else { 2866 },
-                        23,
-                        (p - 2100).rem_euclid(3840),
-                        175,
-                        false,
-                    );
+                    let offset = match r.previous_mistakes {
+                        1 => 2912,
+                        2 => 2958,
+                        3 => 3004,
+                        _ => 2866,
+                    };
+                    return Self::new(offset, 23, (p - 2100).rem_euclid(3840), 175, false);
                 }
                 return Self::new(2448, 11, p - 28990, 160, true);
             }

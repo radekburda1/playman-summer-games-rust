@@ -4,6 +4,12 @@ CARGO ?= cargo
 JAR ?= /Users/Radek.Burda/Downloads/playmansum_2jvrll9n.jar
 PORT ?= 8765
 WEB_PORT ?= 8767
+WEB_CARGO ?= $(CARGO)
+WEB_ENV ?=
+
+# Optional developer-only toolchain/cache overrides; never required by a checkout.
+-include $(PROJECT_DIR)/.make.local
+
 RUST_ARGS ?=
 
 .DEFAULT_GOAL := help
@@ -13,6 +19,8 @@ help:
 	@echo 'make rust      Run the Rust game (release build)'
 	@echo 'make java      Run the original Java game; open http://127.0.0.1:$(PORT)'
 	@echo 'make web       Build and serve the Rust browser version on port $(WEB_PORT)'
+	@echo 'make web-setup Install the WASM target for the active Rust toolchain'
+	@echo 'make compare   Export Hurdles replay frames without a graphics context'
 	@echo 'make build     Build the Rust game'
 	@echo 'make test      Run Rust tests'
 	@echo 'Overrides: JAR=/path/game.jar PORT=8766 PLAYMAN_JAVA=/path/to/java'
@@ -37,9 +45,16 @@ test:
 
 # One-time prerequisite: rustup target add wasm32-unknown-unknown
 web-build:
-	cd "$(PROJECT_DIR)" && $(CARGO) build --release --locked --target wasm32-unknown-unknown
-	cd "$(PROJECT_DIR)" && $(CARGO) metadata --locked --format-version 1 | python3 tools/prepare_web.py
+	cd "$(PROJECT_DIR)" && $(WEB_ENV) $(WEB_CARGO) build --bin playman-rust --release --locked --target wasm32-unknown-unknown
+	cd "$(PROJECT_DIR)" && $(WEB_ENV) $(WEB_CARGO) metadata --locked --format-version 1 | python3 tools/prepare_web.py
 
 web: web-build
 	@echo 'Rust browser game: http://127.0.0.1:$(WEB_PORT) (Ctrl+C to stop)'
 	python3 -m http.server "$(WEB_PORT)" --bind 127.0.0.1 --directory "$(PROJECT_DIR)/web"
+
+.PHONY: web-setup compare
+web-setup:
+	rustup target add wasm32-unknown-unknown
+
+compare:
+	cd "$(PROJECT_DIR)" && $(CARGO) run --locked --bin compare -- analysis/hurdles/rust

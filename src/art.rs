@@ -1,3 +1,4 @@
+use crate::render::{draw_line, draw_rectangle};
 use macroquad::prelude::*;
 use playman_rust::{
     Game,
@@ -5,7 +6,7 @@ use playman_rust::{
     presentation::Animation,
 };
 pub struct Art {
-    atlas: Texture2D,
+    atlas: Option<Texture2D>,
     artwork: Artwork,
 }
 impl Art {
@@ -16,7 +17,15 @@ impl Art {
         );
         atlas.set_filter(FilterMode::Nearest);
         Self {
-            atlas,
+            atlas: Some(atlas),
+            artwork: Artwork::new(),
+        }
+    }
+    #[allow(dead_code)]
+    pub fn new_software() -> Self {
+        crate::render::begin_software();
+        Self {
+            atlas: None,
             artwork: Artwork::new(),
         }
     }
@@ -26,16 +35,22 @@ impl Art {
             Command::Image {
                 source: [x, y, w, h],
                 dest: [dx, dy],
-            } => draw_texture_ex(
-                &self.atlas,
-                dx,
-                dy,
-                WHITE,
-                DrawTextureParams {
-                    source: Some(Rect::new(x, y, w, h)),
-                    ..Default::default()
-                },
-            ),
+            } => {
+                if self.atlas.is_none() {
+                    crate::render::blit([x, y, w, h], [dx, dy], 1.);
+                    return;
+                }
+                draw_texture_ex(
+                    self.atlas.as_ref().unwrap(),
+                    dx,
+                    dy,
+                    WHITE,
+                    DrawTextureParams {
+                        source: Some(Rect::new(x, y, w, h)),
+                        ..Default::default()
+                    },
+                )
+            }
             Command::Rect {
                 bounds: [x, y, w, h],
                 rgb,
@@ -95,8 +110,16 @@ impl Art {
             ..
         }) = self.artwork.sprite(id, 0, 0., 0., false)
         {
+            if self.atlas.is_none() {
+                crate::render::blit(
+                    [sx, sy, w, h],
+                    [x - w * scale / 2., y - h * scale / 2.],
+                    scale,
+                );
+                return;
+            }
             draw_texture_ex(
-                &self.atlas,
+                self.atlas.as_ref().unwrap(),
                 x - w * scale / 2.,
                 y - h * scale / 2.,
                 WHITE,
@@ -235,8 +258,41 @@ impl Art {
                 }
             })
     }
+    pub fn scene_height(&self, id: usize) -> i32 {
+        self.artwork.height(id)
+    }
     pub fn scene_width(&self, id: usize) -> i32 {
         self.artwork.width(id)
+    }
+    pub fn scene_clipped(
+        &self,
+        id: usize,
+        frames: [usize; 2],
+        fraction: i32,
+        position: Vec2,
+        bottom: f32,
+    ) {
+        for mut command in self
+            .artwork
+            .frame(id, frames[0], frames[1], fraction, position.x, position.y)
+        {
+            match &mut command {
+                Command::Image { source, dest } => {
+                    source[3] = source[3].min(bottom - dest[1]);
+                    if source[3] <= 0. {
+                        continue;
+                    }
+                }
+                Command::Rect { bounds, .. } => {
+                    bounds[3] = bounds[3].min(bottom - bounds[1]);
+                    if bounds[3] <= 0. {
+                        continue;
+                    }
+                }
+                _ => {}
+            }
+            self.draw(command);
+        }
     }
     pub fn scene_tween(&self, id: usize, frame: usize, next: usize, fraction: i32, x: f32, y: f32) {
         for c in self.artwork.frame(id, frame, next, fraction, x, y) {

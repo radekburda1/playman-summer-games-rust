@@ -40,6 +40,11 @@ impl Artwork {
         let p = d[1 + (id & 8191)] as usize;
         d[p + 3] as i32
     }
+    pub fn height(&self, id: usize) -> i32 {
+        let d = &self.scenes[id >> 13];
+        let p = d[1 + (id & 8191)] as usize;
+        d[p + 4] as i32
+    }
     pub fn sprite(
         &self,
         id: usize,

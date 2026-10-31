@@ -1,4 +1,5 @@
 mod art;
+mod render;
 mod sound;
 mod ui;
 mod world;
@@ -390,12 +391,18 @@ async fn main() {
         {
             sounds.play(25)
         }
-        if app.game.event != Event::LongJump
+        if !matches!(app.game.event, Event::LongJump | Event::Hurdles)
             && matches!(app.screen, Screen::Finish | Screen::Results)
             && old_screen == Screen::Play
         {
             sounds.play(if app.game.result.is_some() { 26 } else { 22 })
         }
+        if app.screen == Screen::Finish && old_screen != Screen::Finish && app.game.finish_record {
+            sounds.play(8);
+        }
+        sounds
+            .update_music(1 + (app.seed as usize / 1009) % 3)
+            .await;
         for sound in app.game.sound_events.drain(..) {
             sounds.play(sound);
         }

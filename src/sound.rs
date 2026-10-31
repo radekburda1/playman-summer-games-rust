@@ -1,7 +1,14 @@
-use macroquad::audio::{PlaySoundParams, Sound, load_sound_from_bytes, play_sound};
+use macroquad::audio::{
+    PlaySoundParams, Sound, load_sound_from_bytes, play_sound, set_sound_volume, stop_sound,
+};
+include!("../assets/music/catalog.rs");
 pub struct Sounds {
     clips: Vec<Option<Sound>>,
     pub muted: bool,
+    music: Option<Sound>,
+    music_id: Option<usize>,
+    jingle_until: f64,
+    requested_jingle: Option<usize>,
 }
 impl Sounds {
     pub async fn load() -> Self {
@@ -29,9 +36,53 @@ impl Sounds {
         Self {
             clips,
             muted: false,
+            music: None,
+            music_id: None,
+            jingle_until: 0.,
+            requested_jingle: Some(11),
         }
     }
-    pub fn play(&self, id: usize) {
+    pub async fn update_music(&mut self, background: usize) {
+        for sound in self.clips.iter().flatten() {
+            set_sound_volume(sound, if self.muted { 0. } else { 0.55 });
+        }
+        let restart = self.requested_jingle.is_some();
+        let now = macroquad::time::get_time();
+        let (id, looped) = if let Some(id) = self.requested_jingle.take() {
+            self.jingle_until = now + MUSIC_DURATION[id];
+            (id, false)
+        } else if self.jingle_until > now {
+            if let Some(sound) = self.music.as_ref() {
+                set_sound_volume(sound, if self.muted { 0. } else { 0.45 });
+            }
+            return;
+        } else {
+            (background, true)
+        };
+        if restart || self.music_id != Some(id) {
+            if let Some(previous) = self.music.take() {
+                stop_sound(&previous);
+            }
+            self.music_id = Some(id);
+            self.music = load_sound_from_bytes(MUSIC[id]).await.ok();
+            if let Some(sound) = self.music.as_ref() {
+                play_sound(
+                    sound,
+                    PlaySoundParams {
+                        looped,
+                        volume: if self.muted { 0. } else { 0.45 },
+                    },
+                );
+            }
+        } else if let Some(sound) = self.music.as_ref() {
+            set_sound_volume(sound, if self.muted { 0. } else { 0.45 });
+        }
+    }
+    pub fn play(&mut self, id: usize) {
+        if id < 12 {
+            self.requested_jingle = Some(id);
+            return;
+        }
         if !self.muted
             && let Some(Some(sound)) = id.checked_sub(12).and_then(|i| self.clips.get(i))
         {

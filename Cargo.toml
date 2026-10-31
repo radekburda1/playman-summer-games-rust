@@ -1,5 +1,6 @@
 [package]
 name = "playman-rust"
+default-run = "playman-rust"
 version = "0.1.0"
 edition = "2024"
 description = "Native Rust reconstruction of Playman Summer Games 3"
@@ -9,3 +10,6 @@ macroquad = { version = "=0.4.16", features = ["audio"] }
 
 [profile.release]
 lto = "thin"
+
+[patch.crates-io]
+miniquad = { path = "vendor/miniquad" }

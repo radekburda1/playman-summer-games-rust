@@ -1,0 +1,65 @@
+{
+  "renderer": "Temurin 21 Gervill software General MIDI, 22050 Hz stereo, sinc interpolation, reverb/chorus; 2-second release tail; Vorbis quality 4",
+  "clips": {
+    "0": {
+      "duration_seconds": 94.30757369614513,
+      "midi_sha256": "db8c77fe27608f370ba72db26c13644e26c71a38849a1c9b6a60885f05600dc0",
+      "ogg_sha256": "c1d98c4ff0c6f7676cab1cf048b6530fc283d0b7105e76bd2e4314fb58d1ae16"
+    },
+    "1": {
+      "duration_seconds": 223.538231292517,
+      "midi_sha256": "ce402965c49313abca2f7515010c0a183449475554fe84929ed79bb2ea21cb80",
+      "ogg_sha256": "01eefa6a50dbda41dbd9d19de2af8e528bcb2905e9a5632dea663b85d391c7d7"
+    },
+    "2": {
+      "duration_seconds": 223.538231292517,
+      "midi_sha256": "b6038b60f8001549384ba5d1817e89e16d0caa3966999c91f7c2a6cc9105b3da",
+      "ogg_sha256": "b3413e30f2545259b9a6cf1e5193e69090eac3eac664e2f4e81224db7a9c9994"
+    },
+    "3": {
+      "duration_seconds": 223.538231292517,
+      "midi_sha256": "445c9799b99821317cfc0e9c6fb79a50f8d22a57bdd2690d300775f27235c95d",
+      "ogg_sha256": "a2ce59b46dcca23d35e743c397b059bdc7c3d80bb204d1832fa1c17feb581d16"
+    },
+    "4": {
+      "duration_seconds": 16.76920634920635,
+      "midi_sha256": "438e0432e1193cbe7773f3a8a65a520d6aebf8301f4160e127fe5a0dca715c66",
+      "ogg_sha256": "11a9093599f122f21f4ea981d51ba376faa7a0eaa3c9fd83f3b99470cf43b4b8"
+    },
+    "5": {
+      "duration_seconds": 16.76920634920635,
+      "midi_sha256": "afdcad50f2ea9021e281411a196a91d09e7bd24ce6bd04da7bb2fd4af10f97b2",
+      "ogg_sha256": "207812991dd46b574a32a3a0ca3a712b1a3dc80287f08792883c6d1c9b106b5d"
+    },
+    "6": {
+      "duration_seconds": 16.76920634920635,
+      "midi_sha256": "d0fd8e001f98edebe85f00aa4e53f3e539dff6656b3e7b39cfd5baea491b76fe",
+      "ogg_sha256": "d3dd44d901d8120846b18e7390baca917b84f3ead5c38120765c4ccbce9aeaf2"
+    },
+    "7": {
+      "duration_seconds": 31.5384126984127,
+      "midi_sha256": "b7fd0240e690aa54162fe2bbca4466bb725d2fb0a745d0dd7e39b202939b3b46",
+      "ogg_sha256": "d3029a4b9b1bbfd65f2a44851c984006cfc1a30710b67877d03b0c93ac37c31b"
+    },
+    "8": {
+      "duration_seconds": 7.999954648526077,
+      "midi_sha256": "d301ddfb65e67db404b30745131a9cb4d34381d01f797434b0316d134d62f5fe",
+      "ogg_sha256": "15c8bf6eec266c3094be013d0451cb3c5e5e7352fcf18dc8fbf62a050718c01c"
+    },
+    "9": {
+      "duration_seconds": 9.384580498866214,
+      "midi_sha256": "691214f90e8fb555b91c7cb49953cdb1c11fb69372bf86caa3cc832e0c48e97b",
+      "ogg_sha256": "b49a6b5de2bfc51e3d3f393bcbd7c83e4f6ad1d075098504a9c33b5e3ada615b"
+    },
+    "10": {
+      "duration_seconds": 13.076870748299319,
+      "midi_sha256": "360ddfa5196b31eb283e20cc5b791e1271fde111d54389f9e54d8fe12da4d941",
+      "ogg_sha256": "e4ce4d269184dde8cc20996693b586484de7ea65514c3999d60ec1c02b8c964c"
+    },
+    "11": {
+      "duration_seconds": 30.615328798185942,
+      "midi_sha256": "67ab3eec45625d67eda89eee309c7fa1aa7ff67f8f3c0eea6a99703416b969cc",
+      "ogg_sha256": "6f2e7795b5b9a336f36a8c721dd5a4ed6702a397e97b580534e8c74875873505"
+    }
+  }
+}
