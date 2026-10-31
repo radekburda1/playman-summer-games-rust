@@ -119,6 +119,10 @@ impl Event {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Phase {
+    Prepare,
+    LandGood,
+    LandBad,
+    FoulRun,
     Run,
     Approach,
     Air,
@@ -292,6 +296,10 @@ pub struct Game {
     pub finished: bool,
     pub finish_good: bool,
     pub finish_record: bool,
+    pub takeoff_pos: i32,
+    pub sound_events: Vec<usize>,
+    pub record_distance: Option<i32>,
+    pub landing_good: bool,
     pub feedback: String,
     pub feedback_time: i32,
     pub projectile: [i64; 6],
@@ -313,13 +321,21 @@ impl Game {
         let mut g = Self {
             event,
             runner: Runner::new(seed, pos),
-            phase: Phase::Run,
+            phase: if event == Event::LongJump {
+                Phase::Prepare
+            } else {
+                Phase::Run
+            },
             elapsed: 0,
             phase_time: 0,
             result: None,
             finished: false,
             finish_good: false,
             finish_record: false,
+            takeoff_pos: 0,
+            sound_events: Vec::new(),
+            record_distance: None,
+            landing_good: false,
             feedback: String::new(),
             feedback_time: 0,
             projectile: [0; 6],
@@ -356,6 +372,11 @@ impl Game {
         }
         match input {
             Input::Left | Input::Right => {
+                if self.event == Event::LongJump && self.phase == Phase::Prepare {
+                    self.phase = Phase::Run;
+                    self.phase_time = 0;
+                    self.runner.speed = 0;
+                }
                 let permitted = self.phase == Phase::Run
                     && (self.event != Event::Dash || self.runner.pos < 0x500000);
                 if permitted {
@@ -372,7 +393,13 @@ impl Game {
                             slot,
                         });
                     }
-                    self.message(if good { "NICE!" } else { "WRONG BUTTON" });
+                    if self.event == Event::LongJump {
+                        if !good {
+                            self.sound_events.push(19);
+                        }
+                    } else {
+                        self.message(if good { "NICE!" } else { "WRONG BUTTON" });
+                    }
                 }
             }
             Input::ActionDown => match self.event {
@@ -389,11 +416,17 @@ impl Game {
                 }
                 Event::LongJump => {
                     if self.phase == Phase::Approach {
+                        self.takeoff_pos = self.runner.pos;
                         if self.runner.pos > 0 {
-                            self.finish(None);
+                            self.runner.speed = 16000 + (self.runner.speed - 16000) / 2;
+                            self.phase = Phase::FoulRun;
+                            self.phase_time = 0;
+                            self.sound_events.push(22);
+                            self.message("FOUL");
                             return;
                         }
                         self.phase = Phase::Air;
+                        self.sound_events.push(18);
                         self.phase_time = 0;
                         self.runner.vertical = (4000 + self.runner.speed * 300 / 1000).min(13000);
                         self.runner.speed = 16000 + (self.runner.speed - 16000) / 2;
@@ -402,9 +435,12 @@ impl Game {
                             self.runner.vertical += (8000 - self.runner.vertical.abs() / 4).max(0);
                             self.phase = Phase::Stretch;
                             self.phase_time = 0;
+                            self.sound_events.push(20);
                             self.message("STRETCH!");
                         } else {
                             self.phase = Phase::BadStretch;
+                            self.phase_time = 0;
+                            self.sound_events.push(22);
                             self.message("TOO EARLY!")
                         }
                     }
@@ -478,6 +514,10 @@ impl Game {
     /// Post-finish movement leaves the measured result and race clock untouched.
     pub fn step_finish(&mut self) {
         if !self.finished {
+            return;
+        }
+        if self.event == Event::LongJump {
+            self.phase_time += 32;
             return;
         }
         if self.runner.speed >= 4000 {
@@ -561,17 +601,33 @@ impl Game {
     }
     fn jump_step(&mut self) {
         match self.phase {
+            Phase::Prepare => {
+                if self.phase_time >= 1200 {
+                    self.phase = Phase::Run;
+                    self.phase_time = 0;
+                    self.runner.speed = 0;
+                }
+            }
             Phase::Run => {
                 self.runner.run(false);
                 if self.runner.pos >= -1048576 {
                     self.phase = Phase::Approach;
-                    self.message("JUMP BEFORE THE BOARD!")
+                    self.phase_time = 0;
                 }
             }
             Phase::Approach => {
                 self.runner.move_by(0);
                 if self.runner.pos >= 131072 {
-                    self.finish(None)
+                    self.phase = Phase::FoulRun;
+                    self.phase_time = 0;
+                    self.sound_events.push(22);
+                    self.message("FOUL");
+                }
+            }
+            Phase::FoulRun => {
+                self.runner.move_by(0);
+                if self.phase_time > 2000 {
+                    self.finish(None);
                 }
             }
             Phase::Air | Phase::Stretch | Phase::BadStretch => {
@@ -582,13 +638,43 @@ impl Game {
                 }
                 self.runner.move_by(650);
                 if self.runner.height < 0 {
+                    self.sound_events.push(
+                        if self.phase == Phase::Stretch && self.runner.pos >= 0 {
+                            26
+                        } else {
+                            22
+                        },
+                    );
                     self.runner.height = 0;
-                    let result = if self.runner.pos < 0 {
-                        None
+                    self.runner.vertical = 0;
+                    if self.runner.pos < 0 {
+                        self.phase = Phase::FoulRun;
+                        self.result = None;
                     } else {
-                        Some(self.runner.pos * 100 / 106496)
-                    };
-                    self.finish(result)
+                        self.result = Some(self.runner.pos * 100 / 106496);
+                        self.landing_good = self.phase == Phase::Stretch;
+                        self.phase = if self.landing_good {
+                            Phase::LandGood
+                        } else {
+                            Phase::LandBad
+                        };
+                    }
+                    self.runner.speed =
+                        self.runner
+                            .speed
+                            .max(if self.landing_good { 20000 } else { 16000 });
+                    self.phase_time = 0;
+                }
+            }
+            Phase::LandGood | Phase::LandBad => {
+                self.runner.speed = (self.runner.speed - 1400).max(0);
+                self.runner.move_by(0);
+                let bump = 1080..1200;
+                if bump.contains(&self.phase_time) {
+                    self.runner.pos += 4000;
+                }
+                if self.phase_time > 2000 {
+                    self.finish(self.result);
                 }
             }
             _ => {}
@@ -771,7 +857,7 @@ mod tests {
         g.phase = Phase::Approach;
         g.runner.pos = 1;
         g.input(Input::ActionDown);
-        assert!(g.finished);
+        assert_eq!(g.phase, Phase::FoulRun);
         assert_eq!(g.result, None)
     }
     #[test]

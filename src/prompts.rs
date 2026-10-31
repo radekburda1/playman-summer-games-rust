@@ -14,7 +14,7 @@ pub struct Prompt {
     pub y: i32,
 }
 pub fn running(g: &Game) -> Vec<Prompt> {
-    if g.finished || g.phase != Phase::Run {
+    if g.finished || !matches!(g.phase, Phase::Run | Phase::Prepare) {
         return Vec::new();
     }
     let cutoff = if g.event == Event::Dash {

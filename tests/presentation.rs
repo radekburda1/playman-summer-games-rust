@@ -35,7 +35,8 @@ fn race_animation_depends_on_distance_not_elapsed_time() {
 }
 #[test]
 fn field_animation_wraps_negative_runup() {
-    let g = Game::new(Event::LongJump, 1);
+    let mut g = Game::new(Event::LongJump, 1);
+    g.phase = playman_rust::Phase::Run;
     let a = Animation::for_game(&g);
     let (i, j, f) = a.frames(include_bytes!("../assets/tables.bin"));
     assert_ne!(i, j);

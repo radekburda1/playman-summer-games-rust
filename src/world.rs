@@ -52,6 +52,22 @@ fn repeat_at(art: &Art, c: Camera, id: usize, z: i32, spacing: i32, time: i32, y
         x += width;
     }
 }
+// Original d.h: approach-side equipment repeats only to the left of -4608.
+fn approach_equipment(art: &Art, c: Camera) {
+    let period = art.scene_width(8196) + 256;
+    if period <= 0 {
+        return;
+    }
+    let anchor = project(c, -4608, 0, -512);
+    let mut x = anchor.x as i32;
+    if x > x % period + period {
+        x = x % period + period;
+    }
+    while x > 0 {
+        x -= period;
+        art.scene_tween(8196, 0, 0, 0, (x + 256) as f32, anchor.y + 1.);
+    }
+}
 fn bands(c: Camera, ends: &[(i32, u32)]) {
     let mut y = 0.;
     for &(z, rgb) in ends {
@@ -216,13 +232,220 @@ pub fn draw(
                 (i32::MAX, ci),
             ],
         );
+        if g.event == Event::LongJump {
+            repeat(art, c, 8222, -128000, 0, scenery_time);
+        }
         repeat(art, c, 8208, -10496, 0, scenery_time);
         repeat(art, c, 8207, -5376, 0, scenery_time);
-        repeat(art, c, 8192, -1536, 0, scenery_time);
+        let stadium_y = project(c, 0, 0, -1536).y;
+        repeat_at(art, c, 8192, -1536, 0, scenery_time, stadium_y - 20.);
+        repeat_at(art, c, 8195, -1536, 0, scenery_time, stadium_y - 20.);
+        repeat_at(art, c, 8197, -1280, 0, scenery_time, stadium_y);
         if g.event == Event::LongJump {
-            quad(c, 416, 5408, -400, 400, color(16049328));
-            line(c, (0, 0, -244), (0, 0, 244), 5., WHITE);
-            line(c, (-4096, 0, -244), (-4096, 0, 244), 2., WHITE);
+            approach_equipment(art, c);
+            let equipment = project(c, 2496, 0, -768);
+            art.scene_tween(8212, 0, 0, 0, equipment.x, equipment.y);
+        }
+        if g.event == Event::LongJump {
+            // Original inset approach stripes and white/red takeoff board.
+            line(c, (0, 0, -244), (0, 0, 244), 8., WHITE);
+            let a = project(c, 0, 0, -244);
+            let b = project(c, 0, 0, 244);
+            for dx in 1..5 {
+                draw_line(
+                    a.x + dx as f32,
+                    a.y,
+                    b.x + dx as f32,
+                    b.y,
+                    1.,
+                    color(0xe03030),
+                );
+            }
+            line(c, (-4096, 0, 0), (-4156, 0, -60), 4., WHITE);
+            line(c, (-4096, 0, 0), (-4156, 0, 60), 4., WHITE);
+            for z in [-340, 256] {
+                for (x, width, rgb) in [
+                    (-4112, 32, 0xffffff),
+                    (-4080, 1334, 16776502),
+                    (-2746, 32, 0xffffff),
+                    (-2714, 1333, 15834373),
+                    (-1381, 32, 0xffffff),
+                    (-1349, 1333, 13641520),
+                ] {
+                    quad(c, x, x + width, z, z + 84, color(rgb));
+                }
+            }
+            for (id, z) in [(493, -320), (492, 320)] {
+                let p = project(c, 0, 0, z);
+                art.bottom_center_sprite(id, p.x, p.y);
+            }
+            if c.x > -1920 {
+                let back_left = project(c, 416, 0, -400);
+                let back_right = project(c, 5408, 0, -400);
+                let front_left = project(c, 416, 0, 400);
+                let front_right = project(c, 5408, 0, 400);
+                let top = back_left.y as i32;
+                let bottom = front_left.y as i32;
+                if bottom > top {
+                    let step = ((bottom - top + 1) << 8) / 20;
+                    let mut row = top << 8;
+                    let mut left = ((back_left.x as i32) << 8) + 128;
+                    let mut right = ((back_right.x as i32) << 8) + 128;
+                    let dl = (((front_left.x - back_left.x) as i32) << 8) / 20;
+                    let dr = (((front_right.x - back_right.x) as i32) << 8) / 20;
+                    let mut rgb = [
+                        (16049328 >> 16 & 255) << 8,
+                        (16049328 >> 8 & 255) << 8,
+                        (16049328 & 255) << 8,
+                    ];
+                    let target = [13742479 >> 16 & 255, 13742479 >> 8 & 255, 13742479 & 255];
+                    let delta = [
+                        ((target[0] << 8) - rgb[0]) / 20,
+                        ((target[1] << 8) - rgb[1]) / 20,
+                        ((target[2] << 8) - rgb[2]) / 20,
+                    ];
+                    while row < (bottom + 1) << 8 {
+                        draw_rectangle(
+                            (left >> 8) as f32,
+                            (row >> 8) as f32,
+                            ((right >> 8) - (left >> 8) + 1) as f32,
+                            ((step >> 8) + 1) as f32,
+                            color(
+                                ((rgb[0] << 8) & 0xff0000 | rgb[1] & 0xff00 | rgb[2] >> 8 & 255)
+                                    as u32,
+                            ),
+                        );
+                        row += step;
+                        left += dl;
+                        right += dr;
+                        for i in 0..3 {
+                            rgb[i] += delta[i];
+                        }
+                    }
+                    let interp = |a: f32, b: f32, t: i32| {
+                        (a as i32 * (bottom - top - t) + b as i32 * t) / (bottom - top)
+                    };
+                    let l0 = interp(back_left.x, front_left.x, -10);
+                    let l1 = interp(back_left.x, front_left.x, bottom - top + 10);
+                    let r0 = interp(back_right.x, front_right.x, -10);
+                    let r1 = interp(back_right.x, front_right.x, bottom - top + 10);
+                    let rear_left = if l0 < 120 { back_left.x as i32 } else { l0 };
+                    let rear_right = if r0 < 120 { r0 } else { back_right.x as i32 };
+                    let near_left = if l1 < 120 { front_left.x as i32 } else { l1 };
+                    let near_right = if r1 < 120 { front_right.x as i32 } else { r1 };
+                    draw_rectangle(
+                        rear_left as f32,
+                        (top - 10) as f32,
+                        (rear_right - rear_left) as f32,
+                        10.,
+                        color(0x484848),
+                    );
+                    draw_rectangle(
+                        near_left as f32,
+                        bottom as f32,
+                        (near_right - near_left) as f32,
+                        10.,
+                        color(0x484848),
+                    );
+                    for stripe in 1..5 {
+                        let d = 10 * stripe / 5;
+                        draw_line(
+                            rear_left as f32,
+                            (top - d) as f32,
+                            rear_right as f32,
+                            (top - d) as f32,
+                            1.,
+                            color(0x323232),
+                        );
+                        draw_line(
+                            near_left as f32,
+                            (bottom + d) as f32,
+                            near_right as f32,
+                            (bottom + d) as f32,
+                            1.,
+                            color(0x323232),
+                        );
+                    }
+                    for offset in -1..7 {
+                        draw_line(
+                            (l0 - offset) as f32,
+                            (top - 10) as f32,
+                            (l1 - offset) as f32,
+                            (bottom + 9) as f32,
+                            1.,
+                            color(0x484848),
+                        );
+                        draw_line(
+                            (r0 + offset) as f32,
+                            (top - 10) as f32,
+                            (r1 + offset) as f32,
+                            (bottom + 9) as f32,
+                            1.,
+                            color(0x484848),
+                        );
+                    }
+                }
+                let ruler_start = project(c, 416, 0, -528);
+                let ruler_end = project(c, 4160, 0, -528);
+                draw_rectangle(
+                    ruler_start.x,
+                    ruler_start.y - 29.,
+                    ruler_end.x - ruler_start.x,
+                    29.,
+                    WHITE,
+                );
+                for meter in 1..10 {
+                    let a = project(c, 416 * meter, 0, -528);
+                    let b = project(c, 416 * (meter + 1), 0, -528);
+                    if meter > 1 {
+                        art.label(5, &meter.to_string(), a.x, ruler_start.y - 27., 1);
+                    }
+                    for tick in 0..10 {
+                        let x = a.x + (b.x - a.x) * tick as f32 / 10.;
+                        draw_rectangle(
+                            x,
+                            ruler_start.y - 9.,
+                            ((b.x - a.x) / 10.).max(1.),
+                            8.,
+                            color(if tick % 2 == 0 { 11670053 } else { 16518171 }),
+                        );
+                    }
+                }
+            }
+            if let Some(record) = g.record_distance {
+                let x = record * 416 / 100;
+                line(c, (x, 0, -400), (x, 0, 400), 5., color(16098699));
+                let flag = project(c, x, 0, -400);
+                art.bottom_center_sprite(483, flag.x, flag.y);
+            }
+            repeat(art, c, 8200, 896, art.scene_width(8200), scenery_time);
+            let official = project(c, 0, 0, -640);
+            let foul = matches!(g.phase, Phase::FoulRun) || (g.finished && g.result.is_none());
+            art.scene_tween(
+                16385,
+                usize::from(foul),
+                usize::from(foul),
+                0,
+                official.x,
+                official.y,
+            );
+            if !matches!(g.phase, Phase::Prepare | Phase::Run | Phase::Approach) {
+                let takeoff = project(c, g.takeoff_pos >> 8, 0, 0);
+                art.right_center_sprite(
+                    if foul && scenery_time % 600 < 300 {
+                        479
+                    } else {
+                        478
+                    },
+                    takeoff.x + 1.,
+                    takeoff.y,
+                );
+            }
+            if let Some(distance) = g.result {
+                let mark = project(c, distance * 416 / 100, 0, 0);
+                art.sprite(482, mark.x - 6., mark.y, true);
+                art.sprite(462, mark.x - 6., mark.y - 3., false);
+            }
         }
         if g.event == Event::Javelin {
             line(c, (0, 0, -512), (0, 0, 512), 4., WHITE);
@@ -265,7 +488,16 @@ pub fn draw(
         if let Some(t) = countdown.filter(|_| g.event.race()) {
             art.animation(Animation::ready(t), p.x, p.y)
         } else {
-            art.athlete(g, p.x, p.y)
+            if g.event == Event::LongJump
+                && matches!(
+                    g.phase,
+                    Phase::Stretch | Phase::LandGood | Phase::LandBad | Phase::Done
+                )
+            {
+                art.animation_ground_clip(Animation::for_game(g), p.x, p.y, p.y);
+            } else {
+                art.athlete(g, p.x, p.y)
+            }
         }
     }
     if g.event.race() {

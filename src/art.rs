@@ -53,6 +53,18 @@ impl Art {
             self.draw(c)
         }
     }
+    pub fn right_center_sprite(&self, id: usize, x: f32, y: f32) {
+        if let Some(Command::Image {
+            source: [sx, sy, w, h],
+            ..
+        }) = self.artwork.sprite(id, 0, 0., 0., false)
+        {
+            self.draw(Command::Image {
+                source: [sx, sy, w, h],
+                dest: [x - w, y - (h as i32 / 2) as f32],
+            });
+        }
+    }
     pub fn bottom_center_sprite(&self, id: usize, x: f32, y: f32) {
         if let Some(Command::Image {
             source: [sx, sy, w, h],
@@ -94,6 +106,35 @@ impl Art {
                     ..Default::default()
                 },
             )
+        }
+    }
+    pub fn rounded_panel(&self, x: f32, y: f32, w: f32, h: f32) {
+        draw_rectangle(x + 8., y, w - 16., 8., WHITE);
+        draw_rectangle(x, y + 8., w, h - 16., WHITE);
+        draw_rectangle(x + 8., y + h - 8., w - 16., 8., WHITE);
+        for (a, b, c, d) in [
+            (x + 8., y, x + w - 9., y),
+            (x + w - 1., y + 8., x + w - 1., y + h - 9.),
+            (x, y + 8., x, y + h - 9.),
+            (x + 8., y + h - 1., x + w - 9., y + h - 1.),
+            (x + 1., y + 8., x + 1., y + h - 9.),
+            (x + 8., y + h - 2., x + w - 9., y + h - 2.),
+        ] {
+            draw_line(a, b, c, d, 1., BLACK);
+        }
+        for id in 37..=40 {
+            if let Some(Command::Image {
+                source: [sx, sy, cw, ch],
+                ..
+            }) = self.artwork.sprite(id, 0, 0., 0., false)
+            {
+                let dx = if id == 38 || id == 39 { x + w - cw } else { x };
+                let dy = if id == 39 || id == 40 { y + h - ch } else { y };
+                self.draw(Command::Image {
+                    source: [sx, sy, cw, ch],
+                    dest: [dx, dy],
+                });
+            }
         }
     }
     pub fn result_panel(&self, x: f32, y: f32, width: f32) {
@@ -146,6 +187,27 @@ impl Art {
         let (a, b, f) = animation.frames(include_bytes!("../assets/tables.bin"));
         for c in self.artwork.frame(0, a, b, f, x, y) {
             self.draw(c)
+        }
+    }
+    pub fn animation_ground_clip(&self, animation: Animation, x: f32, y: f32, ground: f32) {
+        let (a, b, f) = animation.frames(include_bytes!("../assets/tables.bin"));
+        for mut command in self.artwork.frame(0, a, b, f, x, y) {
+            match &mut command {
+                Command::Image { source, dest } => {
+                    source[3] = source[3].min(ground - dest[1]);
+                    if source[3] <= 0. {
+                        continue;
+                    }
+                }
+                Command::Rect { bounds, .. } => {
+                    bounds[3] = bounds[3].min(ground - bounds[1]);
+                    if bounds[3] <= 0. {
+                        continue;
+                    }
+                }
+                _ => {}
+            }
+            self.draw(command);
         }
     }
     pub fn athlete_hook(&self, g: &Game, x: f32, y: f32) -> Option<(Vec2, Vec2)> {

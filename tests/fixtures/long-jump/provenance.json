@@ -1,0 +1,21 @@
+{
+  "method": "Isolated execution of original unmodified JAR methods; controlled approach state at -65536 with speed 28000, then original inputs and 32 ms steps. Three attempt indices; four scenarios per attempt. Not an end-to-end UI replay.",
+  "png_count": 372,
+  "json_count": 372,
+  "sha256": {
+    "LongJumpOracle.java": "14edc547fcc9b10cff99fddb8fab61480155d6a4838a118c9be6a00ffe5b80b6",
+    "playmansum_2jvrll9n.jar": "abeba23badbf5e937b806c7e24165420c7dde08301c694f798b2d3c12f16962b",
+    "attempt2-early.csv": "11ecc9ee2bcdb92636e36ad8694667e249219ef698b76ba5a747c3a9e396f6a6",
+    "attempt2-foul.csv": "a7e65d9db457230ecde0791958853349f0b88e4d9f810bc9a4ee74464f68c673",
+    "attempt2-late.csv": "7b823634ae6ca35049cb180bb4d31641f8c2b84da73300de15f4f362b6e84869",
+    "attempt2-valid.csv": "0da47cd7204bb34d5b7b21cfbcc31cd07ebf820b48c3fc38d3dae6148f8984f1",
+    "attempt3-early.csv": "11ecc9ee2bcdb92636e36ad8694667e249219ef698b76ba5a747c3a9e396f6a6",
+    "attempt3-foul.csv": "a7e65d9db457230ecde0791958853349f0b88e4d9f810bc9a4ee74464f68c673",
+    "attempt3-late.csv": "7b823634ae6ca35049cb180bb4d31641f8c2b84da73300de15f4f362b6e84869",
+    "attempt3-valid.csv": "0da47cd7204bb34d5b7b21cfbcc31cd07ebf820b48c3fc38d3dae6148f8984f1",
+    "early.csv": "11ecc9ee2bcdb92636e36ad8694667e249219ef698b76ba5a747c3a9e396f6a6",
+    "foul.csv": "a7e65d9db457230ecde0791958853349f0b88e4d9f810bc9a4ee74464f68c673",
+    "late.csv": "7b823634ae6ca35049cb180bb4d31641f8c2b84da73300de15f4f362b6e84869",
+    "valid.csv": "0da47cd7204bb34d5b7b21cfbcc31cd07ebf820b48c3fc38d3dae6148f8984f1"
+  }
+}

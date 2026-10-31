@@ -113,7 +113,7 @@ impl Camera {
             }
             Event::LongJump => {
                 let target = match g.phase {
-                    Phase::Run => p,
+                    Phase::Run | Phase::Prepare => p,
                     Phase::Approach => {
                         if p < -2048 {
                             p + lerp(0, 256, p + 4096, 2048)
@@ -123,6 +123,10 @@ impl Camera {
                     }
                     Phase::Air if g.phase_time < 400 => p + ease(256, -128, g.phase_time, 400),
                     Phase::Air | Phase::Stretch | Phase::BadStretch => p - 128,
+                    Phase::FoulRun => 256,
+                    Phase::LandGood | Phase::LandBad if g.phase_time < 400 => {
+                        p + ease(-128, -256, g.phase_time, 400)
+                    }
                     _ => p - 256,
                 };
                 let t = if target < -4096 {
@@ -273,9 +277,37 @@ impl Animation {
             }
             return Self::new(2448, 11, p - 1600, 160, true);
         }
+        if g.event == Event::LongJump {
+            match g.phase {
+                Phase::Prepare => return Self::new(2618, 11, t, 120, false),
+                Phase::LandGood => return Self::new(2596, 11, t, 120, false),
+                Phase::LandBad if t < 600 => return Self::new(2650, 11, t, 60, false),
+                Phase::LandBad => return Self::new(2672, 6, t - 600, 120, false),
+                Phase::FoulRun => {
+                    return Self::new(2574, 9, (r.pos - g.takeoff_pos) >> 8, 280, false);
+                }
+                _ => {}
+            }
+        }
         if g.finished {
             return match g.event {
-                Event::LongJump if t < 1200 => Self::new(2596, 11, t, 120, false),
+                Event::LongJump if g.finish_good => {
+                    if t < 160 {
+                        Self::new(3440, 3, t, 80, false)
+                    } else {
+                        Self::new(3446, 13, t - 160, 80, true)
+                    }
+                }
+                Event::LongJump if g.event.score(g.result) >= 450 => {
+                    Self::new(3392, 5, t, 120, true)
+                }
+                Event::LongJump => {
+                    if t < 1560 {
+                        Self::new(3402, 14, t, 120, false)
+                    } else {
+                        Self::new(3430, 5, t - 1560, 120, true)
+                    }
+                }
                 Event::PoleVault if t < 600 => Self::new(3156, 5, t, 120, false),
                 _ => Self::new(3366, 8, t, 120, true),
             };

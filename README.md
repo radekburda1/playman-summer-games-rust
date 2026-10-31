@@ -2,7 +2,7 @@
 
 A native Rust/Macroquad reconstruction made from the supplied `playmansum_2jvrll9n.jar` (Java ME, version 1.0.21).
 
-**Status: playable implementation of five events, not a complete parity port.** The running model, dive boost, long-jump equations, javelin flight equations and event scoring were translated from the decompiled code. Pole vault uses an approximate solver. Original graphics and sampled sounds are extracted and embedded. CPU opponents, original challenge progression, Survival, Minimode and MIDI music are not implemented. The Rust browser build is now exercised interactively; native window execution remains blocked by the authoring environment’s macOS initialization failure.
+**Status: playable implementation of five events, not a complete parity port.** The running model, dive boost, long-jump equations, javelin flight equations and event scoring were translated from the decompiled code. Pole vault uses an approximate solver. Original graphics and sampled sounds are extracted and embedded. Long Jump now includes preparation, source-matched flight/landing traces, recovery, pit/ruler/official layers and event sound triggers; see `analysis/LONG-JUMP-UPDATE.md` for evidence and remaining gaps. CPU opponents, original challenge progression, Survival, Minimode and MIDI music are not implemented. The Rust browser build is now exercised interactively; native window execution remains blocked by the authoring environment’s macOS initialization failure.
 
 ## Build and run
 
@@ -73,6 +73,8 @@ Menus use the extracted original bitmap fonts and sport icons on white backgroun
 - **Pole Vault:** hold action when the pole tip reaches the box, then release near the pole's upright position. This event uses reconstructed physics.
 - **Javelin:** hold action during the final approach; release when the moving marker reaches the tip, before crossing the line. Flight uses the recovered two-ended aerodynamic model.
 
+Long Jump plays its preparation animation after confirmation (without the race countdown). A first 4/6 input can skip preparation. Landing includes the original slide/recovery stage; confirmation on its finish scene advances directly to the next attempt.
+
 After a race, the athlete takes slowing steps before reacting in the stadium. Original score bands select the message and reaction: at least 750 points celebrates, 450–749 uses a neutral pose, and lower scores use disappointment. The personal-record badge is independent. The finish screen holds until confirmation, then opens the detailed results.
 
 Field events have three attempts. A tournament plays the five events in the original order and adds the best attempt's score. This is a single-player tournament without the original CPU standings or unlock system. High scores are saved as `playman-records.txt` beside the executable. If that directory is read-only, play continues and the result screen reports the save failure.
@@ -124,7 +126,7 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo build --release --locked
 ```
 
-All 21 tests pass. Menu/input checks cover original font metrics, correct and wrong number feedback, pulse expiry, hurdle slots and ignored inputs. The tests also cover valid completion of all five events, timeout behavior, running input, dive timing and jump/stretch behavior. Additional reference checks compare 384 projected points and all 512 sine samples against executed Java methods, validate selected original-rendered athlete poses, and guard distance-driven animation and pole run-up loop timing. Pose comparison allows up to four RGB levels for alpha quantization differences in the emulator. These are component parity checks; they do not establish full game parity.
+All 25 tests pass. Menu/input checks cover original font metrics, correct and wrong number feedback, pulse expiry, hurdle slots and ignored inputs. The tests also cover valid completion of all five events, timeout behavior, running input, dive timing and jump/stretch behavior. Additional reference checks compare 384 projected points and all 512 sine samples against executed Java methods, validate selected original-rendered athlete poses, and guard distance-driven animation and pole run-up loop timing. Pose comparison allows up to four RGB levels for alpha quantization differences in the emulator. These are component parity checks; they do not establish full game parity.
 
 The asset extraction validated all 18 bank end offsets. Original athlete poses were also composed and visually inspected offline to check the logical image mapping and transforms.
 

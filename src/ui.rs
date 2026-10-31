@@ -211,6 +211,19 @@ pub fn game_hud(art: &Art, app: &App) {
                 Phase::Approach | Phase::Charge | Phase::VaultPlant | Phase::VaultBend
             )
             || (g.phase == Phase::Air && g.runner.vertical <= 650);
+        if g.event == Event::LongJump && matches!(g.phase, Phase::BadStretch | Phase::Stretch) {
+            let (x, y) = Camera::for_game(g).project(g.runner.pos >> 8, g.runner.height >> 8, 0);
+            if g.phase == Phase::BadStretch {
+                art.sprite(477, (x - 14) as f32, (y - 107) as f32, true);
+            } else if g.phase_time < 200 {
+                art.sprite(
+                    474 + (g.phase_time * 3 / 200) as usize,
+                    (x - 14) as f32,
+                    (y - 107) as f32,
+                    true,
+                );
+            }
+        }
         if action && g.runner.dive.is_none() {
             let (x, y) = Camera::for_game(g).project(
                 g.runner.pos >> 8,
@@ -218,7 +231,9 @@ pub fn game_hud(art: &Art, app: &App) {
                 Camera::athlete_lane(g.event),
             );
             art.sprite(
-                if g.phase == Phase::Charge && g.elapsed % 200 < 100 {
+                if (g.phase == Phase::Charge || g.event == Event::LongJump && g.phase == Phase::Air)
+                    && g.elapsed % 200 < 100
+                {
                     473
                 } else {
                     472
@@ -289,9 +304,10 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             draw_rectangle(-offset, 54., 240., 27., Color::new(0.08, 0.13, 0.2, 0.75));
             art.label(3, "PLAYER 1", 120. - offset, 57., 1);
             let time = result(app.game.event, app.game.result);
-            let width = BitmapFont::get(6).width(&time) as f32;
+            let font = if app.game.result.is_some() { 6 } else { 3 };
+            let width = BitmapFont::get(font).width(&time) as f32;
             art.result_panel(120. + offset - (width as i32 / 2) as f32, 90., width);
-            art.label(6, &time, 120. + offset, 87., 1);
+            art.label(font, &time, 120. + offset, 87., 1);
             if app.game.runner.speed < 4000 {
                 art.label(
                     3,
@@ -300,8 +316,17 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                     127.,
                     1,
                 );
-                if app.game.finish_record && app.outgoing.is_none() {
-                    art.label(4, "HIGH SCORE!", 120., 160., 1);
+                if app.game.finish_record && app.screen_age > 1.2 {
+                    let enter = ((app.screen_age - 1.2) / 0.4).clamp(0., 1.);
+                    let t = ((1. - enter) * 256.) as i32;
+                    let offset = if app.outgoing.is_some() {
+                        -slide(app)
+                    } else {
+                        (240 * ((4 * t * t / 256 - t) / 3) / 256) as f32
+                    };
+                    let width = BitmapFont::get(4).width("HIGH SCORE!") as f32 + 24.;
+                    art.rounded_panel(120. + offset - (width as i32 / 2) as f32, 122., width, 37.);
+                    art.label(4, "HIGH SCORE!", 120. + offset, 126., 1);
                 }
                 if app.outgoing.is_none() {
                     footer("OK", "Menu");
