@@ -67,6 +67,22 @@ impl Camera {
         let sy = ((319 - 16 + 22) >> 1 << 16) - (24641536i64 * ry as i64 / (-rz) as i64) as i32;
         (sx >> 16, sy >> 16)
     }
+    /// Original d.B camera, before athlete-follow offsets are applied.
+    pub fn race_at(target: i32) -> Self {
+        if target <= 5120 {
+            Self::new(target, 1792, 2048, 8192)
+        } else if target >= 20480 {
+            Self::new(target, 1280, 2304, 4608)
+        } else {
+            let t = (target - 5120) / 60;
+            Self::new(
+                target,
+                ease(1792, 1280, t, 256),
+                ease(2048, 2304, t, 256),
+                ease(8192, 4608, t, 256),
+            )
+        }
+    }
     pub fn for_game(g: &Game) -> Self {
         let p = g.runner.pos >> 8;
         match g.event {
@@ -93,19 +109,7 @@ impl Camera {
                 if p >= 25600 + shift {
                     target += ease(0, -256, (p - (25600 + shift)).min(3072), 3072)
                 }
-                if target <= 5120 {
-                    Self::new(target, 1792, 2048, 8192)
-                } else if target >= 20480 {
-                    Self::new(target, 1280, 2304, 4608)
-                } else {
-                    let t = (target - 5120) / 60;
-                    Self::new(
-                        target,
-                        ease(1792, 1280, t, 256),
-                        ease(2048, 2304, t, 256),
-                        ease(8192, 4608, t, 256),
-                    )
-                }
+                Self::race_at(target)
             }
             Event::LongJump => {
                 let target = match g.phase {
@@ -220,8 +224,22 @@ impl Animation {
         let p = r.pos >> 8;
         let t = g.phase_time;
         if g.event.race() {
-            if g.finished {
-                return Self::new(3366, 8, t, 120, true);
+            if g.finished && r.speed < 4000 {
+                if g.finish_good {
+                    return if t < 160 {
+                        Self::new(3440, 3, t, 80, false)
+                    } else {
+                        Self::new(3446, 13, t - 160, 80, true)
+                    };
+                }
+                if g.event.score(g.result) >= 450 {
+                    return Self::new(3392, 5, t, 120, true);
+                }
+                return if t < 1560 {
+                    Self::new(3402, 14, t, 120, false)
+                } else {
+                    Self::new(3430, 5, t - 1560, 120, true)
+                };
             }
             if r.speed < 0 {
                 return Self::new(2426, 11, 0, 160, false);

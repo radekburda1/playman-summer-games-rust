@@ -53,6 +53,30 @@ impl Art {
             self.draw(c)
         }
     }
+    pub fn bottom_center_sprite(&self, id: usize, x: f32, y: f32) {
+        if let Some(Command::Image {
+            source: [sx, sy, w, h],
+            ..
+        }) = self.artwork.sprite(id, 0, 0., 0., false)
+        {
+            self.draw(Command::Image {
+                source: [sx, sy, w, h],
+                dest: [x - (w as i32 / 2) as f32, y - h],
+            });
+        }
+    }
+    pub fn bottom_right_sprite(&self, id: usize, x: f32, y: f32) {
+        if let Some(Command::Image {
+            source: [sx, sy, w, h],
+            ..
+        }) = self.artwork.sprite(id, 0, 0., 0., false)
+        {
+            self.draw(Command::Image {
+                source: [sx, sy, w, h],
+                dest: [x - w, y - h],
+            });
+        }
+    }
     pub fn scaled_sprite(&self, id: usize, x: f32, y: f32, scale: f32) {
         if let Some(Command::Image {
             source: [sx, sy, w, h],
@@ -70,6 +94,33 @@ impl Art {
                     ..Default::default()
                 },
             )
+        }
+    }
+    pub fn result_panel(&self, x: f32, y: f32, width: f32) {
+        // Original panel: left cap 32, tiled center 31, right cap 33.
+        for id in [32, 31, 33] {
+            if let Some(Command::Image {
+                source: [sx, sy, w, h],
+                ..
+            }) = self.artwork.sprite(id, 0, 0., 0., false)
+            {
+                if id == 31 {
+                    let mut offset = 0.;
+                    while offset < width {
+                        let visible = w.min(width - offset);
+                        self.draw(Command::Image {
+                            source: [sx, sy, visible, h],
+                            dest: [x + offset, y],
+                        });
+                        offset += w;
+                    }
+                } else {
+                    self.draw(Command::Image {
+                        source: [sx, sy, w, h],
+                        dest: [if id == 32 { x - w } else { x + width }, y],
+                    });
+                }
+            }
         }
     }
     pub fn label(&self, font: usize, text: &str, mut x: f32, y: f32, align: u8) {
@@ -125,8 +176,8 @@ impl Art {
     pub fn scene_width(&self, id: usize) -> i32 {
         self.artwork.width(id)
     }
-    pub fn scene(&self, id: usize, frame: usize, x: f32, y: f32) {
-        for c in self.artwork.frame(id, frame, frame, 0, x, y) {
+    pub fn scene_tween(&self, id: usize, frame: usize, next: usize, fraction: i32, x: f32, y: f32) {
+        for c in self.artwork.frame(id, frame, next, fraction, x, y) {
             self.draw(c)
         }
     }

@@ -26,23 +26,29 @@ fn quad(c: Camera, x0: i32, x1: i32, z0: i32, z1: i32, col: Color) {
     draw_triangle(b, e, d, col);
 }
 fn repeat(art: &Art, c: Camera, id: usize, z: i32, spacing: i32, time: i32) {
+    repeat_at(art, c, id, z, spacing, time, project(c, 0, 0, z).y);
+}
+fn repeat_at(art: &Art, c: Camera, id: usize, z: i32, spacing: i32, time: i32, y: f32) {
     let width = art.scene_width(id) + spacing;
     if width <= 0 {
         return;
     }
     let p = project(c, 0, 0, z);
     let mut x = (p.x as i32 % width) - width;
+    let animated = matches!(id, 8194 | 8195 | 8203 | 8204);
+    let frame = if animated {
+        (time / 120).rem_euclid(4) as usize
+    } else {
+        0
+    };
+    let next = if animated { (frame + 1) % 4 } else { 0 };
+    let fraction = if animated {
+        time.rem_euclid(120) * 65536 / 120
+    } else {
+        0
+    };
     while x < 240 {
-        art.scene(
-            id,
-            if matches!(id, 8194 | 8195) {
-                (time / 120).rem_euclid(4) as usize
-            } else {
-                0
-            },
-            (x + spacing) as f32,
-            p.y + 1.,
-        );
+        art.scene_tween(id, frame, next, fraction, (x + spacing) as f32, y + 1.);
         x += width;
     }
 }
@@ -60,7 +66,14 @@ fn bands(c: Camera, ends: &[(i32, u32)]) {
         }
     }
 }
-pub fn draw(art: &Art, g: &Game, countdown: Option<i32>) {
+pub fn draw(
+    art: &Art,
+    g: &Game,
+    waiting_highlight: bool,
+    countdown: Option<i32>,
+    scenery_time: i32,
+    starter_time: Option<i32>,
+) {
     let mut c = Camera::for_game(g);
     if g.event.race()
         && let Some(t) = countdown
@@ -93,19 +106,43 @@ pub fn draw(art: &Art, g: &Game, countdown: Option<i32>) {
         }
         for n in 0..6 {
             strips.push(((-6 + n) * 333 + 12, 0xffffff));
-            strips.push(((-6 + n + 1) * 333 - 12, ci));
+            strips.push((
+                (-6 + n + 1) * 333 - 12,
+                if waiting_highlight && n == 3 { cj } else { ci },
+            ));
         }
         strips.push((24, 0xffffff));
         strips.push((i32::MAX, 0x3f3f3f));
         bands(c, &strips);
-        repeat(art, c, 8208, -29440, 0, g.elapsed);
-        repeat(art, c, 8207, -24320, 0, g.elapsed);
-        repeat(art, c, 8204, -20480, 120, g.elapsed);
-        repeat(art, c, 8202, -14848, art.scene_width(8202), g.elapsed);
-        repeat(art, c, 8201, -2664, 64, g.elapsed);
+        // Explicit separators keep thin far-lane stripes from collapsing
+        // when adjacent horizontal color bands round to the same pixel.
+        for lane in 0..=6 {
+            let y = project(c, c.x, 0, (-6 + lane) * 333 + 12).y;
+            draw_rectangle(0., y, 240., 1., WHITE);
+        }
+        repeat(art, c, 8208, -29440, 0, scenery_time);
+        repeat(art, c, 8207, -24320, 0, scenery_time);
+        repeat(art, c, 8204, -20480, 0, scenery_time);
+        repeat_at(
+            art,
+            c,
+            8206,
+            -18432,
+            0,
+            scenery_time,
+            project(c, 0, 0, -20480).y,
+        );
+        repeat(art, c, 8202, -14848, art.scene_width(8202), scenery_time);
+        repeat(art, c, 8201, -2664, 64, scenery_time);
         let finish = if g.event == Event::Dash { 25600 } else { 30720 };
         let first = ((c.x - 1920).max(0) / 2560) * 2560;
+        let finish_props = project(c, finish, 0, -2126);
+        art.bottom_center_sprite(711, finish_props.x, finish_props.y);
+        art.bottom_center_sprite(712, finish_props.x + 32., finish_props.y);
         for x in (first..first + 12800).step_by(2560) {
+            if g.event == Event::Dash && x == 23040 {
+                continue;
+            }
             line(
                 c,
                 (x, 0, -1998),
@@ -115,12 +152,41 @@ pub fn draw(art: &Art, g: &Game, countdown: Option<i32>) {
             )
         }
         line(c, (finish, 0, -1998), (finish, 0, 0), 3., WHITE);
+        if c.x > 21120 {
+            for lane in 0..6 {
+                let z0 = (-6 + lane) * 333;
+                for mark in 0..3 {
+                    let x = finish - 1600 + mark * 416;
+                    let a = project(c, x, 0, z0 + 82);
+                    let b = project(c, x, 0, z0 + 333 - 82);
+                    // Original d.c draws four one-pixel lines at a 2x2 offset.
+                    for dx in 0..2 {
+                        for dy in 0..2 {
+                            draw_line(
+                                a.x + dx as f32,
+                                a.y + dy as f32,
+                                b.x + dx as f32,
+                                b.y + dy as f32,
+                                1.,
+                                WHITE,
+                            );
+                        }
+                    }
+                }
+                let number = project(c, finish - 384, 0, z0 + 166);
+                art.sprite(486 + lane as usize, number.x, number.y, true);
+            }
+        }
         if c.x < 1920 {
             for lane in 0..6 {
                 let p = project(c, 384, 0, (-6 + lane) * 333 + 166);
                 art.sprite(486 + lane as usize, p.x, p.y, true);
+                let start = project(c, 0, 0, (-6 + lane) * 333 + 166);
+                art.bottom_right_sprite(709, start.x - 6., start.y + 5.);
+                art.bottom_right_sprite(710, start.x - 62. - (lane * 28 / 6) as f32, start.y + 5.);
             }
         }
+        repeat(art, c, 8200, 512, 0, scenery_time);
         if g.event == Event::Hurdles {
             for i in 0..7 {
                 let x = (-117760 + 655360 + i * 983040) >> 8;
@@ -150,9 +216,9 @@ pub fn draw(art: &Art, g: &Game, countdown: Option<i32>) {
                 (i32::MAX, ci),
             ],
         );
-        repeat(art, c, 8208, -10496, 0, g.elapsed);
-        repeat(art, c, 8207, -5376, 0, g.elapsed);
-        repeat(art, c, 8192, -1536, 0, g.elapsed);
+        repeat(art, c, 8208, -10496, 0, scenery_time);
+        repeat(art, c, 8207, -5376, 0, scenery_time);
+        repeat(art, c, 8192, -1536, 0, scenery_time);
         if g.event == Event::LongJump {
             quad(c, 416, 5408, -400, 400, color(16049328));
             line(c, (0, 0, -244), (0, 0, 244), 5., WHITE);
@@ -201,6 +267,22 @@ pub fn draw(art: &Art, g: &Game, countdown: Option<i32>) {
         } else {
             art.athlete(g, p.x, p.y)
         }
+    }
+    if g.event.race() {
+        let (a, b, fraction) = match starter_time {
+            None => (0, 0, 0),
+            Some(t) if t < 3000 => (1, 1, 0),
+            Some(t) if t < 5000 => (2, 2, 0),
+            Some(t) if t < 5032 => (3, 3, 0),
+            Some(t) if t < 5432 => {
+                let elapsed = t - 5032;
+                let frame = 4 + (elapsed / 200) as usize;
+                (frame, frame + 1, (elapsed % 200) * 65536 / 200)
+            }
+            Some(_) => (7, 7, 0),
+        };
+        let position = project(c, 512, 0, 512);
+        art.scene_tween(16386, a, b, fraction, position.x, position.y);
     }
     if g.event == Event::Javelin {
         let (center, direction) =

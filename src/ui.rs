@@ -2,6 +2,51 @@ use crate::{App, Screen, art::Art};
 use macroquad::prelude::*;
 use playman_rust::{Event, Phase, bitmap_font::BitmapFont, presentation::Camera, prompts};
 const RED: Color = Color::new(1., 0.035, 0.12, 1.);
+// Original d.c easing curve, evaluated at 8-bit progress.
+fn slide(app: &App) -> f32 {
+    let remaining = if let Some((_, elapsed)) = app.outgoing {
+        elapsed / 0.4
+    } else {
+        1. - (app.screen_age / 0.4).min(1.)
+    };
+    let t = (remaining.clamp(0., 1.) * 256.) as i32;
+    let curved = (4 * t * t / 256 - t) / 3;
+    (240 * curved / 256) as f32
+}
+pub fn transition_wash(art: &Art, app: &App) {
+    // Java state 10 washes only on entry (bb < 400), never on start confirmation.
+    if app.screen == Screen::AwaitStart && app.outgoing.is_some() {
+        return;
+    }
+    if !matches!(
+        app.screen,
+        Screen::AwaitStart | Screen::Finish | Screen::Results
+    ) {
+        return;
+    }
+    let progress = if let Some((_, elapsed)) = app.outgoing {
+        1. - elapsed / 0.4
+    } else {
+        (app.screen_age / 0.4).min(1.)
+    };
+    if progress >= 1. {
+        return;
+    }
+    let sprite = 109 + (progress.clamp(0., 1.) * 9.) as usize;
+    for y in (0..320).step_by(24) {
+        for x in (0..240).step_by(24) {
+            art.sprite(sprite, x as f32, y as f32, false);
+        }
+    }
+}
+fn event_header(art: &Art, app: &App, title: &str) {
+    let offset = slide(app);
+    draw_rectangle(0., 0., 240., 36., WHITE);
+    draw_line(-offset, 36., 240. - offset, 36., 2., RED);
+    art.sprite(1, -offset, 0., false);
+    art.scaled_sprite(25 + event_index(app.game.event), 33. - offset, 25.5, 0.82);
+    art.label(4, title, 230. + offset, 7., 2);
+}
 fn small(text: &str, x: f32, y: f32, color: Color) {
     draw_text(text, x, y, 14., color);
 }
@@ -14,11 +59,11 @@ fn header(art: &Art, title: &str, icon: Option<usize>) {
     draw_line(0., 36., 240., 36., 2., RED);
     if let Some(id) = icon {
         art.sprite(1, 0., 0., false);
-        art.scaled_sprite(id, 26., 23., 0.82);
+        art.scaled_sprite(id, 33., 25.5, 0.82);
     } else {
         art.sprite(0, 0., 0., false);
     }
-    art.label(4, title, 236., 7., 2);
+    art.label(4, title, 230., 7., 2);
 }
 fn footer(left: &str, right: &str) {
     draw_rectangle(0., 303., 240., 17., BLACK);
@@ -85,7 +130,14 @@ fn menu(art: &Art, app: &App) {
     art.label(3, &format!("< {} >", name(app.selected)), 120., 132., 1);
     if app.selected < 5 {
         art.label(3, "PERSONAL BEST", 120., 185., 1);
-        draw_rectangle_lines(15., 214., 210., 50., 1., BLACK);
+        for (x, y, w, h) in [
+            (15., 214., 210., 1.),
+            (15., 263., 210., 1.),
+            (15., 214., 1., 50.),
+            (224., 214., 1., 50.),
+        ] {
+            draw_rectangle(x, y, w, h, BLACK);
+        }
         score(
             art,
             Event::ALL[app.selected],
@@ -177,7 +229,6 @@ pub fn game_hud(art: &Art, app: &App) {
             );
         }
     }
-    footer("P: Pause", "Esc: Menu");
 }
 pub fn draw(art: &Art, app: &App, muted: bool) {
     match app.screen {
@@ -191,6 +242,28 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 art.sprite(id, 49. + i as f32 * 71., 264., true)
             }
             footer("Start", "Back");
+        }
+        Screen::AwaitStart => {
+            event_header(art, app, "NEXT UP");
+            let offset = slide(app);
+            draw_rectangle(-offset, 54., 240., 27., Color::new(0.08, 0.13, 0.2, 0.75));
+            art.label(3, "PLAYER 1", 120. - offset, 57., 1);
+            let mut camera = Camera::for_game(&app.game);
+            if app.game.event.race() {
+                camera.x = 0;
+            }
+            let (x, y) = camera.project(
+                app.game.runner.pos >> 8,
+                app.game.runner.height >> 8,
+                Camera::athlete_lane(app.game.event),
+            );
+            if app.outgoing.is_none() && app.screen_age >= 0.4 && app.wait_time % 0.6 < 0.3 {
+                art.label(3, "Start", (x + 32) as f32, (y - 132) as f32, 1);
+                art.sprite(472, (x + 32) as f32, (y - 92) as f32, true);
+            }
+            if app.outgoing.is_none() {
+                footer("5 / Space: Start", "Esc: Menu");
+            }
         }
         Screen::Ready => art.label(
             3,
@@ -208,6 +281,31 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
         Screen::Play => {
             if app.paused {
                 pause(art, app, muted)
+            }
+        }
+        Screen::Finish => {
+            event_header(art, app, "FINISH");
+            let offset = slide(app);
+            draw_rectangle(-offset, 54., 240., 27., Color::new(0.08, 0.13, 0.2, 0.75));
+            art.label(3, "PLAYER 1", 120. - offset, 57., 1);
+            let time = result(app.game.event, app.game.result);
+            let width = BitmapFont::get(6).width(&time) as f32;
+            art.result_panel(120. + offset - (width as i32 / 2) as f32, 90., width);
+            art.label(6, &time, 120. + offset, 87., 1);
+            if app.game.runner.speed < 4000 {
+                art.label(
+                    3,
+                    app.game.event.finish_message(app.game.result),
+                    120. + offset,
+                    127.,
+                    1,
+                );
+                if app.game.finish_record && app.outgoing.is_none() {
+                    art.label(4, "HIGH SCORE!", 120., 160., 1);
+                }
+                if app.outgoing.is_none() {
+                    footer("OK", "Menu");
+                }
             }
         }
         Screen::Results => {
@@ -229,6 +327,9 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             art.label(4, "BEST", 120., 195., 1);
             score(art, app.game.event, app.best, 229.);
             art.label(3, "R: RETRY", 120., 270., 1);
+            if app.save_error.is_some() {
+                small("Record could not be saved", 30., 299., RED);
+            }
             footer("Next", "Menu");
         }
         Screen::Complete => {

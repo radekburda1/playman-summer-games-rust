@@ -27,7 +27,12 @@ pub fn running(g: &Game) -> Vec<Prompt> {
     if cutoff.is_some_and(|x| g.runner.pos >= x) {
         return Vec::new();
     }
-    let (x, y) = Camera::for_game(g).project(
+    let camera = if g.event.race() {
+        Camera::race_at(g.runner.pos >> 8)
+    } else {
+        Camera::for_game(g)
+    };
+    let (x, y) = camera.project(
         g.runner.pos >> 8,
         g.runner.height >> 8,
         Camera::athlete_lane(g.event),

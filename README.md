@@ -51,7 +51,8 @@ Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes th
 
 | Action | Keys |
 |---|---|
-| Select event / tournament | Up / Down, Enter |
+| Navigate menus | Arrows, A / D, 4 / 6, or keypad 4 / 6 |
+| Select / start / continue | Enter, Space, 5, or keypad 5 |
 | Left prompt / right prompt | Left / Right, A / D, 4 / 6, or keypad 4 / 6 |
 | Jump, dive, charge, pole action | Space, 5, or keypad 5 |
 | Pause / resume | P |
@@ -60,13 +61,19 @@ Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes th
 | Next attempt / event | Enter |
 | Return to menu | Escape |
 
-Running follows the displayed **sequence**, which can repeat a side. Button presses are edge triggered: holding a direction does not repeatedly run.
+Each attempt opens on a stationary **NEXT UP / Start** scene. Press **5 / Space** (or Enter) to begin the countdown; waiting on this screen does not advance the attempt. The dash start includes the original starting blocks and yellow equipment boxes in all six lanes.
+
+Running follows the displayed **sequence**, which can repeat a side. Button presses are edge triggered: holding a direction does not repeatedly run. Correct 4/6 inputs produce the original three-frame white pulse (200 ms), with a short bounce on the next prompt; wrong inputs show a red X (300 ms). Hurdles highlight the consumed sequence slot.
+
+Menus use the extracted original bitmap fonts and sport icons on white backgrounds with red selection bands. The pause menu supports resume, retry, sound and return to the event menu. Use 4/6 to navigate and 5 to select.
 
 - **100m Dash:** follow prompts until the final section, then press the action key near the finish to dive.
 - **Long Jump:** run up, press action before the white board, then press again at the apex to stretch. Crossing the board before takeoff is a foul.
 - **110m Hurdles:** complete each three-button sequence; jumps happen automatically. Incomplete/wrong sequences incur a penalty.
 - **Pole Vault:** hold action when the pole tip reaches the box, then release near the pole's upright position. This event uses reconstructed physics.
 - **Javelin:** hold action during the final approach; release when the moving marker reaches the tip, before crossing the line. Flight uses the recovered two-ended aerodynamic model.
+
+After a race, the athlete takes slowing steps before reacting in the stadium. Original score bands select the message and reaction: at least 750 points celebrates, 450–749 uses a neutral pose, and lower scores use disappointment. The personal-record badge is independent. The finish screen holds until confirmation, then opens the detailed results.
 
 Field events have three attempts. A tournament plays the five events in the original order and adds the best attempt's score. This is a single-player tournament without the original CPU standings or unlock system. High scores are saved as `playman-records.txt` beside the executable. If that directory is read-only, play continues and the result screen reports the save failure.
 
@@ -76,6 +83,9 @@ Field events have three attempts. A tournament plays the five events in the orig
 Cargo.toml / Cargo.lock  One direct framework dependency: macroquad 0.4.16, audio enabled
 src/lib.rs              Deterministic 32 ms simulation, input actions, events, scoring, tests
 src/main.rs             Explicit menu/help/countdown/play/results states, input, stadium, save data
+src/ui.rs               White/red menus, original bitmap text and game HUD
+src/prompts.rs          Original 4/6 feedback positions and timings
+src/bitmap_font.rs      Original glyph metrics and lookup
 src/art.rs              GPU drawing of shared scene commands
 src/artwork.rs          Shared sprite/scene decoder, including tiled and nested scenery
 src/presentation.rs     Original integer sine table, perspective camera and animation selection
@@ -83,6 +93,7 @@ src/world.rs            Projected lanes, event geometry, original stadium scene 
 src/sound.rs            Embedded original PCM effects, graceful handling of failed sound loads
 assets/atlas.png        838 base images; 1,735 images including stored transforms
 assets/rects.rs          Physical sprite rectangles and transform lookup
+assets/fonts.rs          Original bitmap font glyphs, advances and signed offsets
 assets/logical.rs        Original logical-to-physical image mapping
 assets/animation.bin     Original k0 character scene/keyframe table
 assets/scene1.bin         Original stadium/prop scene table
@@ -113,7 +124,7 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo build --release --locked
 ```
 
-The tests cover valid completion of all five events, timeout behavior, running input, dive timing and jump/stretch behavior. Additional reference checks compare 384 projected points and all 512 sine samples against executed Java methods, validate selected original-rendered athlete poses, and guard distance-driven animation and pole run-up loop timing. Pose comparison allows up to four RGB levels for alpha quantization differences in the emulator. These are component parity checks; they do not establish full game parity.
+All 21 tests pass. Menu/input checks cover original font metrics, correct and wrong number feedback, pulse expiry, hurdle slots and ignored inputs. The tests also cover valid completion of all five events, timeout behavior, running input, dive timing and jump/stretch behavior. Additional reference checks compare 384 projected points and all 512 sine samples against executed Java methods, validate selected original-rendered athlete poses, and guard distance-driven animation and pole run-up loop timing. Pose comparison allows up to four RGB levels for alpha quantization differences in the emulator. These are component parity checks; they do not establish full game parity.
 
 The asset extraction validated all 18 bank end offsets. Original athlete poses were also composed and visually inspected offline to check the logical image mapping and transforms.
 

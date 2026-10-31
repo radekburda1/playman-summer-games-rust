@@ -50,6 +50,20 @@ impl Event {
             }
         }
     }
+    pub fn finish_message(self, result: Option<i32>) -> &'static str {
+        let points = self.score(result).max(0);
+        [
+            "AWESOME!",
+            "GREAT!",
+            "NICE!",
+            "ALMOST THERE",
+            "NOT GOOD ENOUGH",
+            "OUCH",
+        ][[900, 750, 600, 450, 300]
+            .iter()
+            .position(|threshold| points >= *threshold)
+            .unwrap_or(5)]
+    }
     pub fn score(self, result: Option<i32>) -> i32 {
         let Some(n) = result else { return 0 };
         let lerp = |a: i32, b: i32, x: i32, d: i32| (a * (d - x) + b * x) / d;
@@ -276,6 +290,8 @@ pub struct Game {
     pub phase_time: i32,
     pub result: Option<i32>,
     pub finished: bool,
+    pub finish_good: bool,
+    pub finish_record: bool,
     pub feedback: String,
     pub feedback_time: i32,
     pub projectile: [i64; 6],
@@ -302,6 +318,8 @@ impl Game {
             phase_time: 0,
             result: None,
             finished: false,
+            finish_good: false,
+            finish_record: false,
             feedback: String::new(),
             feedback_time: 0,
             projectile: [0; 6],
@@ -455,6 +473,29 @@ impl Game {
                 }
                 _ => {}
             },
+        }
+    }
+    /// Post-finish movement leaves the measured result and race clock untouched.
+    pub fn step_finish(&mut self) {
+        if !self.finished {
+            return;
+        }
+        if self.runner.speed >= 4000 {
+            self.runner.speed -= 630;
+            if self.runner.speed < 4000 {
+                self.runner.speed = -1;
+            } else {
+                let dive_adjustment = self.runner.dive.map_or(0, |start| {
+                    if self.runner.pos - start < 409600 {
+                        3900
+                    } else {
+                        -3900
+                    }
+                });
+                self.runner.pos += self.runner.speed + dive_adjustment;
+            }
+        } else {
+            self.phase_time += 32;
         }
     }
     pub fn step(&mut self) {

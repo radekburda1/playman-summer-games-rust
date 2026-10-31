@@ -19,8 +19,10 @@ fn config() -> Conf {
 enum Screen {
     Menu,
     Help,
+    AwaitStart,
     Ready,
     Play,
+    Finish,
     Results,
     Complete,
 }
@@ -31,6 +33,7 @@ struct App {
     paused: bool,
     clock: f32,
     ready: f32,
+    wait_time: f32,
     tournament: bool,
     total: i32,
     attempt: usize,
@@ -39,6 +42,8 @@ struct App {
     save_error: Option<String>,
     seed: u64,
     pause_selection: usize,
+    screen_age: f32,
+    outgoing: Option<(Screen, f32)>,
 }
 impl App {
     fn new() -> Self {
@@ -49,6 +54,7 @@ impl App {
             paused: false,
             clock: 0.,
             ready: 0.,
+            wait_time: 0.,
             tournament: false,
             total: 0,
             attempt: 0,
@@ -57,19 +63,25 @@ impl App {
             save_error: None,
             seed: 25,
             pause_selection: 0,
+            screen_age: 0.,
+            outgoing: None,
         }
     }
     fn start(&mut self) {
         self.seed = self.seed.wrapping_add(1009);
         self.game = Game::new(Event::ALL[self.selected], self.seed);
-        self.screen = Screen::Ready;
+        self.outgoing = None;
+        self.screen = Screen::AwaitStart;
         self.ready = 0.;
+        self.wait_time = 0.;
         self.clock = 0.;
         self.paused = false;
     }
     fn finish(&mut self) {
         let e = self.game.event;
         let result = self.game.result;
+        self.game.finish_record = better(e, result, self.records[self.selected]);
+        self.game.finish_good = e.score(result) >= 750;
         if better(e, result, self.best) {
             self.best = result
         }
@@ -77,7 +89,12 @@ impl App {
             self.records[self.selected] = result;
             self.save_error = save_records(&self.records).err().map(|e| e.to_string());
         }
-        self.screen = Screen::Results;
+        self.screen = if e.race() {
+            Screen::Finish
+        } else {
+            Screen::Results
+        };
+        self.clock = 0.;
     }
     fn advance(&mut self) {
         if !self.game.event.race() && self.attempt < 2 {
@@ -141,15 +158,22 @@ fn save_records(r: &[Option<i32>; 5]) -> std::io::Result<()> {
     )?;
     std::fs::rename(temp, path)
 }
-fn draw_game(art: &Art, app: &App, _time: f32) {
+fn draw_game(art: &Art, app: &App, time: f32) {
     let g = &app.game;
     world::draw(
         art,
         g,
-        if app.screen == Screen::Ready {
+        app.screen == Screen::AwaitStart && app.wait_time % 0.6 < 0.3,
+        if matches!(app.screen, Screen::AwaitStart | Screen::Ready) {
             Some((app.ready * 1000.) as i32)
         } else {
             None
+        },
+        (time * 1000.) as i32,
+        match app.screen {
+            Screen::AwaitStart => None,
+            Screen::Ready => Some((app.ready * 1000.) as i32),
+            _ => Some(5000 + app.game.elapsed),
         },
     );
     ui::game_hud(art, app);
@@ -169,13 +193,27 @@ async fn main() {
         if is_key_pressed(KeyCode::M) {
             sounds.muted = !sounds.muted;
         }
+        app.screen_age += dt;
+        if let Some((target, elapsed)) = app.outgoing {
+            if elapsed + dt >= 0.4 {
+                app.screen = target;
+                if target == Screen::Ready {
+                    sounds.play(23);
+                }
+                app.screen_age = 0.;
+                app.outgoing = None;
+            } else {
+                app.outgoing = Some((target, elapsed + dt));
+            }
+        }
         let old_screen = app.screen;
         let old_ready = app.ready;
         let old_feedback = app.game.feedback_time;
-        let confirm = is_key_pressed(KeyCode::Enter)
-            || is_key_pressed(KeyCode::Space)
-            || is_key_pressed(KeyCode::Key5)
-            || is_key_pressed(KeyCode::Kp5);
+        let confirm = app.outgoing.is_none()
+            && (is_key_pressed(KeyCode::Enter)
+                || is_key_pressed(KeyCode::Space)
+                || is_key_pressed(KeyCode::Key5)
+                || is_key_pressed(KeyCode::Kp5));
         let previous = is_key_pressed(KeyCode::Up)
             || is_key_pressed(KeyCode::Left)
             || is_key_pressed(KeyCode::A)
@@ -188,6 +226,7 @@ async fn main() {
             || is_key_pressed(KeyCode::Kp6);
         let esc = is_key_pressed(KeyCode::Escape);
         if esc {
+            app.outgoing = None;
             app.screen = Screen::Menu;
             app.paused = false;
             app.clock = 0.;
@@ -212,6 +251,13 @@ async fn main() {
             Screen::Help => {
                 if confirm {
                     app.start()
+                }
+            }
+            Screen::AwaitStart => {
+                app.wait_time += dt;
+                if confirm {
+                    app.outgoing = Some((Screen::Ready, 0.));
+                    app.ready = 0.;
                 }
             }
             Screen::Ready => {
@@ -284,6 +330,16 @@ async fn main() {
                     }
                 }
             }
+            Screen::Finish => {
+                app.clock += dt;
+                while app.clock >= TICK {
+                    app.clock -= TICK;
+                    app.game.step_finish();
+                }
+                if confirm && app.game.runner.speed < 4000 {
+                    app.outgoing = Some((Screen::Results, 0.));
+                }
+            }
             Screen::Results => {
                 app.game.phase_time += (dt * 1000.) as i32;
                 if is_key_pressed(KeyCode::R) {
@@ -298,6 +354,9 @@ async fn main() {
                 }
             }
         }
+        if app.screen != old_screen {
+            app.screen_age = 0.;
+        }
         if app.screen == Screen::Ready && old_screen != Screen::Ready {
             sounds.play(23)
         }
@@ -307,7 +366,7 @@ async fn main() {
         if app.screen == Screen::Play && old_screen == Screen::Ready {
             sounds.play(25)
         }
-        if app.screen == Screen::Results && old_screen == Screen::Play {
+        if matches!(app.screen, Screen::Finish | Screen::Results) && old_screen == Screen::Play {
             sounds.play(if app.game.result.is_some() { 26 } else { 22 })
         }
         if app.game.feedback_time > old_feedback {
@@ -341,11 +400,15 @@ async fn main() {
             render_target: Some(target.clone()),
             ..Camera2D::from_display_rect(Rect::new(0., 0., 240., 320.))
         });
-        if matches!(app.screen, Screen::Ready | Screen::Play | Screen::Results) {
+        if matches!(
+            app.screen,
+            Screen::AwaitStart | Screen::Ready | Screen::Play | Screen::Finish | Screen::Results
+        ) {
             draw_game(&art, &app, get_time() as f32)
         } else {
             clear_background(WHITE)
         }
+        ui::transition_wash(&art, &app);
         ui::draw(&art, &app, sounds.muted);
         set_default_camera();
         clear_background(BLACK);
