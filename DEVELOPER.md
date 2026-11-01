@@ -145,13 +145,29 @@ byte for byte; the additional preservation fixture covers 18,000 simulation tick
 and 150 software frames. Existing Java fixtures were retained without changing
 expected values. These checks are representative, not exhaustive equivalence.
 
-Live verification was retried after this cleanup: native launch still fails before
-window creation at Miniquad's null OpenGL pixel-format assertion (macos.rs:1039),
-after a LaunchServices notification failure. Computer-use inventory works, but
-reports that the browser access host is unavailable. The previously prohibited
-browser URL was not accessed again. Interactive graphics, browser input and
-audible playback remain unverified; successful builds are not proof of runtime
-or Java parity.
+Native verification is now available through a macOS app bundle. `make rust`
+builds/stages `dist/Playman Rust.app` and launches it through LaunchServices on
+macOS; other platforms still run the executable directly. `make mac-app` stages
+without launching. `make rust-direct` retains the original CLI launch for
+diagnostics. The release executable is unchanged by packaging. Existing records
+beside the direct executable are copied on first bundle creation only; subsequent
+packaging preserves bundled records. Build products remain ignored.
+
+The direct agent-process launch still fails at Miniquad's null OpenGL pixel-format
+assertion after a LaunchServices notification failure. The same executable launched
+as a desktop app renders successfully. Live native checks verified menu/confirmation,
+Space-to-start, 4/6 input and pause, plus Long Jump and Pole Vault scene rendering
+(including the carried pole). The user confirmed audible music and M mute/unmute.
+This removes the native rendering/input/music blocker; it is not a complete
+five-event visual or sound-trigger parity claim. ScreenCaptureKit screenshots
+occasionally fail with capture error -3811, independently of the running game.
+
+Browser automation remains a separate client limitation: inventory and fresh-tab
+creation report `The browser access host is unavailable`, including after the user
+opened/attached the tab and the computer-use connection was reset and rebound by URL. Building and serving the
+WASM version does not repair that host service. The existing server at `http://127.0.0.1:8767/` was reachable after granting the
+agent network permission; its HTML, WASM and JS matched the current staged build
+byte for byte. Browser input and audio have not been checked live in this session. No browser access-policy bypass was attempted.
 
 ## Adding or changing a discipline
 

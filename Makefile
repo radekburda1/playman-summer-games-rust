@@ -13,10 +13,12 @@ WEB_ENV ?=
 RUST_ARGS ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help rust java original build test web web-build
+.PHONY: help rust rust-direct mac-app java original build test web web-build
 
 help:
-	@echo 'make rust      Run the Rust game (release build)'
+	@echo 'make rust      Run the Rust game (macOS app launch; release build)'
+	@echo 'make mac-app   Build dist/Playman Rust.app on macOS'
+	@echo 'make rust-direct Run the executable directly for startup diagnostics'
 	@echo 'make java      Run the original Java game; open http://127.0.0.1:$(PORT)'
 	@echo 'make web       Build and serve the Rust browser version on port $(WEB_PORT)'
 	@echo 'make web-setup Install the WASM target for the active Rust toolchain'
@@ -27,7 +29,20 @@ help:
 	@echo '           REFERENCE_DIR=/path/to/reference-runner CARGO=/path/to/cargo'
 
 rust:
+ifeq ($(shell uname -s),Darwin)
+	$(MAKE) mac-app
+	open -n "$(PROJECT_DIR)/dist/Playman Rust.app" --args $(RUST_ARGS)
+else
+	$(MAKE) rust-direct
+endif
+
+rust-direct:
 	cd "$(PROJECT_DIR)" && $(CARGO) run --release --locked -- $(RUST_ARGS)
+
+mac-app:
+	@test "$$(uname -s)" = Darwin || { echo 'mac-app requires macOS; use make rust instead'; exit 1; }
+	cd "$(PROJECT_DIR)" && $(CARGO) build --release --locked --bin playman-rust
+	cd "$(PROJECT_DIR)" && $(CARGO) metadata --locked --no-deps --format-version 1 | python3 tools/package_macos.py
 
 java:
 	@test -f "$(JAR)" || { echo 'Game JAR not found. Set JAR=/absolute/path/to/game.jar'; exit 1; }

@@ -155,6 +155,10 @@ fn menu(art: &Art, app: &App) {
         art.label(3, "ONE TOURNAMENT", 120., 223., 1);
     }
     art.label(3, "4 / 6 TO CHANGE", 120., 272., 1);
+    small("R: Reset records", 75., 299., RED);
+    if app.save_error.is_some() {
+        art.label(0, "Record could not be saved", 120., 179., 1);
+    }
     footer("Select", "Back");
 }
 fn pause(art: &Art, app: &App, muted: bool) {
@@ -271,6 +275,14 @@ pub fn game_hud(art: &Art, app: &App) {
 pub fn draw(art: &Art, app: &App, muted: bool) {
     match app.screen {
         Screen::Menu => menu(art, app),
+        Screen::ResetRecords => {
+            header(art, "RESET RECORDS", None);
+            art.label(3, "CLEAR ALL RECORDS?", 120., 100., 1);
+            art.label(0, "This cannot be undone.", 120., 155., 1);
+            art.label(0, "Enter / 5: Reset", 120., 205., 1);
+            art.label(0, "Esc: Cancel", 120., 235., 1);
+            footer("Reset", "Cancel");
+        }
         Screen::Help => {
             header(art, "INSTRUCTIONS", Some(25 + app.selected));
             band(55., 29.);

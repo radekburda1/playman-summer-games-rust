@@ -9,6 +9,7 @@ use crate::{
 #[derive(Clone, Copy, PartialEq)]
 pub enum Screen {
     Menu,
+    ResetRecords,
     Help,
     AwaitStart,
     Ready,
@@ -192,6 +193,9 @@ impl App {
         }
         match self.screen {
             Screen::Menu => {
+                if input.retry && !esc {
+                    self.screen = Screen::ResetRecords;
+                }
                 if previous {
                     self.selected = (self.selected + 5) % 6
                 }
@@ -205,6 +209,15 @@ impl App {
                     self.attempt = 0;
                     self.best = None;
                     self.screen = Screen::Help
+                }
+            }
+            Screen::ResetRecords => {
+                if confirm && !esc {
+                    self.records = [None; 5];
+                    self.best = None;
+                    self.records_dirty = true;
+                    self.save_error = None;
+                    self.screen = Screen::Menu;
                 }
             }
             Screen::Help => {

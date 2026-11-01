@@ -6,6 +6,8 @@ A native Rust/Macroquad reconstruction made from the supplied `playmansum_2jvrll
 
 ## Build and run
 
+On macOS, `make rust` launches the release build as `dist/Playman Rust.app`, using the desktop launch path verified to render correctly. `make mac-app` only builds the bundle; `make rust-direct` runs the CLI executable for diagnostics. Music playback and M mute/unmute have been confirmed in the native app.
+
 Install a current stable Rust toolchain, then run from this folder:
 
 ```sh
@@ -47,7 +49,7 @@ make web
 
 `WEB_CARGO` selects a custom Cargo/toolchain; optional `.make.local` settings are ignored by Git.
 
-Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes the port. The Java reference remains at http://127.0.0.1:8765 (`make java`). Native play is still `make rust`. The browser build currently cannot persist records through the native filesystem; a save failure does not stop the game.
+Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes the port. The Java reference remains at http://127.0.0.1:8765 (`make java`). Native play is still `make rust`. The browser build stores personal records in localStorage for the current origin. On the main screen, press R to reset all records, then Enter / 5 to confirm or Escape to cancel. Native builds retain executable-adjacent file storage.
 
 ## Controls
 

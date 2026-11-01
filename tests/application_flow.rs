@@ -87,3 +87,31 @@ fn paused_frames_never_accumulate_catchup_ticks() {
     app.update(0.032, FrameInput::default());
     assert_eq!(app.game.elapsed_ms, 32);
 }
+
+#[test]
+fn reset_records_requires_confirmation_and_cancel_preserves_records() {
+    let records = [Some(1000), Some(600), None, Some(400), Some(7000)];
+    let mut app = App::new(records);
+    let reset = FrameInput {
+        retry: true,
+        ..Default::default()
+    };
+    app.update(0.016, reset);
+    assert!(app.screen == Screen::ResetRecords);
+    assert_eq!(app.records, records);
+    app.update(
+        0.016,
+        FrameInput {
+            escape: true,
+            ..Default::default()
+        },
+    );
+    assert!(app.screen == Screen::Menu);
+    assert_eq!(app.records, records);
+    assert!(!app.records_dirty);
+    app.update(0.016, reset);
+    app.update(0.016, confirm());
+    assert!(app.screen == Screen::Menu);
+    assert_eq!(app.records, [None; 5]);
+    assert!(app.records_dirty);
+}
