@@ -2,6 +2,7 @@
 //! Simulation is independent of the renderer. One step is exactly 32 ms.
 pub mod artwork;
 pub mod bitmap_font;
+pub mod javelin;
 pub mod presentation;
 pub mod prompts;
 pub mod vault;
@@ -311,6 +312,7 @@ pub struct Game {
     pub feedback: String,
     pub feedback_time: i32,
     pub projectile: [i64; 6],
+    pub javelin: javelin::Javelin,
     pub pole: [i32; 12],
     pub vault: vault::Vault,
     pub hurdle_index: usize,
@@ -330,7 +332,7 @@ impl Game {
         let mut g = Self {
             event,
             runner: Runner::new(seed, pos),
-            phase: if matches!(event, Event::LongJump | Event::PoleVault) {
+            phase: if matches!(event, Event::LongJump | Event::PoleVault | Event::Javelin) {
                 Phase::Prepare
             } else {
                 Phase::Run
@@ -348,6 +350,7 @@ impl Game {
             feedback: String::new(),
             feedback_time: 0,
             projectile: [0; 6],
+            javelin: javelin::Javelin::default(),
             pole: [0; 12],
             vault: vault::Vault::default(),
             hurdle_index: 0,
@@ -380,9 +383,20 @@ impl Game {
         if self.finished {
             return;
         }
+        if self.event == Event::Javelin
+            && self.phase == Phase::Flight
+            && matches!(input, Input::ActionDown)
+        {
+            while !self.finished {
+                self.step();
+            }
+            return;
+        }
         match input {
             Input::Left | Input::Right => {
-                if self.event == Event::LongJump && self.phase == Phase::Prepare {
+                if matches!(self.event, Event::LongJump | Event::Javelin)
+                    && self.phase == Phase::Prepare
+                {
                     self.phase = Phase::Run;
                     self.phase_time = 0;
                     self.runner.speed = 0;
@@ -407,9 +421,14 @@ impl Game {
                     }
                     if matches!(
                         self.event,
-                        Event::LongJump | Event::Hurdles | Event::PoleVault
+                        Event::LongJump | Event::Hurdles | Event::PoleVault | Event::Javelin
                     ) {
-                        if !good && matches!(self.event, Event::LongJump | Event::PoleVault) {
+                        if !good
+                            && matches!(
+                                self.event,
+                                Event::LongJump | Event::PoleVault | Event::Javelin
+                            )
+                        {
                             self.sound_events.push(19);
                         }
                     } else {
@@ -467,32 +486,14 @@ impl Game {
                 Event::Javelin => {
                     if self.phase == Phase::Approach {
                         self.phase = Phase::Charge;
-                        self.phase_time = 0
+                        self.phase_time = 0;
+                        self.sound_events.push(18);
                     }
                 }
                 Event::PoleVault => self.vault_down(),
             },
             Input::ActionUp => match self.event {
-                Event::Javelin => {
-                    if self.phase == Phase::Charge {
-                        let launch = self.runner.pos + 300 / 32 * self.runner.speed;
-                        if launch > 0 {
-                            self.finish(None);
-                            return;
-                        }
-                        let angle = (self.phase_time * 60) & 0x1ffff;
-                        self.projectile = [
-                            launch as i64,
-                            131072,
-                            ((cos(16384) * self.runner.speed * 3) >> 14) as i64,
-                            ((sin(16384) * self.runner.speed * 3) >> 14) as i64,
-                            (0x400000 + ((angle - 65536) << 6)) as i64,
-                            0,
-                        ];
-                        self.phase = Phase::Throw;
-                        self.phase_time = 0;
-                    }
-                }
+                Event::Javelin => self.javelin_release(),
                 Event::PoleVault => self.vault_up(),
                 _ => {}
             },
@@ -501,6 +502,14 @@ impl Game {
     /// Post-finish movement leaves the measured result and race clock untouched.
     pub fn step_finish(&mut self) {
         if !self.finished {
+            return;
+        }
+        if self.event == Event::Javelin {
+            self.phase_time += 32;
+            self.runner.tick += 1;
+            let previous = self.phase;
+            self.javelin_step();
+            self.javelin_effects_step(previous);
             return;
         }
         if self.event == Event::PoleVault {
@@ -567,7 +576,11 @@ impl Game {
         match self.event {
             Event::Dash | Event::Hurdles => self.race_step(),
             Event::LongJump => self.jump_step(),
-            Event::Javelin => self.javelin_step(),
+            Event::Javelin => {
+                let previous = self.phase;
+                self.javelin_step();
+                self.javelin_effects_step(previous);
+            }
             Event::PoleVault => {
                 self.vault_step();
                 let marker = vault_effect::marker(self);
@@ -703,78 +716,8 @@ impl Game {
             _ => {}
         }
     }
-    fn javelin_step(&mut self) {
-        match self.phase {
-            Phase::Run => {
-                self.runner.run(false);
-                if self.runner.pos >= -1966080 {
-                    self.phase = Phase::Approach;
-                    self.message("HOLD 5 TO CHARGE!")
-                }
-            }
-            Phase::Approach | Phase::Charge => {
-                self.runner.move_by(0);
-                if self.runner.pos > 131072 {
-                    self.finish(None)
-                }
-            }
-            Phase::Throw => {
-                if self.phase_time <= 300 {
-                    self.runner.move_by(0)
-                }
-                if self.phase_time >= 400 {
-                    self.phase = Phase::Flight;
-                    self.phase_time = 0
-                }
-            }
-            Phase::Flight => {
-                // Original two-ended rod aerodynamic model, d.c(c,boolean).
-                let p = &mut self.projectile;
-                p[0] += p[2];
-                p[1] += p[3];
-                p[4] += p[5];
-                p[5] = (p[5] * 247) >> 8;
-                let l = (cos((p[4] >> 8) as i32) << 2) as i64;
-                let l2 = (sin((p[4] >> 8) as i32) << 2) as i64;
-                let l3 = -l2;
-                let l4 = l;
-                let x1 = p[0] + l;
-                let y1 = p[1] + l2;
-                let x2 = p[0] - l;
-                let y2 = p[1] - l2;
-                let flow = ((-p[2] * l3 - p[3] * l4) >> 16) >> 6;
-                let mut fx1 = (flow * 192 * l3) >> 24;
-                let mut fx2 = (flow * 320 * l3) >> 24;
-                let mut fy1 = -428 + ((flow * 192 * l4) >> 24);
-                let mut fy2 = -256 + ((flow * 320 * l4) >> 24);
-                if fy1 < 0 && y1 < 0 || fy2 < 0 && y2 < 0 {
-                    if (y1 < 0) != (y2 < 0) && y2 != y1 {
-                        p[0] = x1 + (x2 - x1) * -y1 / (y2 - y1)
-                    }
-                    p[1] = 0;
-                    let score = if p[0] < 0 {
-                        None
-                    } else {
-                        Some((p[0] * 100 / 88576) as i32)
-                    };
-                    self.finish(score);
-                } else {
-                    let torque = (((fx1 * l3 + fy1 * l4) * 192 / 512) >> 16)
-                        + (-((fx2 * l3 + fy2 * l4) * 320 / 512) >> 16);
-                    p[5] += torque << 6;
-                    fx1 -= (torque * l3 * 192 / 512) >> 16;
-                    fx2 += (torque * l3 * 320 / 512) >> 16;
-                    fy1 -= (torque * l4 * 192 / 512) >> 16;
-                    fy2 += (torque * l4 * 320 / 512) >> 16;
-                    p[2] += fx1 + fx2;
-                    p[3] += fy1 + fy2;
-                }
-            }
-            _ => {}
-        }
-    }
 }
-use presentation::{cos, sin};
+use presentation::sin;
 
 #[cfg(test)]
 mod tests {

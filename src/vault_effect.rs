@@ -1,4 +1,4 @@
-//! Pole timing glow: original particle preset 1 at b0 byte offset 3600.
+//! Shared original particle presets and the Pole Vault timing-marker geometry.
 use crate::{
     Game,
     presentation::{Camera, SINE},
@@ -17,6 +17,7 @@ pub struct Particle {
     pub origin: [i32; 2],
     pub born: i32,
     pub lifetime: i32,
+    pub preset: usize,
 }
 #[derive(Clone, Debug)]
 pub struct TimingEffect {
@@ -44,16 +45,62 @@ impl TimingEffect {
         self.rng = (self.rng.wrapping_mul(25214903917) + 11) & ((1 << 48) - 1);
         ((self.rng >> 16) as i32).wrapping_abs()
     }
-    pub fn step(&mut self, marker: Option<Marker>) {
-        self.clock += 32;
+    pub fn update_particles(&mut self) {
         self.particles.retain_mut(|p| {
             if self.clock >= p.born + p.lifetime {
                 return false;
             }
             p.position[0] += p.velocity[0];
             p.position[1] += p.velocity[1];
+            let table = preset(p.preset);
+            if table[15] > 0 && p.position[1] < p.origin[1] {
+                p.position[1] = p.origin[1];
+                p.velocity[0] = (p.velocity[0] * table[15]) >> 8;
+                p.velocity[1] = (-p.velocity[1] * table[15]) >> 8;
+            }
+            p.velocity[1] += (150 * table[8]) >> 8;
             true
         });
+    }
+    pub fn emit_preset(
+        &mut self,
+        id: usize,
+        anchor: [i32; 2],
+        range: Option<[i32; 2]>,
+        scale: i32,
+    ) {
+        let table = preset(id);
+        let [low, high] = range.unwrap_or([table[10], table[11]]);
+        for _ in 0..((table[1] * scale) >> 10) {
+            let angle = if low == high {
+                low
+            } else {
+                low + self.random() % (high - low)
+            };
+            let speed = 50 + self.random() % 50;
+            let velocity = [
+                (SINE[(angle & 511) as usize] * speed) >> 10,
+                (SINE[((angle + 128) & 511) as usize] * speed) >> 10,
+            ]
+            .map(|v| (v * table[4]) >> 8);
+            let extra = if table[9] > 0 {
+                self.random() % table[9]
+            } else {
+                self.random() & 15
+            };
+            self.particles.push(Particle {
+                position: anchor,
+                velocity,
+                origin: anchor,
+                born: self.clock,
+                lifetime: table[6] + extra,
+                preset: id,
+            });
+        }
+    }
+    pub fn step(&mut self, marker: Option<Marker>) {
+        self.clock += 32;
+        self.update_particles();
         if !self.emit {
             return;
         }
@@ -61,31 +108,42 @@ impl TimingEffect {
             return;
         };
         self.anchor = marker.position.map(|v| v << 10);
-        for _ in 0..6 {
-            let angle = marker.direction - 64 + self.random() % 128;
-            let speed = 50 + self.random() % 50;
-            let velocity = [
-                (SINE[(angle & 511) as usize] * speed) >> 10,
-                (SINE[((angle + 128) & 511) as usize] * speed) >> 10,
-            ]
-            .map(|v| (v * 320) >> 8);
-            let lifetime = 350 + self.random() % 100;
-            self.particles.push(Particle {
-                position: self.anchor,
-                velocity,
-                origin: self.anchor,
-                born: self.clock,
-                lifetime,
-            });
-        }
+        self.emit_preset(
+            1,
+            self.anchor,
+            Some([marker.direction - 64, marker.direction + 64]),
+            1024,
+        );
     }
-    pub fn sprites(&self) -> impl Iterator<Item = (usize, [i32; 2])> + '_ {
+    pub fn sprites(&self) -> impl Iterator<Item = (usize, [i32; 2], bool)> + '_ {
         self.particles.iter().map(|p| {
-            let age = ((self.clock - p.born) << 8) / p.lifetime;
-            let point = [0, 1].map(|i| (p.position[i] + self.anchor[i] - p.origin[i]) >> 10);
-            (463 + ((age.min(256) * 2) >> 8) as usize, point)
+            let age = (((self.clock - p.born) << 8) / p.lifetime).min(256);
+            let table = preset(p.preset);
+            let follow = if table[13] > 0 {
+                (table[12] * age) >> 8
+            } else if table[13] < 0 {
+                (table[12] * (256 - age)) >> 8
+            } else {
+                table[12]
+            };
+            let point = [0, 1].map(|i| {
+                (p.position[i] + ((self.anchor[i] - p.origin[i]).wrapping_mul(follow) >> 14)) >> 10
+            });
+            let sprite = if table[0] == 4 {
+                466 + ((age * 10) >> 8).min(2)
+            } else {
+                463 + ((age * 2) >> 8)
+            };
+            (sprite as usize, point, table[14] != 0)
         })
     }
+}
+fn preset(id: usize) -> [i32; 16] {
+    let data = include_bytes!("../assets/tables.bin");
+    std::array::from_fn(|i| {
+        let offset = 3568 + id * 32 + i * 2;
+        i16::from_be_bytes([data[offset], data[offset + 1]]) as i32
+    })
 }
 /// Original curved-rod marker placement, including integer interpolation and bQ.
 pub fn marker(game: &Game) -> Option<Marker> {

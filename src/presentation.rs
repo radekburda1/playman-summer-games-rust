@@ -37,6 +37,9 @@ pub fn cos(a: i32) -> i32 {
 fn lerp(a: i32, b: i32, x: i32, d: i32) -> i32 {
     (a * (d - x) + b * x) / d
 }
+fn curve(a: i32, b: i32, x: i32, d: i32) -> i32 {
+    lerp(a, b, (4 * x * x / d - x) / 3, d)
+}
 fn ease(a: i32, b: i32, x: i32, d: i32) -> i32 {
     lerp(a, b, (sin(x * 65536 / d - 32768) + 16384) >> 7, 256)
 }
@@ -67,8 +70,9 @@ impl Camera {
         if rz >= 0 {
             return (if x < 0 { 0 } else { 239 << 16 }, 319 << 16);
         }
-        let sx = 0x780000 + (24641536i64 * x as i64 / (-rz) as i64) as i32;
-        let sy = ((319 - 16 + 22) >> 1 << 16) - (24641536i64 * ry as i64 / (-rz) as i64) as i32;
+        let sx = 0x780000i32.wrapping_add((24641536i64 * x as i64 / (-rz) as i64) as i32);
+        let sy = ((319i32 - 16 + 22) >> 1 << 16)
+            .wrapping_sub((24641536i64 * ry as i64 / (-rz) as i64) as i32);
         (sx, sy)
     }
     /// Original d.B camera, before athlete-follow offsets are applied.
@@ -146,17 +150,25 @@ impl Camera {
                 )
             }
             Event::Javelin => {
-                let flight = matches!(g.phase, Phase::Flight | Phase::Done) && g.projectile[0] != 0;
+                let phase = g.javelin_phase();
+                let flight = phase == 7 || (phase == 6 && !g.javelin.foul);
                 let mut target = if flight {
                     (g.projectile[0] >> 8) as i32
                 } else {
                     p.min(0)
                 };
-                let h = if flight {
+                let mut h = if flight {
                     ((g.projectile[1] >> 8) as i32 - 512).max(0)
                 } else {
                     0
                 };
+                if phase == 6 && !g.javelin.foul {
+                    if g.projectile[1] > 0x2e0000 {
+                        h -= 1024;
+                    } else if g.projectile[1] > 393216 {
+                        h -= ease(0, 1024, (g.projectile[1] >> 8) as i32 - 1536, 10240);
+                    }
+                }
                 if target > -7680 {
                     target += if target < -3840 {
                         lerp(0, 128, target + 7680, 3840)
@@ -168,6 +180,18 @@ impl Camera {
                         lerp(0, -512, target - 17300, 17300)
                     } else {
                         -512
+                    };
+                }
+                if phase == 5 {
+                    target += lerp(0, 128, g.phase_time, 800);
+                } else if phase > 5 {
+                    target += 128;
+                }
+                if phase == 7 {
+                    target += if g.javelin.foul || g.phase_time > 300 {
+                        128
+                    } else {
+                        128 - curve(0, 256, 300 - g.phase_time, 300)
                     };
                 }
                 let mut y = h - 512;
@@ -353,6 +377,37 @@ impl Animation {
                         Self::new(3430, 5, t - 1560, 120, true)
                     }
                 }
+            };
+        }
+        if g.event == Event::Javelin && g.phase == Phase::Flight {
+            return Self::new(2804, 15, t, 100, false);
+        }
+        if g.event == Event::Javelin && g.phase == Phase::FoulRun {
+            return Self::new(2684, 11, p, 160, true);
+        }
+        if g.event == Event::Javelin && g.finished {
+            return if g.result.is_none() {
+                if t < 3720 {
+                    Self::new(3472, 32, t, 120, false)
+                } else {
+                    Self::new(3536, 5, t - 3720, 120, true)
+                }
+            } else if g.event.score(g.result) >= 750 {
+                if t < 160 {
+                    Self::new(3440, 3, t, 80, false)
+                } else if t < 2080 {
+                    Self::new(3446, 13, t - 160, 80, true)
+                } else if t < 2920 {
+                    Self::new(3366, 8, t - 2080, 120, false)
+                } else {
+                    Self::new(3382, 5, t - 2920, 120, true)
+                }
+            } else if g.event.score(g.result) >= 450 {
+                Self::new(3392, 5, t, 120, true)
+            } else if t < 1560 {
+                Self::new(3402, 14, t, 120, false)
+            } else {
+                Self::new(3430, 5, t - 1560, 120, true)
             };
         }
         if g.finished {

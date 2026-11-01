@@ -93,6 +93,44 @@ fn main() {
             }
         }
     }
+    std::fs::create_dir_all(format!("{output}/javelin")).unwrap();
+    for scenario in [
+        "valid",
+        "early",
+        "late",
+        "foul",
+        "missed",
+        "wrong-run",
+        "idle",
+        "skip",
+    ] {
+        let csv = std::fs::read_to_string(format!(
+            "{}/tests/fixtures/javelin/{scenario}.csv",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap();
+        let mut g = Game::new(Event::Javelin, 12345);
+        for row in csv.lines().skip(1) {
+            let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
+            match v[1] {
+                0 => g.input(Input::Left),
+                1 => g.input(Input::Right),
+                10 => g.input(Input::ActionDown),
+                11 => g.input(Input::ActionUp),
+                12 => g.input(Input::ActionDown),
+                _ => {}
+            }
+            if g.finished {
+                g.step_finish();
+            } else {
+                g.step();
+            }
+            if v[0] % 40 == 0 {
+                world::draw(&artwork, &g, false, None, v[0] * 32, None);
+                render::save_software(&format!("{output}/javelin/{scenario}-{}.png", v[0]));
+            }
+        }
+    }
     println!("Rendered reference-input replay to {output}");
 }
 
@@ -232,6 +270,68 @@ fn carried_pole_matches_original_preparation_and_runup() {
         assert!(
             mismatches <= 16,
             "tick {tick}: {mismatches}/{pole_pixels} pole pixels differ from Java"
+        );
+    }
+}
+
+#[test]
+fn javelin_carried_and_flying_rendering_matches_reference() {
+    use macroquad::prelude::{Image, ImageFormat};
+    let root = env!("CARGO_MANIFEST_DIR");
+    let art = art::Art::new_software();
+    let csv = std::fs::read_to_string(format!("{root}/tests/fixtures/javelin/valid.csv")).unwrap();
+    for tick in [80, 280] {
+        let mut game = Game::new(Event::Javelin, 12345);
+        for row in csv.lines().skip(1).take(tick + 1) {
+            let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
+            match v[1] {
+                0 => game.input(Input::Left),
+                1 => game.input(Input::Right),
+                10 => game.input(Input::ActionDown),
+                11 => game.input(Input::ActionUp),
+                12 => game.input(Input::ActionDown),
+                _ => {}
+            }
+            game.step();
+        }
+        world::draw(&art, &game, false, None, tick as i32 * 32, None);
+        let actual = render::software_frame();
+        let bytes = std::fs::read(format!(
+            "{root}/tests/fixtures/javelin/world/valid-{tick}.png"
+        ))
+        .unwrap();
+        let expected = Image::from_file_with_format(&bytes, Some(ImageFormat::Png)).unwrap();
+        let palette = [
+            15128068u32,
+            5862914,
+            0x2e0e00,
+            2780928,
+            3025408,
+            0xfcefef,
+            11499374,
+            5451825,
+        ];
+        let mut tested = 0;
+        let mut mismatches = 0;
+        for (a, b) in expected
+            .bytes
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(actual.bytes.as_chunks::<4>().0.iter())
+        {
+            let rgb = ((a[0] as u32) << 16) | ((a[1] as u32) << 8) | a[2] as u32;
+            if tick == 280 || palette.contains(&rgb) {
+                tested += 1;
+                if (0..3).any(|i| a[i].abs_diff(b[i]) > 4) {
+                    mismatches += 1;
+                }
+            }
+        }
+        assert!(tested > 100, "reference must exercise visible geometry");
+        assert!(
+            mismatches <= 100,
+            "tick {tick}: {mismatches}/{tested} pixels differ from Java"
         );
     }
 }

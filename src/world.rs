@@ -50,6 +50,9 @@ fn repeat_at(art: &Art, c: Camera, id: usize, z: i32, spacing: i32, time: i32, y
     };
     while x < 240 {
         let cutoff = match (id, z) {
+            (8209, -128000) => Some(-19712),
+            (8208, -19712) => Some(-14592),
+            (8207, -14592) => Some(-10752),
             (8208, -29440) => Some(-24320),
             (8207, -24320) => Some(-20480),
             (8208, -10496) => Some(-5376),
@@ -300,6 +303,295 @@ fn vault_pole(c: Camera, g: &Game, carried: Option<[f32; 4]>) {
         y += dy / 16;
     }
 }
+fn javelin_rod(g: &Game, center: Vec2, delta: Vec2, clip: Option<i32>) {
+    use playman_rust::{presentation::SINE, vault::direction};
+    if center.x < -64. || center.x > 304. || center.y < -64. || center.y > 384. {
+        return;
+    }
+    let (x, y, dx, dy) = (
+        center.x as i64,
+        center.y as i64,
+        delta.x as i64,
+        delta.y as i64,
+    );
+    let norm = ((((dx * dx + dy * dy) << 8) as u64).isqrt() as i64) << 4;
+    if norm == 0 {
+        return;
+    }
+    let (vx, vy) = ((dx << 16) / norm, (dy << 16) / norm);
+    let landed = g.javelin_phase() == 7;
+    let [tail, grip0, grip1, metal] = if landed {
+        [-106, -47, -37, -2]
+    } else {
+        [-64, -5, 5, 40]
+    };
+    let at = |t: i32| {
+        [
+            ((2 * (x << 8) + 2 * i64::from(t) * vx + 256) >> 9) as i32,
+            ((2 * (y << 8) + 2 * i64::from(t) * vy + 256) >> 9) as i32,
+        ]
+    };
+    let a = at(tail);
+    let b = at(57);
+    let lerp = |a: i32, b: i32, t: i32| (a * (57 - tail - t) + b * t) / (57 - tail);
+    let grip_a = [
+        lerp(a[0], b[0], grip0 - tail),
+        lerp(a[1], b[1], grip0 - tail),
+    ];
+    let grip_b = [
+        lerp(a[0], b[0], grip1 - tail),
+        lerp(a[1], b[1], grip1 - tail),
+    ];
+    let tip = [
+        lerp(a[0], b[0], metal - tail),
+        lerp(a[1], b[1], metal - tail),
+    ];
+    let angle = direction(b[0] - a[0], b[1] - a[1]);
+    let cosine = SINE[((angle + 128) & 511) as usize];
+    let sine = SINE[(angle & 511) as usize];
+    let (mut u, mut v, mut u2, mut v2) = (
+        (-2 * cosine) >> 14,
+        (-2 * sine) >> 14,
+        (3 * cosine) >> 14,
+        (3 * sine) >> 14,
+    );
+    let swap = (v - v2).abs() > (u - u2).abs();
+    if swap {
+        std::mem::swap(&mut u, &mut v);
+        std::mem::swap(&mut u2, &mut v2);
+    }
+    let mut reverse = false;
+    if u > u2 {
+        std::mem::swap(&mut u, &mut u2);
+        std::mem::swap(&mut v, &mut v2);
+        reverse = true;
+    }
+    let width = u2 - u;
+    let height = (v2 - v).abs();
+    let mut error = -(width + 1) / 2;
+    let mut row = v;
+    let mut row_step = if v < v2 { 1 } else { -1 };
+    let mut step = 1;
+    if !reverse {
+        std::mem::swap(&mut u, &mut u2);
+        step = -1;
+        row_step = -row_step;
+    }
+    let colors = [
+        15128068, 5862914, 0x2e0e00, 2780928, 3025408, 0, 0xfcefef, 11499374, 5451825,
+    ];
+    let line = |mut a: [i32; 2], mut b: [i32; 2], rgb| {
+        if let Some(bottom) = clip {
+            if a[1] >= bottom && b[1] >= bottom {
+                return;
+            }
+            if a[1] >= bottom {
+                a[0] = b[0] + (a[0] - b[0]) * (bottom - 1 - b[1]) / (a[1] - b[1]);
+                a[1] = bottom - 1;
+            }
+            if b[1] >= bottom {
+                b[0] = a[0] + (b[0] - a[0]) * (bottom - 1 - a[1]) / (b[1] - a[1]);
+                b[1] = bottom - 1;
+            }
+        }
+        draw_line(
+            a[0] as f32,
+            a[1] as f32,
+            b[0] as f32,
+            b[1] as f32,
+            1.,
+            color(rgb),
+        );
+    };
+    let mut toggle = 0;
+    let mut column = u;
+    while column != u2 {
+        let (ox, oy) = if swap { (row, column) } else { (column, row) };
+        let advance = toggle ^ 1;
+        if advance != 0 {
+            error += height;
+            if error >= 0 {
+                toggle = 1;
+                error -= width;
+            }
+        } else {
+            row += row_step;
+            toggle = 0;
+        }
+        let shade = if column == u {
+            2
+        } else if column + step == u2 {
+            0
+        } else {
+            1
+        };
+        let shift = |p: [i32; 2]| [p[0] + ox, p[1] + oy];
+        line(a, shift(grip_a), colors[shade]);
+        line(shift(grip_a), shift(grip_b), colors[3 + shade]);
+        line(shift(grip_b), shift(tip), colors[shade]);
+        line(shift(tip), b, colors[6 + shade]);
+        if advance != 0 {
+            column += step;
+        }
+    }
+}
+fn javelin_point(radius: i32, angle: i32) -> (i32, i32) {
+    use playman_rust::presentation::{cos, sin};
+    let offset = -cos(4096) * 512 / sin(4096);
+    (
+        (((((radius - offset) * cos(angle)) >> 14) + offset) * 346) >> 8,
+        ((radius - offset) * sin(angle)) >> 14,
+    )
+}
+fn javelin_ground_line(c: Camera, a: (i32, i32), b: (i32, i32), rgb: u32) {
+    if let Some([a, b]) = playman_rust::javelin::ground_segment(c, [a.0, a.1], [b.0, b.1]) {
+        draw_line(a[0], a[1], b[0], b[1], 1., color(rgb));
+    }
+}
+fn javelin_arc(c: Camera, radius: i32, rgb: u32) {
+    let segments = 3 + radius / 2560;
+    if segments <= 0 {
+        return;
+    }
+    let mut previous = javelin_point(radius, -4096);
+    for n in 1..=segments {
+        let next = javelin_point(radius, -4096 + (8192 / segments) * n);
+        javelin_ground_line(c, previous, next, rgb);
+        previous = next;
+    }
+}
+fn javelin_scene(art: &Art, g: &Game, c: Camera, time: i32) {
+    let ci = 12934952;
+    let cj = 14715962;
+    let mut strips = vec![(-19712, 11725567), (-10752, 8104530), (-10740, 0xffffff)];
+    for lane in 1..=6 {
+        strips.push((-10752 + lane * 512 - 12, ci));
+        strips.push((-10752 + lane * 512 + 12, 0xffffff));
+    }
+    for (n, rgb) in [10143323, 12374893, 10143323, 11914837, 9814862, 11783245]
+        .into_iter()
+        .enumerate()
+    {
+        strips.push((-5120 + n as i32 * 10240 / 5, rgb));
+    }
+    strips.push((i32::MAX, 0x3f3f3f));
+    bands(c, &strips);
+    // Original perspective mask separates the approach from the infield.
+    let far = project(c, 173, 0, -7680);
+    let center = project(c, 173, 0, 0);
+    let bottom_x = if center.y != far.y {
+        far.x + (center.x - far.x) * (319. - far.y) / (center.y - far.y)
+    } else {
+        far.x
+    };
+    let back = project(c, 173, 0, -512);
+    let front = project(c, 173, 0, 512);
+    for (a, b, rgb) in [
+        (far, back, ci),
+        (back, front, cj),
+        (front, vec2(bottom_x, 319.), ci),
+    ] {
+        if a.x < 0. {
+            continue;
+        }
+        draw_rectangle(
+            0.,
+            a.y,
+            a.x.min(b.x).clamp(0., 240.),
+            b.y - a.y + 1.,
+            color(rgb),
+        );
+        if a.x > b.x {
+            draw_triangle(vec2(b.x, a.y), a, b, color(rgb));
+        } else {
+            draw_triangle(vec2(a.x, b.y), b, a, color(rgb));
+        }
+    }
+    for z in [-512, 512] {
+        javelin_ground_line(c, (c.x - 1_000_000, z), (0, z), 0xffffff);
+    }
+    if let Some([a, b]) = playman_rust::javelin::ground_segment(c, [0, -512], [0, 512]) {
+        for n in 0..6 {
+            draw_line(a[0] - n as f32, a[1], b[0] - n as f32, b[1], 1., WHITE);
+        }
+    }
+    let (mut back, mut front) = ((0, -512), (0, 512));
+    for meters in (10..=120).step_by(10) {
+        let next = javelin_point(meters << 8, -4096);
+        javelin_ground_line(c, back, next, 0xffffff);
+        back = next;
+        let next = (next.0, -next.1);
+        javelin_ground_line(c, front, next, 0xffffff);
+        front = next;
+        if meters >= 30 {
+            javelin_arc(c, meters << 8, 0xffffff);
+        }
+    }
+    if let Some(record) = g.record_distance {
+        javelin_arc(c, record * 256 / 100, 0xe15151);
+    }
+    if let Some(result) = g.result {
+        javelin_arc(c, result * 256 / 100, 5346785);
+    }
+    for z in [-640, 544] {
+        for (x, w, rgb) in [
+            (-7696, 32, 0xffffff),
+            (-7664, 2528, 16776502),
+            (-5136, 32, 0xffffff),
+            (-5104, 2528, 15834373),
+            (-2576, 32, 0xffffff),
+            (-2544, 2528, 13641520),
+        ] {
+            quad(c, x, x + w, z, z + 128, color(rgb));
+        }
+    }
+    for (id, z) in [(493, -512), (492, 512)] {
+        let p = project(c, 0, 0, z);
+        art.bottom_center_sprite(id, p.x, p.y);
+    }
+    for (id, z) in [
+        (8209, -128000),
+        (8208, -19712),
+        (8207, -14592),
+        (8204, -10752),
+    ] {
+        repeat(art, c, id, z, 0, time);
+    }
+    repeat_at(art, c, 8206, -9728, 0, time, project(c, 0, 0, -10752).y);
+    for meters in (50..=100).step_by(10) {
+        let p = javelin_point(meters << 8, -4096);
+        let p = project(c, p.0, 0, p.1);
+        let id = 494 + (meters - 50) / 10;
+        art.bottom_center_sprite(id as usize, p.x, p.y + art.sprite_height(id as usize) / 4.);
+    }
+    let official = project(c, 0, 0, -1280);
+    art.scene_tween(
+        16385,
+        usize::from(g.javelin.foul),
+        usize::from(g.javelin.foul),
+        0,
+        official.x,
+        official.y,
+    );
+    let person = project(c, -1536, 0, -2048);
+    art.bottom_center_sprite(690, person.x, person.y);
+    for (id, z, spacing, end) in [
+        (8198, -2048, 384, -7936),
+        (8196, -768, 256, -8448),
+        (8200, 1152, 256, -4608),
+    ] {
+        let anchor = project(c, end, 0, z);
+        let period = art.scene_width(id) + spacing;
+        let mut x = anchor.x as i32;
+        if x > x % period + period {
+            x = x % period + period;
+        }
+        while x > 0 {
+            x -= period;
+            art.scene_tween(id, 0, 0, 0, (x + spacing) as f32, anchor.y + 1.);
+        }
+    }
+}
 pub fn draw(
     art: &Art,
     g: &Game,
@@ -332,7 +624,9 @@ pub fn draw(
     let cj = 14715962;
     let ck = 13666640;
     clear_background(color(11725567));
-    if g.event.race() {
+    if g.event == Event::Javelin {
+        javelin_scene(art, g, c, scenery_time);
+    } else if g.event.race() {
         let mut strips = vec![(-128000, 11725567), (-17920, 10143323), (-15360, ck)];
         let greens = [10143323, 12374893, 10143323, 11914837, 9814862, 11783245];
         for (n, col) in greens.iter().enumerate() {
@@ -762,18 +1056,6 @@ pub fn draw(
                 art.sprite(462, mark.x - 6., mark.y - 3., false);
             }
         }
-        if g.event == Event::Javelin {
-            line(c, (0, 0, -512), (0, 0, 512), 4., WHITE);
-            for m in (10..=120).step_by(10) {
-                line(
-                    c,
-                    (m * 346, 0, -512),
-                    (m * 346, 0, 512),
-                    1.,
-                    color(0xe6b79c),
-                );
-            }
-        }
         if g.event == Event::PoleVault {
             quad(c, -280, -20, -64, 64, color(0x484848));
             quad(c, -20, 20, -256, 256, WHITE);
@@ -868,6 +1150,10 @@ pub fn draw(
                 art.animation_with_hook(Animation::for_game(g), p.x, p.y, |bounds| {
                     vault_pole(c, g, Some(bounds));
                 });
+            } else if g.event == Event::Javelin && g.javelin_phase() < 6 {
+                art.animation_with_hook(Animation::for_game(g), p.x, p.y, |[x, y, dx, dy]| {
+                    javelin_rod(g, vec2(x, y + dy - 1.), vec2(dx, -dy), None);
+                });
             } else {
                 art.athlete(g, p.x, p.y)
             }
@@ -916,46 +1202,29 @@ pub fn draw(
         let position = project(c, 512, 0, 512);
         art.scene_tween(16386, a, b, fraction, position.x, position.y);
     }
-    if g.event == Event::Javelin {
-        let (center, direction) =
-            if matches!(g.phase, Phase::Flight | Phase::Done) && g.projectile[0] != 0 {
-                let r = g.projectile[0];
-                let h = g.projectile[1];
-                let angle = (g.projectile[4] >> 8) as i32;
-                let center = project(c, (r >> 8) as i32, (h >> 8) as i32, 0);
-                let end = project(
-                    c,
-                    ((r + ((playman_rust::presentation::cos(angle) as i64) << 4)) >> 8) as i32,
-                    ((h + ((playman_rust::presentation::sin(angle) as i64) << 4)) >> 8) as i32,
-                    0,
-                );
-                let delta = end - center;
-                (
-                    center,
-                    if delta.length_squared() > 0. {
-                        delta.normalize()
-                    } else {
-                        vec2(1., 0.)
-                    },
-                )
-            } else {
-                art.athlete_hook(g, p.x, p.y)
-                    .unwrap_or((vec2(p.x - 12., p.y - 68.), vec2(1., 0.)))
-            };
-        let start = center - direction * 64.;
-        let end = center + direction * 57.;
-        draw_line(start.x, start.y, end.x, end.y, 1.5, YELLOW);
-        let tip = center + direction * 40.;
-        draw_line(tip.x, tip.y, end.x, end.y, 1.5, LIGHTGRAY);
-        if g.phase == Phase::Charge {
-            let n = (g.phase_time * 60) & 0x1ffff;
-            let n = if n > 65536 { 131072 - n } else { n };
-            let spark = center + direction * (-64. + 121. * n as f32 / 65536.);
-            art.sprite(469, spark.x, spark.y, true);
-        }
+    if g.event == Event::Javelin && matches!(g.phase, Phase::Flight | Phase::Done) {
+        use playman_rust::presentation::{cos, sin};
+        let rod = g.projectile;
+        let angle = (rod[4] >> 8) as i32;
+        let center = project(c, (rod[0] >> 8) as i32, (rod[1] >> 8) as i32, 0);
+        let shift = if g.phase == Phase::Done { 2 } else { 4 };
+        let tip = project(
+            c,
+            ((rod[0] + ((cos(angle) as i64) << shift)) >> 8) as i32,
+            ((rod[1] + ((sin(angle) as i64) << shift)) >> 8) as i32,
+            0,
+        );
+        let shadow = project(c, (rod[0] >> 8) as i32, 0, 0);
+        art.bottom_center_sprite(522, shadow.x, shadow.y);
+        let clip = if g.phase == Phase::Done {
+            Some(project(c, ((rod[0] + ((cos(angle) as i64) << 2)) >> 8) as i32, 0, 0).y as i32)
+        } else {
+            None
+        };
+        javelin_rod(g, center, tip - center, clip);
     }
     if g.event == Event::PoleVault {
-        for (sprite, [x, y]) in g.vault.timing.sprites() {
+        for (sprite, [x, y], _) in g.vault.timing.sprites() {
             art.sprite(sprite, x as f32, y as f32, true);
         }
         // Keep the timing cursor legible over the accumulated particle glow.
@@ -965,6 +1234,24 @@ pub fn draw(
                 ((scenery_time >> 7) & 3) as u8,
                 marker.position[0] as f32,
                 marker.position[1] as f32,
+            );
+        }
+    }
+    if g.event == Event::Javelin {
+        for (sprite, [x, y], world) in g.javelin.effects.sprites() {
+            let p = if world {
+                project(c, x, y, 0)
+            } else {
+                vec2(x as f32, y as f32)
+            };
+            art.sprite(sprite, p.x, p.y, true);
+        }
+        if let Some([x, y]) = playman_rust::javelin::charge_marker(g) {
+            art.transformed_sprite(
+                469,
+                ((scenery_time >> 7) & 3) as u8,
+                (x >> 10) as f32,
+                (y >> 10) as f32,
             );
         }
     }

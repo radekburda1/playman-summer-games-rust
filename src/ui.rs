@@ -207,7 +207,8 @@ pub fn game_hud(art: &Art, app: &App) {
                 };
         let action = (g.event == Event::PoleVault && g.phase == Phase::VaultPlant && !g.vault.held)
             || dive_zone
-            || matches!(g.phase, Phase::Approach | Phase::Charge)
+            || g.phase == Phase::Approach
+            || (g.phase == Phase::Charge && g.event != Event::Javelin)
             || (g.phase == Phase::Air && g.runner.vertical <= 650);
         if g.event == Event::LongJump && matches!(g.phase, Phase::BadStretch | Phase::Stretch) {
             let (x, y) = Camera::for_game(g).project(g.runner.pos >> 8, g.runner.height >> 8, 0);
@@ -221,6 +222,15 @@ pub fn game_hud(art: &Art, app: &App) {
                     true,
                 );
             }
+        }
+        if g.event == Event::Javelin && g.phase == Phase::Charge && g.phase_time < 200 {
+            let (x, y) = Camera::for_game(g).project(g.runner.pos >> 8, g.runner.height >> 8, 0);
+            art.sprite(
+                474 + (g.phase_time * 3 / 200) as usize,
+                (x - 14) as f32,
+                (y - 124) as f32,
+                true,
+            );
         }
         if action && g.runner.dive.is_none() {
             let (x, y) = Camera::for_game(g).project(
@@ -297,7 +307,15 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             }
         }
         Screen::Finish => {
-            event_header(art, app, "FINISH");
+            event_header(
+                art,
+                app,
+                &if app.game.event == Event::Javelin {
+                    format!("ROUND {}", app.attempt + 1)
+                } else {
+                    "FINISH".into()
+                },
+            );
             let offset = slide(app);
             draw_rectangle(-offset, 54., 240., 27., Color::new(0.08, 0.13, 0.2, 0.75));
             art.label(3, "PLAYER 1", 120. - offset, 57., 1);
@@ -306,7 +324,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             let width = BitmapFont::get(font).width(&time) as f32;
             art.result_panel(120. + offset - (width as i32 / 2) as f32, 90., width);
             art.label(font, &time, 120. + offset, 87., 1);
-            if app.game.event == Event::PoleVault || app.game.runner.speed < 4000 {
+            if !app.game.event.race() || app.game.runner.speed < 4000 {
                 art.label(
                     3,
                     app.game.event.finish_message(app.game.result),

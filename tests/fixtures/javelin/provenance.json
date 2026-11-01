@@ -1,0 +1,65 @@
+{
+  "method": "Original unmodified Java JAR; isolated FreeJ2ME, seed 12345, 32 ms ticks, normalized default athlete. World method bx is executed every tick.",
+  "jar_sha256": "abeba23badbf5e937b806c7e24165420c7dde08301c694f798b2d3c12f16962b",
+  "oracle_sha256": "466499876210fbf457548503177a86cdee88f50941eff7e62744900dfb1bca9f",
+  "scenarios": {
+    "valid": {
+      "ticks": 427,
+      "phase": 7,
+      "result_centimeters": 9950,
+      "sha256": "711983673f88fd3bd02fac93a40edb4a5221923b5756ff63af281949e820ca22"
+    },
+    "early": {
+      "ticks": 406,
+      "phase": 7,
+      "result_centimeters": 8935,
+      "sha256": "5c06d40dae8593da7a26b310fc2f18d7210057deeb24a01b919cf3cc1aa65d5a"
+    },
+    "late": {
+      "ticks": 429,
+      "phase": 7,
+      "result_centimeters": 9093,
+      "sha256": "2a9709bde56e40d4bde7dd9254097c7e869d643bceb20768ba4fba983cb834a6"
+    },
+    "foul": {
+      "ticks": 433,
+      "phase": 7,
+      "result_centimeters": null,
+      "sha256": "2d860ebe1945641c3b77de34c85431ca308baeda85959d1cb725eb7179bb00f0"
+    },
+    "missed": {
+      "ticks": 243,
+      "phase": 8,
+      "result_centimeters": null,
+      "sha256": "984498496e51ebbaeef5fa84ff971e14a2bd18c0e1fc643feddc348aad670933"
+    },
+    "wrong-run": {
+      "ticks": 463,
+      "phase": 7,
+      "result_centimeters": 4329,
+      "sha256": "0b6cbfeec33afd9c53c6524846b2c90c2e1b4c1c1e946eefb05fa05d01eb83cd"
+    },
+    "idle": {
+      "ticks": 374,
+      "phase": 8,
+      "result_centimeters": null,
+      "sha256": "78847d68b4ef462e50638587e3e01a2cd9209c3c64347416ee770f1c5ddefd0e"
+    },
+    "skip": {
+      "ticks": 246,
+      "phase": 7,
+      "result_centimeters": 9950,
+      "sha256": "2fa90f3f96e6bd896fe13a6f4f2036a8e1274d7266705cda2ee3147dd3e68766"
+    }
+  },
+  "total_ticks": 3021,
+  "particles": {
+    "method": "--effects, independent Java Random seed 54321; original particle update/draw with source emission counters. All 8131 active records matched; regression retains selected boundary/midpoint ticks.",
+    "sample_records": 1025,
+    "sha256": "103bf429433f6112d6f6c28c3cae3b1705d12a1616a470c72741e44a625c954d"
+  },
+  "images_sha256": {
+    "world/valid-280.png": "a45b2ea5d484191c9f4ae46937ae05221d87c483f6eb1f4716879710635f31a5",
+    "world/valid-80.png": "4fa92cd1121853e4112acb084f63d913f403e229edd79be251a79c18af8ff4b6"
+  }
+}

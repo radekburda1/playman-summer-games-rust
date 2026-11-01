@@ -73,6 +73,12 @@ impl Art {
             self.draw(command);
         }
     }
+    pub fn sprite_height(&self, id: usize) -> f32 {
+        match self.artwork.sprite(id, 0, 0., 0., false) {
+            Some(Command::Image { source, .. }) => source[3],
+            _ => 0.,
+        }
+    }
     pub fn right_center_sprite(&self, id: usize, x: f32, y: f32) {
         if let Some(Command::Image {
             source: [sx, sy, w, h],
@@ -254,31 +260,6 @@ impl Art {
             }
             self.draw(command);
         }
-    }
-    pub fn athlete_hook(&self, g: &Game, x: f32, y: f32) -> Option<(Vec2, Vec2)> {
-        let (a, b, f) = Animation::for_game(g).frames(include_bytes!("../assets/tables.bin"));
-        self.artwork
-            .frame(0, a, b, f, x, y)
-            .into_iter()
-            .find_map(|command| {
-                if let Command::Hook {
-                    bounds: [px, py, dx, dy],
-                } = command
-                {
-                    let center = vec2(px, py + dy - 1.);
-                    let direction = vec2(dx, -dy);
-                    if (center.x - x).abs() < 200.
-                        && (center.y - y).abs() < 200.
-                        && direction.length_squared() > 0.
-                    {
-                        Some((center, direction.normalize()))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
     }
     pub fn scene_height(&self, id: usize) -> i32 {
         self.artwork.height(id)

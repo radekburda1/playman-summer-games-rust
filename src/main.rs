@@ -93,11 +93,7 @@ impl App {
             self.records[self.selected] = result;
             self.save_error = save_records(&self.records).err().map(|e| e.to_string());
         }
-        self.screen = if e.race() || matches!(e, Event::LongJump | Event::PoleVault) {
-            Screen::Finish
-        } else {
-            Screen::Results
-        };
+        self.screen = Screen::Finish;
         self.clock = 0.;
     }
     fn advance(&mut self) {
@@ -206,9 +202,7 @@ async fn main() {
                 } else {
                     app.screen = target;
                 }
-                if target == Screen::Ready
-                    && !matches!(app.game.event, Event::LongJump | Event::PoleVault)
-                {
+                if target == Screen::Ready && app.game.event.race() {
                     sounds.play(23);
                 }
                 app.screen_age = 0.;
@@ -274,15 +268,7 @@ async fn main() {
             }
             Screen::Ready => {
                 app.ready += dt;
-                if app.ready
-                    >= if matches!(app.game.event, Event::LongJump | Event::PoleVault) {
-                        0.
-                    } else if app.game.event.race() {
-                        5.
-                    } else {
-                        3.
-                    }
-                {
+                if app.ready >= if app.game.event.race() { 5. } else { 0. } {
                     app.screen = Screen::Play;
                 }
             }
@@ -356,9 +342,8 @@ async fn main() {
                     app.clock -= TICK;
                     app.game.step_finish();
                 }
-                if confirm && (app.game.event == Event::PoleVault || app.game.runner.speed < 4000) {
-                    app.advance_after_transition =
-                        matches!(app.game.event, Event::LongJump | Event::PoleVault);
+                if confirm && (!app.game.event.race() || app.game.runner.speed < 4000) {
+                    app.advance_after_transition = !app.game.event.race();
                     app.outgoing = Some((Screen::Results, 0.));
                 }
             }
@@ -379,25 +364,17 @@ async fn main() {
         if app.screen != old_screen {
             app.screen_age = 0.;
         }
-        if !matches!(app.game.event, Event::LongJump | Event::PoleVault)
-            && app.screen == Screen::Ready
-            && old_screen != Screen::Ready
-        {
+        if app.game.event.race() && app.screen == Screen::Ready && old_screen != Screen::Ready {
             sounds.play(23)
         }
         if app.screen == Screen::Ready && old_ready < 3. && app.ready >= 3. {
             sounds.play(24)
         }
-        if !matches!(app.game.event, Event::LongJump | Event::PoleVault)
-            && app.screen == Screen::Play
-            && old_screen == Screen::Ready
-        {
+        if app.game.event.race() && app.screen == Screen::Play && old_screen == Screen::Ready {
             sounds.play(25)
         }
-        if !matches!(
-            app.game.event,
-            Event::LongJump | Event::Hurdles | Event::PoleVault
-        ) && matches!(app.screen, Screen::Finish | Screen::Results)
+        if app.game.event == Event::Dash
+            && matches!(app.screen, Screen::Finish | Screen::Results)
             && old_screen == Screen::Play
         {
             sounds.play(if app.game.result.is_some() { 26 } else { 22 })
@@ -411,9 +388,7 @@ async fn main() {
         for sound in app.game.sound_events.drain(..) {
             sounds.play(sound);
         }
-        if !matches!(app.game.event, Event::LongJump | Event::PoleVault)
-            && app.game.feedback_time > old_feedback
-        {
+        if app.game.event.race() && app.game.feedback_time > old_feedback {
             match app.game.feedback.as_str() {
                 "WRONG BUTTON" => sounds.play(19),
                 "OUCH!" | "TOO EARLY!" => sounds.play(22),
@@ -481,18 +456,20 @@ async fn main() {
 mod flow_tests {
     use super::*;
     #[test]
-    fn long_jump_has_three_attempts_and_preserves_best() {
-        let mut app = App::new();
-        app.selected = 1;
-        app.game = Game::new(Event::LongJump, 1);
-        app.best = Some(720);
-        for attempt in 1..=2 {
+    fn field_events_have_three_attempts_and_preserve_best() {
+        for selected in [1, 3, 4] {
+            let mut app = App::new();
+            app.selected = selected;
+            app.game = Game::new(Event::ALL[selected], 1);
+            app.best = Some(720);
+            for attempt in 1..=2 {
+                app.advance();
+                assert_eq!(app.attempt, attempt);
+                assert!(app.screen == Screen::AwaitStart);
+                assert_eq!(app.best, Some(720));
+            }
             app.advance();
-            assert_eq!(app.attempt, attempt);
-            assert!(app.screen == Screen::AwaitStart);
-            assert_eq!(app.best, Some(720));
+            assert!(app.screen == Screen::Menu);
         }
-        app.advance();
-        assert!(app.screen == Screen::Menu);
     }
 }
