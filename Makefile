@@ -20,7 +20,7 @@ help:
 	@echo 'make java      Run the original Java game; open http://127.0.0.1:$(PORT)'
 	@echo 'make web       Build and serve the Rust browser version on port $(WEB_PORT)'
 	@echo 'make web-setup Install the WASM target for the active Rust toolchain'
-	@echo 'make compare   Export Hurdles replay frames without a graphics context'
+	@echo 'make compare   Export reference-input replay frames without a graphics context'
 	@echo 'make build     Build the Rust game'
 	@echo 'make test      Run Rust tests'
 	@echo 'Overrides: JAR=/path/game.jar PORT=8766 PLAYMAN_JAVA=/path/to/java'

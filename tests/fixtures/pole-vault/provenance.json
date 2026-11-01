@@ -1,0 +1,60 @@
+{
+  "method": "Unmodified JAR in isolated FreeJ2ME. Seed 12345; 32 ms ticks. Default athlete appearance normalized; transient E/D/A fields zeroed before independent scenarios. World-render method bL called each tick. The original result-store method j(player,attempt,result) is called on first landing for equivalent reaction rendering.",
+  "jar_sha256": "abeba23badbf5e937b806c7e24165420c7dde08301c694f798b2d3c12f16962b",
+  "oracle_sha256": "e38241f2da5218b87870900711388c0343dcaa74a95441543989f7c5b7b341da",
+  "scenarios": {
+    "clean": {
+      "ticks": 302,
+      "clearance": 375894,
+      "result_centimeters": 439,
+      "sha256": "3e6f7a6b099fe71a87e18992bba6ba0ae09fc61baa204a246b083ece4628c243"
+    },
+    "early": {
+      "ticks": 284,
+      "clearance": 0,
+      "result_centimeters": null,
+      "sha256": "4c5a0d7b3c02594f88bbab9e9d84ccff66983a24916bd0aa41c6f48f34e8e45d"
+    },
+    "late": {
+      "ticks": 314,
+      "clearance": 553267,
+      "result_centimeters": 647,
+      "sha256": "0741eb759da9b874c7cfdc0a5302222cfe7e4b5cebef9f82815049383f1f9582"
+    },
+    "no-plant": {
+      "ticks": 264,
+      "clearance": 0,
+      "result_centimeters": null,
+      "sha256": "1217ddab788007987f8c424ae678314d90f0e596ed24bd255bdda039413104f8"
+    },
+    "no-release": {
+      "ticks": 329,
+      "clearance": 0,
+      "result_centimeters": null,
+      "sha256": "4f29213c83f1c1ebef9a0da87509bfcb70819d022e54e2ebc320b64ab1f66459"
+    },
+    "plant-release": {
+      "ticks": 242,
+      "clearance": 0,
+      "result_centimeters": null,
+      "sha256": "f36811c3a28e04b0ed7fded18f59e4546e74c4b84fe34550079a67ea4ece6126"
+    },
+    "wrong-run": {
+      "ticks": 340,
+      "clearance": 0,
+      "result_centimeters": null,
+      "sha256": "a0a6de4be7cf905c003a92539ef18f575eff55c982d8dd4d5408b98d831e9586"
+    }
+  },
+  "total_ticks": 2075,
+  "carry_frames_sha256": {
+    "carry/clean-0.png": "3602c7b7c4c6eba71849bc56d507bbf791912ff318ce52efb3bb740d5616744d",
+    "carry/clean-120.png": "edcd6324bfb6adb22601bf7bd2375295eb47e74fe24cd0994f93748dedd751d2",
+    "carry/clean-80.png": "a216e7452740a2f542e7770c27ec43bd562063b6eb110a73cced9094ea829c80"
+  },
+  "timing_glow": {
+    "method": "Oracle --effects: Java particle Random seed 54321. Original af update before world draw, ag draw afterwards. Preset 1; 5276 original active-particle records matched; regression retains 11 sampled ticks plus empty-effect boundaries.",
+    "fixture_sha256": "9ec8c12792b3d0ca2361878f9946fba1c07606d8c5b1395e457b504f696aed45",
+    "sample_records": 545
+  }
+}

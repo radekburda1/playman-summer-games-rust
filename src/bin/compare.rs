@@ -57,6 +57,42 @@ fn main() {
             }
         }
     }
+    std::fs::create_dir_all(format!("{output}/pole-vault")).unwrap();
+    for scenario in [
+        "clean",
+        "early",
+        "late",
+        "no-plant",
+        "no-release",
+        "plant-release",
+        "wrong-run",
+    ] {
+        let csv = std::fs::read_to_string(format!(
+            "{}/tests/fixtures/pole-vault/{scenario}.csv",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap();
+        let mut g = Game::new(Event::PoleVault, 12345);
+        for row in csv.lines().skip(1) {
+            let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
+            match v[1] {
+                0 => g.input(Input::Left),
+                1 => g.input(Input::Right),
+                10 => g.input(Input::ActionDown),
+                11 => g.input(Input::ActionUp),
+                _ => {}
+            }
+            if g.finished {
+                g.step_finish();
+            } else {
+                g.step();
+            }
+            if v[0] % 40 == 0 {
+                world::draw(&artwork, &g, false, None, v[0] * 32, None);
+                render::save_software(&format!("{output}/pole-vault/{scenario}-{}.png", v[0]));
+            }
+        }
+    }
     println!("Rendered reference-input replay to {output}");
 }
 
@@ -141,6 +177,61 @@ fn matched_java_world_states_remain_close() {
         assert!(
             differences <= 100,
             "{scenario}-{tick}: {differences} pixels differ; inspect original frame before updating the limit"
+        );
+    }
+}
+
+#[test]
+fn carried_pole_matches_original_preparation_and_runup() {
+    use macroquad::prelude::{Image, ImageFormat};
+    let root = env!("CARGO_MANIFEST_DIR");
+    let csv =
+        std::fs::read_to_string(format!("{root}/tests/fixtures/pole-vault/clean.csv")).unwrap();
+    let art = art::Art::new_software();
+    for tick in [0, 80, 120] {
+        let mut game = Game::new(Event::PoleVault, 12345);
+        for row in csv.lines().skip(1).take(tick + 1) {
+            match row.split(',').nth(1).unwrap().parse::<i32>().unwrap() {
+                0 => game.input(Input::Left),
+                1 => game.input(Input::Right),
+                _ => {}
+            }
+            game.step();
+        }
+        world::draw(&art, &game, false, None, tick as i32 * 32, None);
+        let actual = render::software_frame();
+        let bytes = std::fs::read(format!(
+            "{root}/tests/fixtures/pole-vault/carry/clean-{tick}.png"
+        ))
+        .unwrap();
+        let expected = Image::from_file_with_format(&bytes, Some(ImageFormat::Png)).unwrap();
+        // Compare Java's solid pole palette: unrelated crowd/HUD differences must
+        // not hide an absent pole. A missing attachment loses hundreds of pixels.
+        let colors = [8045824u32, 22272, 6067456, 18176, 6441289, 4602176];
+        let mut pole_pixels = 0;
+        let mut mismatches = 0;
+        for (a, b) in expected
+            .bytes
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(actual.bytes.as_chunks::<4>().0.iter())
+        {
+            let rgb = ((a[0] as u32) << 16) | ((a[1] as u32) << 8) | a[2] as u32;
+            if colors.contains(&rgb) {
+                pole_pixels += 1;
+                if a[..3] != b[..3] {
+                    mismatches += 1;
+                }
+            }
+        }
+        assert!(
+            pole_pixels > 600,
+            "reference must contain a visible carried pole"
+        );
+        assert!(
+            mismatches <= 16,
+            "tick {tick}: {mismatches}/{pole_pixels} pole pixels differ from Java"
         );
     }
 }

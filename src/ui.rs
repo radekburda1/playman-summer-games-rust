@@ -205,11 +205,9 @@ pub fn game_hud(art: &Art, app: &App) {
                 } else {
                     0x640000
                 };
-        let action = dive_zone
-            || matches!(
-                g.phase,
-                Phase::Approach | Phase::Charge | Phase::VaultPlant | Phase::VaultBend
-            )
+        let action = (g.event == Event::PoleVault && g.phase == Phase::VaultPlant && !g.vault.held)
+            || dive_zone
+            || matches!(g.phase, Phase::Approach | Phase::Charge)
             || (g.phase == Phase::Air && g.runner.vertical <= 650);
         if g.event == Event::LongJump && matches!(g.phase, Phase::BadStretch | Phase::Stretch) {
             let (x, y) = Camera::for_game(g).project(g.runner.pos >> 8, g.runner.height >> 8, 0);
@@ -238,7 +236,7 @@ pub fn game_hud(art: &Art, app: &App) {
                 } else {
                     472
                 },
-                (x - 14) as f32,
+                (x + if g.event == Event::PoleVault { 61 } else { -14 }) as f32,
                 (y - 124) as f32,
                 true,
             );
@@ -308,7 +306,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             let width = BitmapFont::get(font).width(&time) as f32;
             art.result_panel(120. + offset - (width as i32 / 2) as f32, 90., width);
             art.label(font, &time, 120. + offset, 87., 1);
-            if app.game.runner.speed < 4000 {
+            if app.game.event == Event::PoleVault || app.game.runner.speed < 4000 {
                 art.label(
                     3,
                     app.game.event.finish_message(app.game.result),

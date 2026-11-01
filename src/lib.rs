@@ -4,6 +4,8 @@ pub mod artwork;
 pub mod bitmap_font;
 pub mod presentation;
 pub mod prompts;
+pub mod vault;
+pub mod vault_effect;
 pub const TICK: f32 = 0.032;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Event {
@@ -133,6 +135,8 @@ pub enum Phase {
     Flight,
     VaultPlant,
     VaultBend,
+    VaultStraighten,
+    VaultFall,
     VaultRelease,
     Done,
 }
@@ -308,6 +312,7 @@ pub struct Game {
     pub feedback_time: i32,
     pub projectile: [i64; 6],
     pub pole: [i32; 12],
+    pub vault: vault::Vault,
     pub hurdle_index: usize,
     pub tripped: u32,
     pub peak: i32,
@@ -325,7 +330,7 @@ impl Game {
         let mut g = Self {
             event,
             runner: Runner::new(seed, pos),
-            phase: if event == Event::LongJump {
+            phase: if matches!(event, Event::LongJump | Event::PoleVault) {
                 Phase::Prepare
             } else {
                 Phase::Run
@@ -344,6 +349,7 @@ impl Game {
             feedback_time: 0,
             projectile: [0; 6],
             pole: [0; 12],
+            vault: vault::Vault::default(),
             hurdle_index: 0,
             tripped: 0,
             peak: 0,
@@ -356,7 +362,7 @@ impl Game {
             let v = r + sin(55 << 8) * 18;
             let w = s + sin(183 << 8) * 18;
             // r,s,t,u,v,w,x,y,C,B,E,D are the decompiled pole/body model.
-            g.pole = [r, s, 0, 0, v, w, 0, 0, w, -5120 + ((v - r) >> 8), 0, 5160];
+            g.pole = [r, s, 0, 0, v, w, 0, 0, w, -5120 + ((v - r) >> 8), 0, 0];
         }
         g
     }
@@ -399,8 +405,11 @@ impl Game {
                             slot,
                         });
                     }
-                    if self.event == Event::LongJump || self.event == Event::Hurdles {
-                        if !good && self.event == Event::LongJump {
+                    if matches!(
+                        self.event,
+                        Event::LongJump | Event::Hurdles | Event::PoleVault
+                    ) {
+                        if !good && matches!(self.event, Event::LongJump | Event::PoleVault) {
                             self.sound_events.push(19);
                         }
                     } else {
@@ -461,20 +470,7 @@ impl Game {
                         self.phase_time = 0
                     }
                 }
-                Event::PoleVault => {
-                    if self.phase == Phase::VaultPlant {
-                        self.pole[10] =
-                            (self.pole[10] + ((self.pole[4] >> 4) + 1500).min(0)).max(0);
-                        self.runner.speed = self.runner.speed.max(4000);
-                        self.pole[2] = self.runner.speed;
-                        self.runner.vertical += 4000;
-                        self.pole[3] = self.runner.vertical;
-                        self.message("PLANT!");
-                    } else if matches!(self.phase, Phase::VaultBend) {
-                        self.pole[2] = (self.pole[2] + 3000).max(12500);
-                        self.pole[3] += 5000;
-                    }
-                }
+                Event::PoleVault => self.vault_down(),
             },
             Input::ActionUp => match self.event {
                 Event::Javelin => {
@@ -497,26 +493,7 @@ impl Game {
                         self.phase_time = 0;
                     }
                 }
-                Event::PoleVault => {
-                    if matches!(self.phase, Phase::VaultPlant | Phase::VaultBend) {
-                        if self.phase == Phase::VaultPlant {
-                            self.runner.vertical = 4000;
-                            self.runner.speed >>= 1;
-                            self.pole[2] >>= 1;
-                            self.pole[6] >>= 1
-                        } else {
-                            self.runner.speed = self
-                                .runner
-                                .speed
-                                .max(((128000 - self.runner.pos) * 10) >> 8);
-                            self.runner.vertical += ((self.pole[10] - 2700) * 5 / 4).max(0);
-                            self.pole[2] = -5000;
-                        }
-                        self.phase = Phase::VaultRelease;
-                        self.phase_time = 0;
-                        self.message("RELEASE!");
-                    }
-                }
+                Event::PoleVault => self.vault_up(),
                 _ => {}
             },
         }
@@ -524,6 +501,14 @@ impl Game {
     /// Post-finish movement leaves the measured result and race clock untouched.
     pub fn step_finish(&mut self) {
         if !self.finished {
+            return;
+        }
+        if self.event == Event::PoleVault {
+            self.phase_time += 32;
+            self.runner.tick += 1;
+            self.vault_step();
+            let marker = vault_effect::marker(self);
+            self.vault.timing.step(marker);
             return;
         }
         if self.event == Event::LongJump {
@@ -583,7 +568,11 @@ impl Game {
             Event::Dash | Event::Hurdles => self.race_step(),
             Event::LongJump => self.jump_step(),
             Event::Javelin => self.javelin_step(),
-            Event::PoleVault => self.vault_step(),
+            Event::PoleVault => {
+                self.vault_step();
+                let marker = vault_effect::marker(self);
+                self.vault.timing.step(marker);
+            }
         }
         self.peak = self.peak.max(self.runner.height);
     }
@@ -784,63 +773,6 @@ impl Game {
             _ => {}
         }
     }
-    fn vault_step(&mut self) {
-        // Compact reconstruction of the original spring pole. The release/timing
-        // controls and integer scale are preserved; this solver is approximate.
-        match self.phase {
-            Phase::Run => {
-                self.runner.run(false);
-                self.pole[0] = self.runner.pos;
-                self.pole[4] = self.runner.pos + 250000;
-                if self.runner.pos > -1310720 {
-                    self.phase = Phase::VaultPlant;
-                    self.pole[10] = self.runner.speed - 16000;
-                    self.message("HOLD 5 WHEN THE TIP REACHES THE BOX!")
-                }
-            }
-            Phase::VaultPlant => {
-                self.runner.pos += self.runner.speed;
-                self.runner.height = (self.runner.height + self.runner.vertical).max(0);
-                self.runner.vertical -= 700;
-                self.pole[4] = self.runner.pos + 250000;
-                if self.pole[4] >= 0 {
-                    self.pole[4] = 0;
-                    self.phase = Phase::VaultBend;
-                    self.phase_time = 0;
-                    self.pole[0] = self.runner.pos;
-                    self.pole[1] = self.runner.height + 51200;
-                }
-            }
-            Phase::VaultBend => {
-                let t = self.phase_time;
-                self.runner.pos = -250000 + (t * 260);
-                self.runner.height = (t * 950 - t * t / 2).max(0);
-                self.runner.vertical = 950 * 32 - t * 32;
-                if t > 1250 {
-                    self.phase = Phase::VaultRelease;
-                    self.phase_time = 0;
-                    self.runner.vertical = 0;
-                    self.runner.speed = 3000;
-                    self.message("TOO LATE!")
-                }
-            }
-            Phase::VaultRelease => {
-                let before = self.runner.pos;
-                self.runner.pos += self.runner.speed;
-                self.runner.height += self.runner.vertical;
-                self.runner.vertical -= 700;
-                if before < 128000 && self.runner.pos >= 128000 {
-                    let h = self.runner.height.max(0);
-                    self.result = Some(h / 855)
-                }
-                if self.runner.height <= 62720 && self.runner.vertical < 0 {
-                    self.runner.height = 62720;
-                    self.finish(self.result.filter(|v| *v > 0))
-                }
-            }
-            _ => {}
-        }
-    }
 }
 use presentation::{cos, sin};
 
@@ -933,8 +865,12 @@ mod tests {
                     Event::Javelin if g.phase == Phase::Charge && g.phase_time >= 1088 => {
                         g.input(Input::ActionUp)
                     }
-                    Event::PoleVault if g.phase == Phase::VaultPlant => g.input(Input::ActionDown),
-                    Event::PoleVault if g.phase == Phase::VaultBend && g.phase_time >= 900 => {
+                    Event::PoleVault
+                        if g.phase == Phase::VaultPlant && g.pole[4] + g.pole[6] >= -100000 =>
+                    {
+                        g.input(Input::ActionDown)
+                    }
+                    Event::PoleVault if g.phase == Phase::VaultStraighten && g.pole[11] >= 4800 => {
                         g.input(Input::ActionUp)
                     }
                     _ => {}

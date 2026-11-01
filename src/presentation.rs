@@ -181,19 +181,27 @@ impl Camera {
             }
             Event::PoleVault => {
                 let h = (g.runner.height >> 8).max(0);
-                if matches!(g.phase, Phase::Run | Phase::VaultPlant) {
+                let target = (g.runner.pos
+                    + (((g.vault.camera_offset >> 8) * (g.vault.camera_offset >> 8)) >> 1))
+                    >> 8;
+                if g.vault_phase() < 3 {
                     Self::new(
-                        p + 144,
+                        target + 144,
                         1408 + lerp(100, -1024, p + 15360, 15360),
                         2304,
                         6144 + lerp(0, -8800, p + 15360, 15360),
                     )
                 } else {
+                    let end = if g.finished {
+                        g.phase_time.min(3000)
+                    } else {
+                        0
+                    };
                     Self::new(
-                        p.min(1000),
-                        384 + (h / 2 - 300).max(0),
+                        target.min(1000),
+                        384 + ((h >> 1) - 300).max(0) + (end >> 3),
                         2304,
-                        6144 - 8800 - ((h * h) >> 10),
+                        6144 - 8800 - ((h * h) >> 10) + end,
                     )
                 }
             }
@@ -290,6 +298,62 @@ impl Animation {
                 }
                 _ => {}
             }
+        }
+        if g.event == Event::PoleVault {
+            return match g.phase {
+                Phase::Prepare => Self::new(3068, 6, t, 160, false),
+                Phase::Run | Phase::VaultPlant if !g.vault.held => {
+                    Self::new(3080, 15, p + 15360, 160, true).loop_from(4)
+                }
+                Phase::VaultPlant => Self::new(3116, 8, 0, 1000, false),
+                Phase::VaultBend | Phase::VaultStraighten => {
+                    let h = r.height >> 9;
+                    Self::new(
+                        3116,
+                        8,
+                        if h < 220 { 220 - (h - 220) * 3 / 2 } else { h },
+                        90,
+                        false,
+                    )
+                }
+                Phase::VaultRelease if g.vault.held => Self::new(3132, 7, t, 100, false),
+                Phase::VaultRelease => Self::new(2592, 2, t, 120, false),
+                Phase::VaultFall if r.pos > 0 => Self::new(
+                    3146,
+                    5,
+                    (g.vault.fall_height - r.height) >> 8,
+                    ((g.vault.fall_height >> 8) / 6).max(1),
+                    false,
+                ),
+                Phase::VaultFall => Self::new(2650, 11, t, 120, false),
+                _ if t < 600 => Self::new(3156, 5, t, 120, false),
+                _ if g.result.is_none() => {
+                    if t < 3720 {
+                        Self::new(3472, 32, t, 120, false)
+                    } else {
+                        Self::new(3536, 5, t - 3720, 120, true)
+                    }
+                }
+                _ if g.event.score(g.result) >= 750 => {
+                    if t < 160 {
+                        Self::new(3440, 3, t, 80, false)
+                    } else if t < 2080 {
+                        Self::new(3446, 13, t - 160, 80, true)
+                    } else if t < 2920 {
+                        Self::new(3366, 8, t - 2080, 120, false)
+                    } else {
+                        Self::new(3382, 5, t - 2920, 120, true)
+                    }
+                }
+                _ if g.event.score(g.result) >= 450 => Self::new(3392, 5, t, 120, true),
+                _ => {
+                    if t < 1560 {
+                        Self::new(3402, 14, t, 120, false)
+                    } else {
+                        Self::new(3430, 5, t - 1560, 120, true)
+                    }
+                }
+            };
         }
         if g.finished {
             return match g.event {

@@ -14,7 +14,10 @@ pub struct Prompt {
     pub y: i32,
 }
 pub fn running(g: &Game) -> Vec<Prompt> {
-    if g.finished || !matches!(g.phase, Phase::Run | Phase::Prepare) {
+    if g.finished
+        || (g.event == Event::PoleVault && g.phase == Phase::Prepare)
+        || !matches!(g.phase, Phase::Run | Phase::Prepare)
+    {
         return Vec::new();
     }
     let cutoff = if g.event == Event::Dash {
@@ -32,11 +35,14 @@ pub fn running(g: &Game) -> Vec<Prompt> {
     } else {
         Camera::for_game(g)
     };
-    let (x, y) = camera.project(
+    let (mut x, y) = camera.project(
         g.runner.pos >> 8,
         g.runner.height >> 8,
         Camera::athlete_lane(g.event),
     );
+    if g.event == Event::PoleVault {
+        x += 15;
+    }
     let y = y - 38;
     let position = |key: usize, slot: usize| {
         if g.event == Event::Hurdles {

@@ -93,7 +93,7 @@ impl App {
             self.records[self.selected] = result;
             self.save_error = save_records(&self.records).err().map(|e| e.to_string());
         }
-        self.screen = if e.race() || e == Event::LongJump {
+        self.screen = if e.race() || matches!(e, Event::LongJump | Event::PoleVault) {
             Screen::Finish
         } else {
             Screen::Results
@@ -206,7 +206,9 @@ async fn main() {
                 } else {
                     app.screen = target;
                 }
-                if target == Screen::Ready && app.game.event != Event::LongJump {
+                if target == Screen::Ready
+                    && !matches!(app.game.event, Event::LongJump | Event::PoleVault)
+                {
                     sounds.play(23);
                 }
                 app.screen_age = 0.;
@@ -273,7 +275,7 @@ async fn main() {
             Screen::Ready => {
                 app.ready += dt;
                 if app.ready
-                    >= if app.game.event == Event::LongJump {
+                    >= if matches!(app.game.event, Event::LongJump | Event::PoleVault) {
                         0.
                     } else if app.game.event.race() {
                         5.
@@ -354,8 +356,9 @@ async fn main() {
                     app.clock -= TICK;
                     app.game.step_finish();
                 }
-                if confirm && app.game.runner.speed < 4000 {
-                    app.advance_after_transition = app.game.event == Event::LongJump;
+                if confirm && (app.game.event == Event::PoleVault || app.game.runner.speed < 4000) {
+                    app.advance_after_transition =
+                        matches!(app.game.event, Event::LongJump | Event::PoleVault);
                     app.outgoing = Some((Screen::Results, 0.));
                 }
             }
@@ -376,7 +379,7 @@ async fn main() {
         if app.screen != old_screen {
             app.screen_age = 0.;
         }
-        if app.game.event != Event::LongJump
+        if !matches!(app.game.event, Event::LongJump | Event::PoleVault)
             && app.screen == Screen::Ready
             && old_screen != Screen::Ready
         {
@@ -385,14 +388,16 @@ async fn main() {
         if app.screen == Screen::Ready && old_ready < 3. && app.ready >= 3. {
             sounds.play(24)
         }
-        if app.game.event != Event::LongJump
+        if !matches!(app.game.event, Event::LongJump | Event::PoleVault)
             && app.screen == Screen::Play
             && old_screen == Screen::Ready
         {
             sounds.play(25)
         }
-        if !matches!(app.game.event, Event::LongJump | Event::Hurdles)
-            && matches!(app.screen, Screen::Finish | Screen::Results)
+        if !matches!(
+            app.game.event,
+            Event::LongJump | Event::Hurdles | Event::PoleVault
+        ) && matches!(app.screen, Screen::Finish | Screen::Results)
             && old_screen == Screen::Play
         {
             sounds.play(if app.game.result.is_some() { 26 } else { 22 })
@@ -406,7 +411,9 @@ async fn main() {
         for sound in app.game.sound_events.drain(..) {
             sounds.play(sound);
         }
-        if app.game.event != Event::LongJump && app.game.feedback_time > old_feedback {
+        if !matches!(app.game.event, Event::LongJump | Event::PoleVault)
+            && app.game.feedback_time > old_feedback
+        {
             match app.game.feedback.as_str() {
                 "WRONG BUTTON" => sounds.play(19),
                 "OUCH!" | "TOO EARLY!" => sounds.play(22),

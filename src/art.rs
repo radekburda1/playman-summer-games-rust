@@ -68,6 +68,11 @@ impl Art {
             self.draw(c)
         }
     }
+    pub fn transformed_sprite(&self, id: usize, transform: u8, x: f32, y: f32) {
+        if let Some(command) = self.artwork.sprite(id, transform, x, y, true) {
+            self.draw(command);
+        }
+    }
     pub fn right_center_sprite(&self, id: usize, x: f32, y: f32) {
         if let Some(Command::Image {
             source: [sx, sy, w, h],
@@ -210,6 +215,23 @@ impl Art {
         let (a, b, f) = animation.frames(include_bytes!("../assets/tables.bin"));
         for c in self.artwork.frame(0, a, b, f, x, y) {
             self.draw(c)
+        }
+    }
+    /// Pose hooks are emitted in drawing order, between the original sprite layers.
+    pub fn animation_with_hook(
+        &self,
+        animation: Animation,
+        x: f32,
+        y: f32,
+        mut hook: impl FnMut([f32; 4]),
+    ) {
+        let (a, b, f) = animation.frames(include_bytes!("../assets/tables.bin"));
+        for command in self.artwork.frame(0, a, b, f, x, y) {
+            if let Command::Hook { bounds } = command {
+                hook(bounds);
+            } else {
+                self.draw(command);
+            }
         }
     }
     pub fn animation_ground_clip(&self, animation: Animation, x: f32, y: f32, ground: f32) {

@@ -45,6 +45,7 @@ fn field_animation_wraps_negative_runup() {
 #[test]
 fn pole_run_repeats_only_after_intro() {
     let mut g = Game::new(Event::PoleVault, 1);
+    g.phase = playman_rust::Phase::Run;
     g.runner.speed = 20000;
     let intro = Animation::for_game(&g);
     assert_eq!(intro.time, 0);
