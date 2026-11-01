@@ -1,5 +1,5 @@
 //! Original fixed-point projection and distance-driven animation selection.
-use crate::{Event, Game, Phase};
+use crate::{Event, Game, Phase, resources::animation};
 const fn sine_table() -> [i32; 512] {
     let mut a = [0; 512];
     let mut l = 0x40000000i64;
@@ -92,10 +92,10 @@ impl Camera {
         }
     }
     pub fn for_game(g: &Game) -> Self {
-        let p = g.runner.pos >> 8;
-        match g.event {
+        let p = g.runner.position >> 8;
+        match g.event() {
             Event::Dash | Event::Hurdles => {
-                let shift = if g.event == Event::Hurdles { 5120 } else { 0 };
+                let shift = if g.event() == Event::Hurdles { 5120 } else { 0 };
                 let mut target = p;
                 if p < 2560 {
                     target += ease(256, 0, p.max(0), 2560)
@@ -120,7 +120,7 @@ impl Camera {
                 Self::race_at(target)
             }
             Event::LongJump => {
-                let target = match g.phase {
+                let target = match g.phase() {
                     Phase::Run | Phase::Prepare => p,
                     Phase::Approach => {
                         if p < -2048 {
@@ -129,11 +129,13 @@ impl Camera {
                             p.min(0) + 256
                         }
                     }
-                    Phase::Air if g.phase_time < 400 => p + ease(256, -128, g.phase_time, 400),
+                    Phase::Air if g.phase_elapsed_ms < 400 => {
+                        p + ease(256, -128, g.phase_elapsed_ms, 400)
+                    }
                     Phase::Air | Phase::Stretch | Phase::BadStretch => p - 128,
                     Phase::FoulRun => 256,
-                    Phase::LandGood | Phase::LandBad if g.phase_time < 400 => {
-                        p + ease(-128, -256, g.phase_time, 400)
+                    Phase::LandGood | Phase::LandBad if g.phase_elapsed_ms < 400 => {
+                        p + ease(-128, -256, g.phase_elapsed_ms, 400)
                     }
                     _ => p - 256,
                 };
@@ -151,22 +153,27 @@ impl Camera {
             }
             Event::Javelin => {
                 let phase = g.javelin_phase();
-                let flight = phase == 7 || (phase == 6 && !g.javelin.foul);
+                let flight = phase == 7 || (phase == 6 && !g.discipline().javelin().foul);
                 let mut target = if flight {
-                    (g.projectile[0] >> 8) as i32
+                    (g.discipline().javelin().projectile.x >> 8) as i32
                 } else {
                     p.min(0)
                 };
                 let mut h = if flight {
-                    ((g.projectile[1] >> 8) as i32 - 512).max(0)
+                    ((g.discipline().javelin().projectile.y >> 8) as i32 - 512).max(0)
                 } else {
                     0
                 };
-                if phase == 6 && !g.javelin.foul {
-                    if g.projectile[1] > 0x2e0000 {
+                if phase == 6 && !g.discipline().javelin().foul {
+                    if g.discipline().javelin().projectile.y > 0x2e0000 {
                         h -= 1024;
-                    } else if g.projectile[1] > 393216 {
-                        h -= ease(0, 1024, (g.projectile[1] >> 8) as i32 - 1536, 10240);
+                    } else if g.discipline().javelin().projectile.y > 393216 {
+                        h -= ease(
+                            0,
+                            1024,
+                            (g.discipline().javelin().projectile.y >> 8) as i32 - 1536,
+                            10240,
+                        );
                     }
                 }
                 if target > -7680 {
@@ -183,15 +190,15 @@ impl Camera {
                     };
                 }
                 if phase == 5 {
-                    target += lerp(0, 128, g.phase_time, 800);
+                    target += lerp(0, 128, g.phase_elapsed_ms, 800);
                 } else if phase > 5 {
                     target += 128;
                 }
                 if phase == 7 {
-                    target += if g.javelin.foul || g.phase_time > 300 {
+                    target += if g.discipline().javelin().foul || g.phase_elapsed_ms > 300 {
                         128
                     } else {
-                        128 - curve(0, 256, 300 - g.phase_time, 300)
+                        128 - curve(0, 256, 300 - g.phase_elapsed_ms, 300)
                     };
                 }
                 let mut y = h - 512;
@@ -205,8 +212,10 @@ impl Camera {
             }
             Event::PoleVault => {
                 let h = (g.runner.height >> 8).max(0);
-                let target = (g.runner.pos
-                    + (((g.vault.camera_offset >> 8) * (g.vault.camera_offset >> 8)) >> 1))
+                let target = (g.runner.position
+                    + (((g.discipline().vault().camera_offset >> 8)
+                        * (g.discipline().vault().camera_offset >> 8))
+                        >> 1))
                     >> 8;
                 if g.vault_phase() < 3 {
                     Self::new(
@@ -217,7 +226,7 @@ impl Camera {
                     )
                 } else {
                     let end = if g.finished {
-                        g.phase_time.min(3000)
+                        g.phase_elapsed_ms.min(3000)
                     } else {
                         0
                     };
@@ -261,216 +270,244 @@ impl Animation {
     }
     pub fn for_game(g: &Game) -> Self {
         let r = &g.runner;
-        let p = r.pos >> 8;
-        let t = g.phase_time;
-        if g.event.race() {
+        let p = r.position >> 8;
+        let t = g.phase_elapsed_ms;
+        if g.event().race() {
             if g.finished && r.speed < 4000 {
                 if g.finish_good {
                     return if t < 160 {
-                        Self::new(3440, 3, t, 80, false)
+                        Self::new(animation::CELEBRATION_START, 3, t, 80, false)
                     } else {
-                        Self::new(3446, 13, t - 160, 80, true)
+                        Self::new(animation::CELEBRATION_JUMP, 13, t - 160, 80, true)
                     };
                 }
-                if g.event.score(g.result) >= 450 {
-                    return Self::new(3392, 5, t, 120, true);
+                if g.event().score(g.result) >= 450 {
+                    return Self::new(animation::SATISFIED, 5, t, 120, true);
                 }
                 return if t < 1560 {
-                    Self::new(3402, 14, t, 120, false)
+                    Self::new(animation::DISAPPOINTED, 14, t, 120, false)
                 } else {
-                    Self::new(3430, 5, t - 1560, 120, true)
+                    Self::new(animation::DISAPPOINTED_IDLE, 5, t - 1560, 120, true)
                 };
             }
             if r.speed < 0 {
-                return Self::new(2426, 11, 0, 160, false);
+                return Self::new(animation::RACE_ACCELERATE, 11, 0, 160, false);
             }
             if let Some(start) = r.dive {
-                let d = (r.pos - start) >> 8;
+                let d = (r.position - start) >> 8;
                 if d < 4000 {
-                    return Self::new(2470, 21, d, 200, false);
+                    return Self::new(animation::RACE_DIVE, 21, d, 200, false);
                 }
-                return Self::new(2448, 11, d - 4000, 160, true);
+                return Self::new(animation::RACE_RUN, 11, d - 4000, 160, true);
             }
-            if g.event == Event::Hurdles {
+            if g.event() == Event::Hurdles {
                 if p < 2100 {
-                    return Self::new(2834, 16, p, 140, false);
+                    return Self::new(animation::HURDLES_ACCELERATE, 16, p, 140, false);
                 }
                 if p < 28990 {
                     let offset = match r.previous_mistakes {
-                        1 => 2912,
-                        2 => 2958,
-                        3 => 3004,
-                        _ => 2866,
+                        1 => animation::HURDLES_RECOVER_ONE,
+                        2 => animation::HURDLES_RECOVER_TWO,
+                        3 => animation::HURDLES_RECOVER_THREE,
+                        _ => animation::HURDLES_CLEAR,
                     };
                     return Self::new(offset, 23, (p - 2100).rem_euclid(3840), 175, false);
                 }
-                return Self::new(2448, 11, p - 28990, 160, true);
+                return Self::new(animation::RACE_RUN, 11, p - 28990, 160, true);
             }
             if p < 1600 {
-                return Self::new(2426, 11, p, 160, false);
+                return Self::new(animation::RACE_ACCELERATE, 11, p, 160, false);
             }
-            return Self::new(2448, 11, p - 1600, 160, true);
+            return Self::new(animation::RACE_RUN, 11, p - 1600, 160, true);
         }
-        if g.event == Event::LongJump {
-            match g.phase {
-                Phase::Prepare => return Self::new(2618, 11, t, 120, false),
-                Phase::LandGood => return Self::new(2596, 11, t, 120, false),
-                Phase::LandBad if t < 600 => return Self::new(2650, 11, t, 60, false),
-                Phase::LandBad => return Self::new(2672, 6, t - 600, 120, false),
+        if g.event() == Event::LongJump {
+            match g.phase() {
+                Phase::Prepare => {
+                    return Self::new(animation::LONG_JUMP_PREPARE, 11, t, 120, false);
+                }
+                Phase::LandGood => return Self::new(animation::LONG_JUMP_LAND, 11, t, 120, false),
+                Phase::LandBad if t < 600 => return Self::new(animation::FALL, 11, t, 60, false),
+                Phase::LandBad => {
+                    return Self::new(animation::LONG_JUMP_RECOVER, 6, t - 600, 120, false);
+                }
                 Phase::FoulRun => {
-                    return Self::new(2574, 9, (r.pos - g.takeoff_pos) >> 8, 280, false);
+                    return Self::new(
+                        animation::LONG_JUMP_FOUL,
+                        9,
+                        (r.position - g.discipline().long_jump().takeoff_position) >> 8,
+                        280,
+                        false,
+                    );
                 }
                 _ => {}
             }
         }
-        if g.event == Event::PoleVault {
-            return match g.phase {
-                Phase::Prepare => Self::new(3068, 6, t, 160, false),
-                Phase::Run | Phase::VaultPlant if !g.vault.held => {
-                    Self::new(3080, 15, p + 15360, 160, true).loop_from(4)
+        if g.event() == Event::PoleVault {
+            return match g.phase() {
+                Phase::Prepare => Self::new(animation::VAULT_PREPARE, 6, t, 160, false),
+                Phase::Run | Phase::VaultPlant if !g.discipline().vault().held => {
+                    Self::new(animation::VAULT_RUN, 15, p + 15360, 160, true).loop_from(4)
                 }
-                Phase::VaultPlant => Self::new(3116, 8, 0, 1000, false),
+                Phase::VaultPlant => Self::new(animation::VAULT_SWING, 8, 0, 1000, false),
                 Phase::VaultBend | Phase::VaultStraighten => {
                     let h = r.height >> 9;
                     Self::new(
-                        3116,
+                        animation::VAULT_SWING,
                         8,
                         if h < 220 { 220 - (h - 220) * 3 / 2 } else { h },
                         90,
                         false,
                     )
                 }
-                Phase::VaultRelease if g.vault.held => Self::new(3132, 7, t, 100, false),
-                Phase::VaultRelease => Self::new(2592, 2, t, 120, false),
-                Phase::VaultFall if r.pos > 0 => Self::new(
-                    3146,
+                Phase::VaultRelease if g.discipline().vault().held => {
+                    Self::new(animation::VAULT_RELEASE, 7, t, 100, false)
+                }
+                Phase::VaultRelease => Self::new(animation::RELEASE_FALL, 2, t, 120, false),
+                Phase::VaultFall if r.position > 0 => Self::new(
+                    animation::VAULT_FALL,
                     5,
-                    (g.vault.fall_height - r.height) >> 8,
-                    ((g.vault.fall_height >> 8) / 6).max(1),
+                    (g.discipline().vault().fall_height - r.height) >> 8,
+                    ((g.discipline().vault().fall_height >> 8) / 6).max(1),
                     false,
                 ),
-                Phase::VaultFall => Self::new(2650, 11, t, 120, false),
-                _ if t < 600 => Self::new(3156, 5, t, 120, false),
+                Phase::VaultFall => Self::new(animation::FALL, 11, t, 120, false),
+                _ if t < 600 => Self::new(animation::VAULT_LAND, 5, t, 120, false),
                 _ if g.result.is_none() => {
                     if t < 3720 {
-                        Self::new(3472, 32, t, 120, false)
+                        Self::new(animation::FOUL_REACTION, 32, t, 120, false)
                     } else {
-                        Self::new(3536, 5, t - 3720, 120, true)
+                        Self::new(animation::FOUL_IDLE, 5, t - 3720, 120, true)
                     }
                 }
-                _ if g.event.score(g.result) >= 750 => {
+                _ if g.event().score(g.result) >= 750 => {
                     if t < 160 {
-                        Self::new(3440, 3, t, 80, false)
+                        Self::new(animation::CELEBRATION_START, 3, t, 80, false)
                     } else if t < 2080 {
-                        Self::new(3446, 13, t - 160, 80, true)
+                        Self::new(animation::CELEBRATION_JUMP, 13, t - 160, 80, true)
                     } else if t < 2920 {
-                        Self::new(3366, 8, t - 2080, 120, false)
+                        Self::new(animation::CELEBRATION_END, 8, t - 2080, 120, false)
                     } else {
-                        Self::new(3382, 5, t - 2920, 120, true)
+                        Self::new(animation::CELEBRATION_IDLE, 5, t - 2920, 120, true)
                     }
                 }
-                _ if g.event.score(g.result) >= 450 => Self::new(3392, 5, t, 120, true),
+                _ if g.event().score(g.result) >= 450 => {
+                    Self::new(animation::SATISFIED, 5, t, 120, true)
+                }
                 _ => {
                     if t < 1560 {
-                        Self::new(3402, 14, t, 120, false)
+                        Self::new(animation::DISAPPOINTED, 14, t, 120, false)
                     } else {
-                        Self::new(3430, 5, t - 1560, 120, true)
+                        Self::new(animation::DISAPPOINTED_IDLE, 5, t - 1560, 120, true)
                     }
                 }
             };
         }
-        if g.event == Event::Javelin && g.phase == Phase::Flight {
-            return Self::new(2804, 15, t, 100, false);
+        if g.event() == Event::Javelin && g.phase() == Phase::Flight {
+            return Self::new(animation::JAVELIN_WATCH, 15, t, 100, false);
         }
-        if g.event == Event::Javelin && g.phase == Phase::FoulRun {
-            return Self::new(2684, 11, p, 160, true);
+        if g.event() == Event::Javelin && g.phase() == Phase::FoulRun {
+            return Self::new(animation::JAVELIN_RUN_CYCLE, 11, p, 160, true);
         }
-        if g.event == Event::Javelin && g.finished {
+        if g.event() == Event::Javelin && g.finished {
             return if g.result.is_none() {
                 if t < 3720 {
-                    Self::new(3472, 32, t, 120, false)
+                    Self::new(animation::FOUL_REACTION, 32, t, 120, false)
                 } else {
-                    Self::new(3536, 5, t - 3720, 120, true)
+                    Self::new(animation::FOUL_IDLE, 5, t - 3720, 120, true)
                 }
-            } else if g.event.score(g.result) >= 750 {
+            } else if g.event().score(g.result) >= 750 {
                 if t < 160 {
-                    Self::new(3440, 3, t, 80, false)
+                    Self::new(animation::CELEBRATION_START, 3, t, 80, false)
                 } else if t < 2080 {
-                    Self::new(3446, 13, t - 160, 80, true)
+                    Self::new(animation::CELEBRATION_JUMP, 13, t - 160, 80, true)
                 } else if t < 2920 {
-                    Self::new(3366, 8, t - 2080, 120, false)
+                    Self::new(animation::CELEBRATION_END, 8, t - 2080, 120, false)
                 } else {
-                    Self::new(3382, 5, t - 2920, 120, true)
+                    Self::new(animation::CELEBRATION_IDLE, 5, t - 2920, 120, true)
                 }
-            } else if g.event.score(g.result) >= 450 {
-                Self::new(3392, 5, t, 120, true)
+            } else if g.event().score(g.result) >= 450 {
+                Self::new(animation::SATISFIED, 5, t, 120, true)
             } else if t < 1560 {
-                Self::new(3402, 14, t, 120, false)
+                Self::new(animation::DISAPPOINTED, 14, t, 120, false)
             } else {
-                Self::new(3430, 5, t - 1560, 120, true)
+                Self::new(animation::DISAPPOINTED_IDLE, 5, t - 1560, 120, true)
             };
         }
         if g.finished {
-            return match g.event {
+            return match g.event() {
                 Event::LongJump if g.finish_good => {
                     if t < 160 {
-                        Self::new(3440, 3, t, 80, false)
+                        Self::new(animation::CELEBRATION_START, 3, t, 80, false)
                     } else {
-                        Self::new(3446, 13, t - 160, 80, true)
+                        Self::new(animation::CELEBRATION_JUMP, 13, t - 160, 80, true)
                     }
                 }
-                Event::LongJump if g.event.score(g.result) >= 450 => {
-                    Self::new(3392, 5, t, 120, true)
+                Event::LongJump if g.event().score(g.result) >= 450 => {
+                    Self::new(animation::SATISFIED, 5, t, 120, true)
                 }
                 Event::LongJump => {
                     if t < 1560 {
-                        Self::new(3402, 14, t, 120, false)
+                        Self::new(animation::DISAPPOINTED, 14, t, 120, false)
                     } else {
-                        Self::new(3430, 5, t - 1560, 120, true)
+                        Self::new(animation::DISAPPOINTED_IDLE, 5, t - 1560, 120, true)
                     }
                 }
-                Event::PoleVault if t < 600 => Self::new(3156, 5, t, 120, false),
-                _ => Self::new(3366, 8, t, 120, true),
+                Event::PoleVault if t < 600 => Self::new(animation::VAULT_LAND, 5, t, 120, false),
+                _ => Self::new(animation::CELEBRATION_END, 8, t, 120, true),
             };
         }
         if r.speed < 0 {
-            return match g.event {
-                Event::LongJump => Self::new(2618, 11, g.elapsed, 120, false),
-                Event::Javelin => Self::new(2706, 11, g.elapsed, 120, false),
-                _ => Self::new(3068, 6, g.elapsed, 160, false),
+            return match g.event() {
+                Event::LongJump => {
+                    Self::new(animation::LONG_JUMP_PREPARE, 11, g.elapsed_ms, 120, false)
+                }
+                Event::Javelin => {
+                    Self::new(animation::JAVELIN_PREPARE, 11, g.elapsed_ms, 120, false)
+                }
+                _ => Self::new(animation::VAULT_PREPARE, 6, g.elapsed_ms, 160, false),
             };
         }
-        match (g.event, g.phase) {
+        match (g.event(), g.phase()) {
             (Event::LongJump, Phase::Run | Phase::Approach) => {
-                Self::new(2512, 11, p + 40, 160, true)
+                Self::new(animation::LONG_JUMP_RUN, 11, p + 40, 160, true)
             }
-            (Event::LongJump, Phase::Air) => Self::new(2534, 10, t, 80, false),
-            (Event::LongJump, Phase::BadStretch) => Self::new(2534, 10, 720, 80, false),
-            (Event::LongJump, Phase::Stretch) => Self::new(2554, 10, t, 76, false),
+            (Event::LongJump, Phase::Air) => {
+                Self::new(animation::LONG_JUMP_TAKEOFF, 10, t, 80, false)
+            }
+            (Event::LongJump, Phase::BadStretch) => {
+                Self::new(animation::LONG_JUMP_TAKEOFF, 10, 720, 80, false)
+            }
+            (Event::LongJump, Phase::Stretch) => {
+                Self::new(animation::LONG_JUMP_STRETCH, 10, t, 76, false)
+            }
             (Event::Javelin, Phase::Run) => {
                 let d = p + 17920;
                 if d < 1120 {
-                    Self::new(2728, 8, d, 160, false)
+                    Self::new(animation::JAVELIN_RUN, 8, d, 160, false)
                 } else {
-                    Self::new(2684, 11, p, 160, true)
+                    Self::new(animation::JAVELIN_RUN_CYCLE, 11, p, 160, true)
                 }
             }
-            (Event::Javelin, Phase::Approach) => Self::new(2684, 11, p, 160, true),
+            (Event::Javelin, Phase::Approach) => {
+                Self::new(animation::JAVELIN_RUN_CYCLE, 11, p, 160, true)
+            }
             (Event::Javelin, Phase::Charge) => {
                 let d = ((r.speed as i64 * t as i64 / 32) >> 8) as i32;
                 if d > 800 {
-                    Self::new(2754, 10, d - 800, 200, true)
+                    Self::new(animation::JAVELIN_CHARGE, 10, d - 800, 200, true)
                 } else {
-                    Self::new(2744, 5, d, 200, false)
+                    Self::new(animation::JAVELIN_APPROACH, 5, d, 200, false)
                 }
             }
-            (Event::Javelin, Phase::Throw) => Self::new(2786, 9, t, 100, false),
-            (Event::Javelin, Phase::Flight) => Self::new(2804, 15, t, 100, false),
+            (Event::Javelin, Phase::Throw) => Self::new(animation::JAVELIN_THROW, 9, t, 100, false),
+            (Event::Javelin, Phase::Flight) => {
+                Self::new(animation::JAVELIN_WATCH, 15, t, 100, false)
+            }
             (Event::PoleVault, Phase::Run | Phase::VaultPlant) => {
-                Self::new(3080, 15, p + 15360, 160, true).loop_from(4)
+                Self::new(animation::VAULT_RUN, 15, p + 15360, 160, true).loop_from(4)
             }
             (Event::PoleVault, Phase::VaultBend) => Self::new(
-                3116,
+                animation::VAULT_SWING,
                 8,
                 {
                     let h = g.runner.height >> 9;
@@ -479,15 +516,17 @@ impl Animation {
                 90,
                 false,
             ),
-            (Event::PoleVault, Phase::VaultRelease) => Self::new(3132, 7, t, 100, false),
-            _ => Self::new(3366, 8, t, 120, true),
+            (Event::PoleVault, Phase::VaultRelease) => {
+                Self::new(animation::VAULT_RELEASE, 7, t, 100, false)
+            }
+            _ => Self::new(animation::CELEBRATION_END, 8, t, 120, true),
         }
     }
     pub fn ready(time: i32) -> Self {
         if time < 3000 {
-            Self::new(2388, 17, (time - 100).max(0), 120, false)
+            Self::new(animation::IDLE, 17, (time - 100).max(0), 120, false)
         } else {
-            Self::new(2422, 2, (time - 3100).max(0), 120, false)
+            Self::new(animation::DEFAULT_POSE, 2, (time - 3100).max(0), 120, false)
         }
     }
     pub fn frames(self, tables: &[u8]) -> (usize, usize, i32) {
@@ -519,5 +558,57 @@ impl Animation {
                 as usize
         };
         (at(n), at(next), f)
+    }
+}
+
+/// Immutable, borrowed scene description. Creating or drawing it never advances simulation.
+/// Particle clocks are advanced by the fixed-step presentation update, not by drawing.
+pub struct SceneFrame<'a> {
+    pub game: &'a Game,
+    pub camera: Camera,
+    pub animation: Animation,
+    pub waiting_highlight: bool,
+    pub countdown: Option<i32>,
+    pub scenery_time: i32,
+    pub starter_time: Option<i32>,
+}
+impl<'a> SceneFrame<'a> {
+    pub fn new(
+        game: &'a Game,
+        waiting_highlight: bool,
+        countdown: Option<i32>,
+        scenery_time: i32,
+        starter_time: Option<i32>,
+    ) -> Self {
+        let mut c = Camera::for_game(game);
+        let g = game;
+        if g.event().race()
+            && let Some(t) = countdown
+        {
+            let ease = |a, b, x: i32| {
+                let w = (crate::presentation::sin(x * 65536 / 400 - 32768) + 16384) >> 7;
+                (a * (256 - w) + b * w) / 256
+            };
+            c.x = if t < 100 {
+                0
+            } else if t < 500 {
+                ease(0, 128, t - 100)
+            } else if t < 3100 {
+                128
+            } else if t < 3500 {
+                ease(128, 256, t - 3100)
+            } else {
+                256
+            };
+        }
+        Self {
+            game,
+            camera: c,
+            animation: Animation::for_game(game),
+            waiting_highlight,
+            countdown,
+            scenery_time,
+            starter_time,
+        }
     }
 }

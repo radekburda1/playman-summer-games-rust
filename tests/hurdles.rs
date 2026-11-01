@@ -38,12 +38,12 @@ fn hurdle_races_match_executed_java() {
                 );
             }
             let actual = [
-                game.runner.pos,
+                game.runner.position,
                 game.runner.speed,
-                game.runner.sequence_index as i32,
+                game.runner.sequence_cursor as i32,
                 game.runner.mistakes,
                 game.runner.previous_mistakes,
-                game.tripped as i32,
+                game.discipline().hurdles().fallen as i32,
                 game.runner.dive.unwrap_or(-1),
                 game.runner.sequence[0] as i32,
                 game.runner.sequence[1] as i32,
@@ -65,7 +65,7 @@ fn hurdle_races_match_executed_java() {
 fn hurdle_input_lock_matches_original_boundaries() {
     for (window, accepted) in [(865279, true), (865280, false), (983039, false), (0, true)] {
         let mut g = Game::new(Event::Hurdles, 1);
-        g.runner.pos = 983040 + window - 327680;
+        g.runner.position = 983040 + window - 327680;
         let key = if g.runner.sequence[0] == 0 {
             Input::Left
         } else {
@@ -73,7 +73,7 @@ fn hurdle_input_lock_matches_original_boundaries() {
         };
         g.input(key);
         assert_eq!(
-            g.runner.sequence_index,
+            g.runner.sequence_cursor,
             usize::from(accepted),
             "window {window}"
         );
@@ -83,15 +83,21 @@ fn hurdle_input_lock_matches_original_boundaries() {
 fn mistake_count_selects_original_hurdle_pose_and_sound() {
     for count in 1..=3 {
         let mut g = Game::new(Event::Hurdles, 1);
-        g.runner.pos = 537599;
+        g.runner.position = 537599;
         g.runner.speed = 20000;
-        g.runner.sequence_index = 3;
+        g.runner.sequence_cursor = 3;
         g.runner.mistakes = count;
         g.step();
         assert_eq!(g.runner.previous_mistakes, count);
-        assert_eq!(g.tripped, 1);
-        assert_eq!(g.sound_events, vec![if count > 1 { 22 } else { 18 }]);
-        g.runner.pos = 2500 << 8;
+        assert_eq!(g.discipline().hurdles().fallen, 1);
+        assert_eq!(
+            g.sound_events
+                .iter()
+                .map(|cue| cue.resource_id())
+                .collect::<Vec<_>>(),
+            vec![if count > 1 { 22 } else { 18 }]
+        );
+        g.runner.position = 2500 << 8;
         assert_eq!(
             playman_rust::presentation::Animation::for_game(&g).offset,
             match count {

@@ -1,9 +1,5 @@
-//! Shared original particle presets and the Pole Vault timing-marker geometry.
-use crate::{
-    Game,
-    presentation::{Camera, SINE},
-    vault::{direction, length},
-};
+//! Deterministic visual effects with a separate RNG and fixed-step clock.
+use crate::presentation::SINE;
 #[derive(Clone, Copy, Debug)]
 pub struct Marker {
     pub position: [i32; 2],
@@ -53,12 +49,12 @@ impl TimingEffect {
             p.position[0] += p.velocity[0];
             p.position[1] += p.velocity[1];
             let table = preset(p.preset);
-            if table[15] > 0 && p.position[1] < p.origin[1] {
+            if table.bounce_scale > 0 && p.position[1] < p.origin[1] {
                 p.position[1] = p.origin[1];
-                p.velocity[0] = (p.velocity[0] * table[15]) >> 8;
-                p.velocity[1] = (-p.velocity[1] * table[15]) >> 8;
+                p.velocity[0] = (p.velocity[0] * table.bounce_scale) >> 8;
+                p.velocity[1] = (-p.velocity[1] * table.bounce_scale) >> 8;
             }
-            p.velocity[1] += (150 * table[8]) >> 8;
+            p.velocity[1] += (150 * table.gravity_scale) >> 8;
             true
         });
     }
@@ -70,8 +66,8 @@ impl TimingEffect {
         scale: i32,
     ) {
         let table = preset(id);
-        let [low, high] = range.unwrap_or([table[10], table[11]]);
-        for _ in 0..((table[1] * scale) >> 10) {
+        let [low, high] = range.unwrap_or([table.angle_start, table.angle_end]);
+        for _ in 0..((table.count * scale) >> 10) {
             let angle = if low == high {
                 low
             } else {
@@ -82,9 +78,9 @@ impl TimingEffect {
                 (SINE[(angle & 511) as usize] * speed) >> 10,
                 (SINE[((angle + 128) & 511) as usize] * speed) >> 10,
             ]
-            .map(|v| (v * table[4]) >> 8);
-            let extra = if table[9] > 0 {
-                self.random() % table[9]
+            .map(|v| (v * table.speed_scale) >> 8);
+            let extra = if table.lifetime_jitter_ms > 0 {
+                self.random() % table.lifetime_jitter_ms
             } else {
                 self.random() & 15
             };
@@ -93,7 +89,7 @@ impl TimingEffect {
                 velocity,
                 origin: anchor,
                 born: self.clock,
-                lifetime: table[6] + extra,
+                lifetime: table.lifetime_ms + extra,
                 preset: id,
             });
         }
@@ -119,92 +115,58 @@ impl TimingEffect {
         self.particles.iter().map(|p| {
             let age = (((self.clock - p.born) << 8) / p.lifetime).min(256);
             let table = preset(p.preset);
-            let follow = if table[13] > 0 {
-                (table[12] * age) >> 8
-            } else if table[13] < 0 {
-                (table[12] * (256 - age)) >> 8
+            let follow = if table.follow_curve > 0 {
+                (table.follow_scale * age) >> 8
+            } else if table.follow_curve < 0 {
+                (table.follow_scale * (256 - age)) >> 8
             } else {
-                table[12]
+                table.follow_scale
             };
             let point = [0, 1].map(|i| {
                 (p.position[i] + ((self.anchor[i] - p.origin[i]).wrapping_mul(follow) >> 14)) >> 10
             });
-            let sprite = if table[0] == 4 {
+            let sprite = if table.sprite_family == 4 {
                 466 + ((age * 10) >> 8).min(2)
             } else {
                 463 + ((age * 2) >> 8)
             };
-            (sprite as usize, point, table[14] != 0)
+            (sprite as usize, point, table.world_space != 0)
         })
     }
 }
-fn preset(id: usize) -> [i32; 16] {
-    let data = include_bytes!("../assets/tables.bin");
-    std::array::from_fn(|i| {
-        let offset = 3568 + id * 32 + i * 2;
-        i16::from_be_bytes([data[offset], data[offset + 1]]) as i32
-    })
+struct ParticlePreset {
+    sprite_family: i32,
+    count: i32,
+    speed_scale: i32,
+    lifetime_ms: i32,
+    gravity_scale: i32,
+    lifetime_jitter_ms: i32,
+    angle_start: i32,
+    angle_end: i32,
+    follow_scale: i32,
+    follow_curve: i32,
+    world_space: i32,
+    bounce_scale: i32,
 }
-/// Original curved-rod marker placement, including integer interpolation and bQ.
-pub fn marker(game: &Game) -> Option<Marker> {
-    let phase = game.vault_phase();
-    if !(2..5).contains(&phase) {
-        return None;
+fn preset(id: usize) -> ParticlePreset {
+    let data = include_bytes!("../assets/tables.bin");
+    // Resource records are sixteen big-endian i16 values at byte offset 3568.
+    let value = |index: usize| {
+        let offset = 3568 + id * 32 + index * 2;
+        i16::from_be_bytes([data[offset], data[offset + 1]]) as i32
+    };
+    ParticlePreset {
+        sprite_family: value(0),
+        count: value(1),
+        speed_scale: value(4),
+        lifetime_ms: value(6),
+        gravity_scale: value(8),
+        lifetime_jitter_ms: value(9),
+        angle_start: value(10),
+        angle_end: value(11),
+        follow_scale: value(12),
+        follow_curve: value(13),
+        world_space: value(14),
+        bounce_scale: value(15),
     }
-    let c = Camera::for_game(game);
-    let p = game.pole;
-    let a = c.project(p[0] >> 8, p[1] >> 8, 0);
-    let b = c.project(p[4] >> 8, p[5] >> 8, 0);
-    let dx = (b.0 - a.0) << 10;
-    let dy = (b.1 - a.1) << 10;
-    let n = if phase < 3 { 184 } else { length(dx, dy) >> 10 };
-    if n <= 0 {
-        return Some(Marker {
-            position: [a.0, a.1],
-            direction: 0,
-            on_segment: false,
-        });
-    }
-    let (vx, vy) = (dx / n, dy / n);
-    let bend = ((184 - n) >> 1).max(0);
-    let mut x = a.0 << 10;
-    let mut y = a.1 << 10;
-    let mut previous = [a.0, a.1];
-    let progress = game.vault.timing.progress;
-    for i in 0..=16 {
-        let offset = (bend * SINE[(256 * i / 16) as usize]) >> 14;
-        let current = [(x + offset * vy) >> 10, (y - offset * vx) >> 10];
-        if i == progress >> 10 {
-            let next_offset = (bend * SINE[(256 * (i + 1) / 16) as usize]) >> 14;
-            let mut target = [
-                (x + dx / 16 + next_offset * vy) >> 10,
-                (y + dy / 16 - next_offset * vx) >> 10,
-            ];
-            let mut fraction = progress & 1023;
-            let mut angle = 512
-                - direction(
-                    (current[0] - previous[0]) << 10,
-                    (current[1] - previous[1]) << 10,
-                );
-            if phase >= 3 {
-                target = previous;
-                fraction = 1023 - fraction;
-                angle += 256;
-            }
-            return Some(Marker {
-                position: [0, 1]
-                    .map(|j| current[j] + (((target[j] - current[j]) * fraction) >> 10)),
-                direction: angle + 512,
-                on_segment: true,
-            });
-        }
-        previous = current;
-        x += dx / 16;
-        y += dy / 16;
-    }
-    Some(Marker {
-        position: [a.0, a.1],
-        direction: 0,
-        on_segment: false,
-    })
 }

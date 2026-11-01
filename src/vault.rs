@@ -1,21 +1,62 @@
-//! Original d.h/i(c,int,bool), d.e(c,bool) and spring constraints.
+use crate::audio::SoundCue;
+use crate::discipline::VaultPhase as Stage;
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Pole {
+    pub grip_x: i32,
+    pub grip_y: i32,
+    pub grip_velocity_x: i32,
+    pub grip_velocity_y: i32,
+    pub tip_x: i32,
+    pub tip_y: i32,
+    pub tip_velocity_x: i32,
+    pub tip_velocity_y: i32,
+    pub initial_tip_height: i32,
+    pub planting_reference: i32,
+    pub stored_energy: i32,
+    pub length: i32,
+}
+impl Pole {
+    /// Scalar order used only by the original Java trace fixtures.
+    pub fn reference_values(self) -> [i32; 12] {
+        [
+            self.grip_x,
+            self.grip_y,
+            self.grip_velocity_x,
+            self.grip_velocity_y,
+            self.tip_x,
+            self.tip_y,
+            self.tip_velocity_x,
+            self.tip_velocity_y,
+            self.initial_tip_height,
+            self.planting_reference,
+            self.stored_energy,
+            self.length,
+        ]
+    }
+}
+// Original d.h/i(c,int,bool), d.e(c,bool) and spring constraints.
 use crate::{Game, Phase};
 #[derive(Clone, Debug)]
 pub struct Vault {
+    pub(crate) phase: crate::discipline::VaultPhase,
+    pub pole: Pole,
     pub held: bool,
     pub clearance: i32,
     pub fall_height: i32,
     pub camera_offset: i32,
-    pub timing: crate::vault_effect::TimingEffect,
+    pub timing: crate::effects::TimingEffect,
 }
 impl Default for Vault {
     fn default() -> Self {
         Self {
+            phase: crate::discipline::VaultPhase::Prepare,
+            pole: Pole::default(),
             held: false,
             clearance: 655360000,
             fall_height: 0,
             camera_offset: 0,
-            timing: crate::vault_effect::TimingEffect::default(),
+            timing: crate::effects::TimingEffect::default(),
         }
     }
 }
@@ -54,12 +95,12 @@ pub fn direction(dx: i32, dy: i32) -> i32 {
         ((dx + dy + dy) << 7) / (dx + dy)
     }
 }
-fn constrain(p: &mut [i32; 12], mode: u8) {
+fn constrain(p: &mut Pole, mode: u8) {
     let sign = if mode == 1 { -1 } else { 1 };
-    let dx = sign * (p[0] + p[2] - (p[4] + p[6]));
-    let dy = sign * (p[1] + p[3] - (p[5] + p[7]));
+    let dx = sign * (p.grip_x + p.grip_velocity_x - (p.tip_x + p.tip_velocity_x));
+    let dy = sign * (p.grip_y + p.grip_velocity_y - (p.tip_y + p.tip_velocity_y));
     let n = length(dx, dy) >> 6;
-    p[11] = n;
+    p.length = n;
     if n == 0 {
         return;
     }
@@ -73,16 +114,20 @@ fn constrain(p: &mut [i32; 12], mode: u8) {
     if mode == 2 {
         x >>= 3;
         y >>= 3;
-        p[6] += x;
-        p[7] += y;
+        p.tip_velocity_x += x;
+        p.tip_velocity_y += y;
     }
-    let at = if mode == 1 { 6 } else { 2 };
-    p[at] -= x;
-    p[at + 1] -= y;
+    if mode == 1 {
+        p.tip_velocity_x -= x;
+        p.tip_velocity_y -= y;
+    } else {
+        p.grip_velocity_x -= x;
+        p.grip_velocity_y -= y;
+    }
 }
 impl Game {
     pub fn vault_phase(&self) -> i32 {
-        match self.phase {
+        match self.phase() {
             Phase::Prepare => 0,
             Phase::Run => 1,
             Phase::VaultPlant => 2,
@@ -94,272 +139,312 @@ impl Game {
         }
     }
     pub(crate) fn vault_down(&mut self) {
-        if self.vault.held {
+        if self.discipline.vault_mut().held {
             return;
         }
-        match self.phase {
+        match self.phase() {
             Phase::VaultPlant => {
-                self.pole[10] = (self.pole[10] + ((self.pole[4] >> 4) + 1500).min(0)).max(0);
+                self.discipline.vault_mut().pole.stored_energy =
+                    (self.discipline.vault_mut().pole.stored_energy
+                        + ((self.discipline.vault_mut().pole.tip_x >> 4) + 1500).min(0))
+                    .max(0);
                 self.runner.speed = self.runner.speed.max(4000);
-                self.pole[2] = self.runner.speed;
-                self.runner.vertical += 4000;
-                self.pole[3] = self.runner.vertical;
+                self.discipline.vault_mut().pole.grip_velocity_x = self.runner.speed;
+                self.runner.vertical_velocity += 4000;
+                self.discipline.vault_mut().pole.grip_velocity_y = self.runner.vertical_velocity;
             }
             Phase::VaultBend | Phase::VaultStraighten => {
-                self.pole[2] = (self.pole[2] + 3000).max(12500);
-                self.pole[3] += 5000;
+                self.discipline.vault_mut().pole.grip_velocity_x =
+                    (self.discipline.vault_mut().pole.grip_velocity_x + 3000).max(12500);
+                self.discipline.vault_mut().pole.grip_velocity_y += 5000;
             }
             _ => return,
         }
-        self.vault.held = true;
-        self.sound_events.push(18);
+        self.discipline.vault_mut().held = true;
+        self.sound_events.push(SoundCue::Takeoff);
     }
     pub(crate) fn vault_up(&mut self) {
-        match self.phase {
+        match self.phase() {
             Phase::VaultPlant => {
-                self.runner.vertical = 4000;
+                self.runner.vertical_velocity = 4000;
                 self.runner.speed >>= 1;
-                self.pole[2] >>= 1;
-                self.pole[6] >>= 1;
+                self.discipline.vault_mut().pole.grip_velocity_x >>= 1;
+                self.discipline.vault_mut().pole.tip_velocity_x >>= 1;
             }
             Phase::VaultBend | Phase::VaultStraighten => {
                 self.runner.speed = self
                     .runner
                     .speed
-                    .max(((128000 - self.runner.pos) * 10) >> 8);
-                self.runner.vertical =
-                    (self.runner.vertical + (self.pole[10] - 2700) * 5 / 4).max(0);
-                self.pole[2] = -5000;
-                self.sound_events.push(20);
+                    .max(((128000 - self.runner.position) * 10) >> 8);
+                self.runner.vertical_velocity = (self.runner.vertical_velocity
+                    + (self.discipline.vault_mut().pole.stored_energy - 2700) * 5 / 4)
+                    .max(0);
+                self.discipline.vault_mut().pole.grip_velocity_x = -5000;
+                self.sound_events.push(SoundCue::Action);
             }
             _ => return,
         }
-        self.phase = Phase::VaultRelease;
-        self.phase_time = 0;
+        self.transition(Phase::VaultRelease);
+        self.phase_elapsed_ms = 0;
     }
     pub(crate) fn vault_step(&mut self) {
-        self.vault.timing.emit = false;
-        let phase = self.vault_phase();
-        if phase >= 3 && (118000..=138000).contains(&self.runner.pos) {
-            self.vault.clearance = self.vault.clearance.min(self.runner.height);
+        self.discipline.vault_mut().timing.emit = false;
+        let phase = self.discipline.vault().phase;
+        if matches!(
+            phase,
+            Stage::VaultBend
+                | Stage::VaultStraighten
+                | Stage::VaultRelease
+                | Stage::VaultFall
+                | Stage::Done
+        ) && (118000..=138000).contains(&self.runner.position)
+        {
+            self.discipline.vault_mut().clearance = self
+                .discipline
+                .vault_mut()
+                .clearance
+                .min(self.runner.height);
         }
-        if phase == 2 {
-            if self.vault.camera_offset < 110592 {
-                self.vault.camera_offset += ((110592 - self.vault.camera_offset) >> 3).max(1200);
+        if matches!(phase, Stage::VaultPlant) {
+            if self.discipline.vault_mut().camera_offset < 110592 {
+                self.discipline.vault_mut().camera_offset +=
+                    ((110592 - self.discipline.vault_mut().camera_offset) >> 3).max(1200);
             }
-        } else if self.vault.camera_offset > 0 {
-            self.vault.camera_offset -= 6000;
+        } else if self.discipline.vault_mut().camera_offset > 0 {
+            self.discipline.vault_mut().camera_offset -= 6000;
         }
         match phase {
-            0 => {
-                if self.phase_time >= 800 {
-                    self.phase = Phase::Run;
-                    self.phase_time = 0;
+            Stage::Prepare => {
+                if self.phase_elapsed_ms >= 800 {
+                    self.transition(Phase::Run);
+                    self.phase_elapsed_ms = 0;
                     self.runner.speed = 0;
                 }
             }
-            1 => {
+            Stage::Run => {
                 self.runner.run(false);
-                let p = &mut self.pole;
-                p[0] += p[2];
-                p[1] += p[3];
-                p[6] = self.runner.speed;
-                p[7] = self.runner.vertical;
+                let vault = self.discipline.vault_mut();
+                let p = &mut vault.pole;
+                p.grip_x += p.grip_velocity_x;
+                p.grip_y += p.grip_velocity_y;
+                p.tip_velocity_x = self.runner.speed;
+                p.tip_velocity_y = self.runner.vertical_velocity;
                 constrain(p, 1);
-                p[4] += p[6];
-                p[5] += p[7];
-                p[2] = self.runner.speed;
-                p[3] = self.runner.vertical;
-                if self.runner.pos > -1310720 {
-                    self.phase = Phase::VaultPlant;
-                    p[10] = self.runner.speed - 16000;
+                p.tip_x += p.tip_velocity_x;
+                p.tip_y += p.tip_velocity_y;
+                p.grip_velocity_x = self.runner.speed;
+                p.grip_velocity_y = self.runner.vertical_velocity;
+                if self.runner.position > -1310720 {
+                    vault.phase = crate::discipline::VaultPhase::VaultPlant;
+                    p.stored_energy = self.runner.speed - 16000;
                 }
             }
-            2 => {
-                let p = &mut self.pole;
-                if p[4] >= 0 {
-                    p[2] = self.runner.speed;
-                    p[6] = 0;
-                    p[4] = 0;
-                    p[5] = 0;
-                    self.runner.height = p[1];
-                    self.phase_time = 0;
-                    self.phase = Phase::VaultBend;
+            Stage::VaultPlant => {
+                let vault = self.discipline.vault_mut();
+                let p = &mut vault.pole;
+                if p.tip_x >= 0 {
+                    p.grip_velocity_x = self.runner.speed;
+                    p.tip_velocity_x = 0;
+                    p.tip_x = 0;
+                    p.tip_y = 0;
+                    self.runner.height = p.grip_y;
+                    self.phase_elapsed_ms = 0;
+                    self.transition(Phase::VaultBend);
                 } else {
-                    self.runner.pos += self.runner.speed;
-                    self.runner.height += self.runner.vertical;
-                    p[0] += p[2];
-                    p[1] += p[3];
-                    self.runner.vertical -= 700;
-                    if self.vault.held {
+                    self.runner.position += self.runner.speed;
+                    self.runner.height += self.runner.vertical_velocity;
+                    p.grip_x += p.grip_velocity_x;
+                    p.grip_y += p.grip_velocity_y;
+                    self.runner.vertical_velocity -= 700;
+                    if vault.held {
                         self.runner.height = self.runner.height.max(0);
-                    } else if self.runner.height + self.runner.vertical < 0 {
-                        self.runner.vertical -= self.runner.height + self.runner.vertical;
+                    } else if self.runner.height + self.runner.vertical_velocity < 0 {
+                        self.runner.vertical_velocity -=
+                            self.runner.height + self.runner.vertical_velocity;
                     }
-                    let n = if self.vault.held {
+                    let n = if vault.held {
                         50
                     } else {
-                        50 - 50 * p[0] / -1310720
+                        50 - 50 * p.grip_x / -1310720
                     };
-                    p[1] = self.runner.height + ((50 + n * 6 / 4) << 10);
-                    p[6] = self.runner.speed;
-                    p[7] = if self.vault.held {
-                        p[7] - 2100
+                    p.grip_y = self.runner.height + ((50 + n * 6 / 4) << 10);
+                    p.tip_velocity_x = self.runner.speed;
+                    p.tip_velocity_y = if vault.held {
+                        p.tip_velocity_y - 2100
                     } else {
-                        p[8] * (p[4] >> 8) / p[9] - p[5]
+                        p.initial_tip_height * (p.tip_x >> 8) / p.planting_reference - p.tip_y
                     };
                     constrain(p, 1);
-                    if p[5] + p[7] < 0 {
-                        p[7] -= p[5] + p[7];
+                    if p.tip_y + p.tip_velocity_y < 0 {
+                        p.tip_velocity_y -= p.tip_y + p.tip_velocity_y;
                     }
-                    p[4] += p[6];
-                    p[5] += p[7];
-                    self.vault.timing.progress = (16384 - (p[5] >> 4)).max(0);
-                    self.vault.timing.emit = true;
-                    p[2] = self.runner.speed;
-                    p[3] = self.runner.vertical;
+                    p.tip_x += p.tip_velocity_x;
+                    p.tip_y += p.tip_velocity_y;
+                    vault.timing.progress = (16384 - (p.tip_y >> 4)).max(0);
+                    vault.timing.emit = true;
+                    p.grip_velocity_x = self.runner.speed;
+                    p.grip_velocity_y = self.runner.vertical_velocity;
                 }
             }
-            3 | 4 => {
-                let p = &mut self.pole;
-                p[0] += p[2];
-                p[1] += p[3];
-                p[3] -= 700;
-                if p[1] + p[3] < 51200 {
-                    if phase == 4 {
-                        self.phase = Phase::VaultRelease;
-                        self.phase_time = 0;
+            Stage::VaultBend | Stage::VaultStraighten => {
+                let vault = self.discipline.vault_mut();
+                let p = &mut vault.pole;
+                p.grip_x += p.grip_velocity_x;
+                p.grip_y += p.grip_velocity_y;
+                p.grip_velocity_y -= 700;
+                if p.grip_y + p.grip_velocity_y < 51200 {
+                    if matches!(phase, Stage::VaultStraighten) {
+                        self.transition(Phase::VaultRelease);
+                        self.phase_elapsed_ms = 0;
                         return;
                     }
-                    p[3] = 51200 - p[1];
+                    p.grip_velocity_y = 51200 - p.grip_y;
                 }
-                if self.vault.held && p[1] < 51200 && p[3] < 0 {
-                    p[3] += 51200 - p[1];
-                    self.phase = Phase::VaultFall;
-                    self.runner.vertical = p[3];
-                    self.vault.fall_height = 51200;
-                    self.phase_time = 0;
+                if vault.held && p.grip_y < 51200 && p.grip_velocity_y < 0 {
+                    p.grip_velocity_y += 51200 - p.grip_y;
+                    vault.phase = crate::discipline::VaultPhase::VaultFall;
+                    self.runner.vertical_velocity = p.grip_velocity_y;
+                    vault.fall_height = 51200;
+                    self.phase_elapsed_ms = 0;
                     return;
                 }
-                self.vault.timing.progress = (((p[4] - p[0]) >> 4) - 2000).min(16384);
-                self.vault.timing.emit = true;
-                if self.vault.held {
-                    p[2] = if self.phase_time < 1000 && p[1] > 120000 {
-                        p[2] + ((-p[2] * 50) >> 8) + ((p[4] - p[0]) >> 6)
+                vault.timing.progress = (((p.tip_x - p.grip_x) >> 4) - 2000).min(16384);
+                vault.timing.emit = true;
+                if vault.held {
+                    p.grip_velocity_x = if self.phase_elapsed_ms < 1000 && p.grip_y > 120000 {
+                        p.grip_velocity_x
+                            + ((-p.grip_velocity_x * 50) >> 8)
+                            + ((p.tip_x - p.grip_x) >> 6)
                     } else {
-                        p[2] - 300
+                        p.grip_velocity_x - 300
                     };
-                } else if p[2] > 0 {
-                    p[2] -= (p[2] * 50) >> 8;
+                } else if p.grip_velocity_x > 0 {
+                    p.grip_velocity_x -= (p.grip_velocity_x * 50) >> 8;
                 }
-                let previous = p[11];
+                let previous = p.length;
                 constrain(p, 0);
-                if self.phase_time > 3000 || (phase == 3 && previous - p[11] < 0) {
-                    self.phase = Phase::VaultStraighten;
+                if self.phase_elapsed_ms > 3000
+                    || (matches!(phase, Stage::VaultBend) && previous - p.length < 0)
+                {
+                    vault.phase = crate::discipline::VaultPhase::VaultStraighten;
                 }
-                self.runner.pos = p[0];
-                self.runner.speed = p[2];
-                if self.phase == Phase::VaultStraighten {
-                    self.runner.height += self.runner.vertical;
-                    let delta = p[1] - self.runner.height;
+                self.runner.position = p.grip_x;
+                self.runner.speed = p.grip_velocity_x;
+                if matches!(vault.phase, crate::discipline::VaultPhase::VaultStraighten) {
+                    self.runner.height += self.runner.vertical_velocity;
+                    let delta = p.grip_y - self.runner.height;
                     let delta = if delta < 0 {
                         (delta * 38) >> 8
                     } else {
                         (delta * 230) >> 8
                     };
-                    self.runner.vertical = ((self.runner.vertical * 150) >> 8) + delta;
+                    self.runner.vertical_velocity =
+                        ((self.runner.vertical_velocity * 150) >> 8) + delta;
                 } else {
-                    self.runner.height = p[1];
-                    self.runner.vertical = p[3];
+                    self.runner.height = p.grip_y;
+                    self.runner.vertical_velocity = p.grip_velocity_y;
                 }
             }
-            5..=7 => {
-                let p = &mut self.pole;
-                p[0] += p[2];
-                p[1] += p[3];
-                p[4] += p[6];
-                p[5] += p[7];
-                if phase == 7 {
-                    if p[1] < 1000 {
-                        p[2] = (p[2] * 100) >> 8;
-                        p[3] = (p[3] * 100) >> 8;
+            Stage::VaultRelease | Stage::VaultFall | Stage::Done => {
+                let vault = self.discipline.vault_mut();
+                let p = &mut vault.pole;
+                p.grip_x += p.grip_velocity_x;
+                p.grip_y += p.grip_velocity_y;
+                p.tip_x += p.tip_velocity_x;
+                p.tip_y += p.tip_velocity_y;
+                if matches!(phase, Stage::Done) {
+                    if p.grip_y < 1000 {
+                        p.grip_velocity_x = (p.grip_velocity_x * 100) >> 8;
+                        p.grip_velocity_y = (p.grip_velocity_y * 100) >> 8;
                     } else {
-                        p[2] = (p[2] * 230) >> 8;
+                        p.grip_velocity_x = (p.grip_velocity_x * 230) >> 8;
                     }
-                    if p[5] < 1000 {
-                        p[6] = (p[6] * 100) >> 8;
-                        p[7] = (p[7] * 100) >> 8;
+                    if p.tip_y < 1000 {
+                        p.tip_velocity_x = (p.tip_velocity_x * 100) >> 8;
+                        p.tip_velocity_y = (p.tip_velocity_y * 100) >> 8;
                     } else {
-                        p[6] = (p[6] * 230) >> 8;
+                        p.tip_velocity_x = (p.tip_velocity_x * 230) >> 8;
                     }
                 }
-                p[3] -= 1400;
-                p[7] -= 1400;
+                p.grip_velocity_y -= 1400;
+                p.tip_velocity_y -= 1400;
                 constrain(p, 2);
-                let (transfer, bounce) = if phase == 7 { (150, 90) } else { (200, 120) };
-                if p[1] + p[3] < 0 {
-                    p[7] += (-p[3] * transfer) >> 8;
-                    p[3] = (-p[3] * bounce) >> 8;
-                    p[1] = 0;
-                    p[2] = (p[2] * 80) >> 8;
+                let (transfer, bounce) = if matches!(phase, Stage::Done) {
+                    (150, 90)
+                } else {
+                    (200, 120)
+                };
+                if p.grip_y + p.grip_velocity_y < 0 {
+                    p.tip_velocity_y += (-p.grip_velocity_y * transfer) >> 8;
+                    p.grip_velocity_y = (-p.grip_velocity_y * bounce) >> 8;
+                    p.grip_y = 0;
+                    p.grip_velocity_x = (p.grip_velocity_x * 80) >> 8;
                 }
-                if p[5] + p[7] < 0 {
-                    p[3] += (-p[7] * transfer) >> 8;
-                    p[7] = (-p[7] * bounce) >> 8;
-                    p[5] = 0;
-                    p[6] = (p[6] * 80) >> 8;
+                if p.tip_y + p.tip_velocity_y < 0 {
+                    p.grip_velocity_y += (-p.tip_velocity_y * transfer) >> 8;
+                    p.tip_velocity_y = (-p.tip_velocity_y * bounce) >> 8;
+                    p.tip_y = 0;
+                    p.tip_velocity_x = (p.tip_velocity_x * 80) >> 8;
                 }
-                if phase == 7 {
+                if matches!(phase, Stage::Done) {
                     return;
                 }
-                self.runner.pos += self.runner.speed;
-                self.runner.height += self.runner.vertical;
-                if self.runner.pos > 128000 {
-                    self.runner.speed =
-                        (self.runner.speed * if self.runner.pos > 256000 { 240 } else { 250 }) >> 8;
+                self.runner.position += self.runner.speed;
+                self.runner.height += self.runner.vertical_velocity;
+                if self.runner.position > 128000 {
+                    self.runner.speed = (self.runner.speed
+                        * if self.runner.position > 256000 {
+                            240
+                        } else {
+                            250
+                        })
+                        >> 8;
                 }
-                self.runner.vertical -= 700;
-                if self.runner.pos >= 47360 {
-                    if self.runner.height + self.runner.vertical < 62720 {
-                        if self.runner.pos < 128000 {
+                self.runner.vertical_velocity -= 700;
+                if self.runner.position >= 47360 {
+                    if self.runner.height + self.runner.vertical_velocity < 62720 {
+                        if self.runner.position < 128000 {
                             self.runner.speed = -6000;
-                            self.runner.vertical = 12000;
+                            self.runner.vertical_velocity = 12000;
                             self.runner.height = 62720;
                         } else {
                             self.runner.height = 62720;
-                            self.vault_land(26);
+                            self.vault_land(SoundCue::Landing);
                         }
                     }
-                } else if self.runner.height + self.runner.vertical < 0 {
-                    self.runner.vertical = (-self.runner.vertical >> 1) - self.runner.height;
+                } else if self.runner.height + self.runner.vertical_velocity < 0 {
+                    self.runner.vertical_velocity =
+                        (-self.runner.vertical_velocity >> 1) - self.runner.height;
                     self.runner.speed >>= 4;
                 }
-                if self.phase == Phase::VaultRelease && self.runner.vertical < -2000 {
-                    self.phase = Phase::VaultFall;
-                    self.phase_time = 0;
-                    self.vault.fall_height = self.runner.height;
+                if self.phase() == Phase::VaultRelease && self.runner.vertical_velocity < -2000 {
+                    self.transition(Phase::VaultFall);
+                    self.phase_elapsed_ms = 0;
+                    self.discipline.vault_mut().fall_height = self.runner.height;
                 }
                 if self.runner.height < 65000
                     && self.runner.speed.abs() < 10
-                    && self.runner.vertical.abs() < 1000
+                    && self.runner.vertical_velocity.abs() < 1000
                 {
-                    self.vault_land(22);
+                    self.vault_land(SoundCue::Failure);
                 }
             }
-            _ => {}
         }
     }
-    fn vault_land(&mut self, sound: usize) {
-        if self.vault.clearance > 1024000 {
-            self.vault.clearance = 0;
+    fn vault_land(&mut self, sound: crate::audio::SoundCue) {
+        if self.discipline.vault_mut().clearance > 1024000 {
+            self.discipline.vault_mut().clearance = 0;
         }
-        self.finish(if self.vault.clearance > 0 {
-            Some(self.vault.clearance / 855)
+        let clearance = self.discipline.vault().clearance;
+        self.finish(if clearance > 0 {
+            Some(clearance / 855)
         } else {
             None
         });
-        if sound == 26 || self.vault.clearance <= 0 {
+        if sound == SoundCue::Landing || self.discipline.vault_mut().clearance <= 0 {
             self.sound_events.push(sound);
         }
     }
 }
+
+pub use crate::vault_marker::timing_marker;

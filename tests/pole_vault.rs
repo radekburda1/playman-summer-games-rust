@@ -32,19 +32,19 @@ fn vault_matches_original_integer_states() {
             }
             let mut actual = vec![
                 game.vault_phase(),
-                game.phase_time,
-                game.runner.pos,
+                game.phase_elapsed_ms,
+                game.runner.position,
                 game.runner.speed,
                 game.runner.height,
-                game.runner.vertical,
-                game.runner.expected as i32,
+                game.runner.vertical_velocity,
+                game.runner.expected_key as i32,
             ];
-            actual.extend(game.pole);
+            actual.extend(game.discipline().vault().pole.reference_values());
             actual.extend([
-                game.vault.clearance,
-                game.vault.fall_height,
-                i32::from(game.vault.held),
-                game.vault.camera_offset,
+                game.discipline().vault().clearance,
+                game.discipline().vault().fall_height,
+                i32::from(game.discipline().vault().held),
+                game.discipline().vault().camera_offset,
             ]);
             let camera = Camera::for_game(&game);
             actual.extend([camera.x, camera.y, camera.z, camera.angle]);
@@ -52,8 +52,8 @@ fn vault_matches_original_integer_states() {
                 assert!(game.finished);
                 assert_eq!(
                     game.result,
-                    if game.vault.clearance > 0 {
-                        Some(game.vault.clearance / 855)
+                    if game.discipline().vault().clearance > 0 {
+                        Some(game.discipline().vault().clearance / 855)
                     } else {
                         None
                     }
@@ -98,12 +98,13 @@ fn timing_glow_matches_original_particle_states() {
             game.step();
         }
         let actual: Vec<Vec<i32>> = game
-            .vault
+            .discipline()
+            .vault()
             .timing
             .particles
             .iter()
             .map(|p| {
-                let e = &game.vault.timing;
+                let e = &game.discipline().vault().timing;
                 vec![
                     e.progress,
                     e.anchor[0],

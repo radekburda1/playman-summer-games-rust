@@ -15,37 +15,37 @@ pub struct Prompt {
 }
 pub fn running(g: &Game) -> Vec<Prompt> {
     if g.finished
-        || (g.event == Event::PoleVault && g.phase == Phase::Prepare)
-        || !matches!(g.phase, Phase::Run | Phase::Prepare)
+        || (g.event() == Event::PoleVault && g.phase() == Phase::Prepare)
+        || !matches!(g.phase(), Phase::Run | Phase::Prepare)
     {
         return Vec::new();
     }
-    let cutoff = if g.event == Event::Dash {
+    let cutoff = if g.event() == Event::Dash {
         Some(0x500000)
-    } else if g.event == Event::Hurdles {
+    } else if g.event() == Event::Hurdles {
         Some(0x640000)
     } else {
         None
     };
-    if cutoff.is_some_and(|x| g.runner.pos >= x) {
+    if cutoff.is_some_and(|x| g.runner.position >= x) {
         return Vec::new();
     }
-    let camera = if g.event.race() {
-        Camera::race_at(g.runner.pos >> 8)
+    let camera = if g.event().race() {
+        Camera::race_at(g.runner.position >> 8)
     } else {
         Camera::for_game(g)
     };
     let (mut x, y) = camera.project(
-        g.runner.pos >> 8,
+        g.runner.position >> 8,
         g.runner.height >> 8,
-        Camera::athlete_lane(g.event),
+        Camera::athlete_lane(g.event()),
     );
-    if g.event == Event::PoleVault {
+    if g.event() == Event::PoleVault {
         x += 15;
     }
     let y = y - 38;
     let position = |key: usize, slot: usize| {
-        if g.event == Event::Hurdles {
+        if g.event() == Event::Hurdles {
             x + 47 + slot as i32 * 34
         } else if key == 0 {
             x - 65
@@ -54,12 +54,12 @@ pub fn running(g: &Game) -> Vec<Prompt> {
         }
     };
     let mut result = Vec::new();
-    let feedback = g.run_feedback.map(|f| (f, g.elapsed - f.at_ms));
+    let feedback = g.run_feedback.map(|f| (f, g.elapsed_ms - f.at_ms));
     let bounce = feedback
         .filter(|(f, age)| f.correct && (0..100).contains(age))
         .map_or(0, |(_, age)| 70 * (100 - age) / 100);
-    if g.event == Event::Hurdles {
-        for slot in g.runner.sequence_index..3 {
+    if g.event() == Event::Hurdles {
+        for slot in g.runner.sequence_cursor..3 {
             let key = g.runner.sequence[slot];
             result.push(Prompt {
                 sprite: 470 + key,
@@ -69,8 +69,8 @@ pub fn running(g: &Game) -> Vec<Prompt> {
         }
     } else {
         result.push(Prompt {
-            sprite: 470 + g.runner.expected,
-            x: position(g.runner.expected, 0),
+            sprite: 470 + g.runner.expected_key,
+            x: position(g.runner.expected_key, 0),
             y: y + bounce,
         });
     }

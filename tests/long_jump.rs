@@ -8,8 +8,8 @@ fn flight_and_landing_match_executed_java_ticks() {
         ("late", include_str!("fixtures/long-jump/late.csv")),
     ] {
         let mut game = Game::new(Event::LongJump, 1);
-        game.phase = Phase::Approach;
-        game.runner.pos = -65536;
+        game.set_phase(Phase::Approach).unwrap();
+        game.runner.position = -65536;
         game.runner.speed = 28000;
         if scenario != "foul" {
             game.input(Input::ActionDown);
@@ -21,10 +21,10 @@ fn flight_and_landing_match_executed_java_ticks() {
         {
             let cells: Vec<_> = row.split(',').collect();
             let tick: i32 = cells[0].parse().unwrap();
-            if game.phase == Phase::Air
-                && ((scenario == "valid" && game.runner.vertical <= 650)
+            if game.phase() == Phase::Air
+                && ((scenario == "valid" && game.runner.vertical_velocity <= 650)
                     || (scenario == "early" && tick == 3)
-                    || (scenario == "late" && game.runner.vertical < -2000))
+                    || (scenario == "late" && game.runner.vertical_velocity < -2000))
             {
                 game.input(Input::ActionDown);
             }
@@ -58,10 +58,10 @@ fn flight_and_landing_match_executed_java_ticks() {
                 );
             }
             for (column, value) in [
-                (3, game.runner.pos),
+                (3, game.runner.position),
                 (4, game.runner.speed),
                 (5, game.runner.height),
-                (6, game.runner.vertical),
+                (6, game.runner.vertical_velocity),
             ] {
                 assert_eq!(
                     value,
@@ -76,31 +76,37 @@ fn flight_and_landing_match_executed_java_ticks() {
 #[test]
 fn preparation_can_be_skipped_by_first_running_input() {
     let mut game = Game::new(Event::LongJump, 1);
-    let start = game.runner.pos;
-    assert_eq!(game.phase, Phase::Prepare);
+    let start = game.runner.position;
+    assert_eq!(game.phase(), Phase::Prepare);
     for _ in 0..10 {
         game.step();
     }
-    assert_eq!(game.runner.pos, start);
+    assert_eq!(game.runner.position, start);
     game.input(Input::Left);
-    assert_eq!(game.phase, Phase::Run);
+    assert_eq!(game.phase(), Phase::Run);
 }
 #[test]
 fn board_boundary_and_jump_sound_match_original() {
     for position in [-1, 0, 1] {
         let mut game = Game::new(Event::LongJump, 1);
-        game.phase = Phase::Approach;
-        game.runner.pos = position;
+        game.set_phase(Phase::Approach).unwrap();
+        game.runner.position = position;
         game.runner.speed = 28000;
         game.input(Input::ActionDown);
         assert_eq!(
-            game.phase,
+            game.phase(),
             if position > 0 {
                 Phase::FoulRun
             } else {
                 Phase::Air
             }
         );
-        assert_eq!(game.sound_events, vec![if position > 0 { 22 } else { 18 }]);
+        assert_eq!(
+            game.sound_events
+                .iter()
+                .map(|cue| cue.resource_id())
+                .collect::<Vec<_>>(),
+            vec![if position > 0 { 22 } else { 18 }]
+        );
     }
 }

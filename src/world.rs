@@ -1,11 +1,12 @@
-//! Perspective track and scene placement, using the original world coordinate system.
+use crate::resources::{scene, sprite};
+// Perspective track and scene placement, using the original world coordinate system.
 use crate::art::Art;
 use crate::render::{clear_background, draw_line, draw_rectangle, draw_triangle};
-use macroquad::prelude::*;
-use playman_rust::{
+use crate::{
     Event, Game, Phase,
     presentation::{Animation, Camera},
 };
+use macroquad::prelude::*;
 fn color(rgb: u32) -> Color {
     Color::from_rgba((rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, 255)
 }
@@ -36,7 +37,7 @@ fn repeat_at(art: &Art, c: Camera, id: usize, z: i32, spacing: i32, time: i32, y
     }
     let p = project(c, 0, 0, z);
     let mut x = (p.x as i32 % width) - width;
-    let animated = matches!(id, 8194 | 8195 | 8203 | 8204);
+    let animated = matches!(id, 8194 | 8195 | 8203 | scene::CROWD);
     let frame = if animated {
         (time / 120).rem_euclid(4) as usize
     } else {
@@ -50,13 +51,13 @@ fn repeat_at(art: &Art, c: Camera, id: usize, z: i32, spacing: i32, time: i32, y
     };
     while x < 240 {
         let cutoff = match (id, z) {
-            (8209, -128000) => Some(-19712),
-            (8208, -19712) => Some(-14592),
-            (8207, -14592) => Some(-10752),
-            (8208, -29440) => Some(-24320),
-            (8207, -24320) => Some(-20480),
-            (8208, -10496) => Some(-5376),
-            (8207, -5376) => Some(-1536),
+            (scene::SKYLINE, -128000) => Some(-19712),
+            (scene::DISTANT_BUILDINGS, -19712) => Some(-14592),
+            (scene::NEAR_BUILDINGS, -14592) => Some(-10752),
+            (scene::DISTANT_BUILDINGS, -29440) => Some(-24320),
+            (scene::NEAR_BUILDINGS, -24320) => Some(-20480),
+            (scene::DISTANT_BUILDINGS, -10496) => Some(-5376),
+            (scene::NEAR_BUILDINGS, -5376) => Some(-1536),
             _ => None,
         };
         if let Some(z) = cutoff {
@@ -147,7 +148,7 @@ fn rod(a: Vec2, b: Vec2, width: i32, mut bright: u32, mut shade: u32) {
     let mut down = 0;
     let mut remaining = ((width * major) >> 1) + 1;
     let mut error = major >> 1;
-    let step = playman_rust::vault::length(major, minor).max(1);
+    let step = crate::vault::length(major, minor).max(1);
     if x > x2 {
         std::mem::swap(&mut bright, &mut shade);
     }
@@ -193,8 +194,8 @@ fn vault_pillar(art: &Art, c: Camera, z: i32) {
 }
 fn vault_mat(art: &Art, c: Camera, g: &Game) {
     vault_pillar(art, c, -256);
-    let height = (if g.runner.pos >= 118000 {
-        g.vault.clearance
+    let height = (if g.runner.position >= 118000 {
+        g.discipline().vault().clearance
     } else {
         g.runner.height
     }) >> 8;
@@ -235,27 +236,27 @@ fn vault_mat(art: &Art, c: Camera, g: &Game) {
     for x in [d.x + 27., e.x - 27., (d.x + e.x) / 2.] {
         art.sprite(515, x, (d.y + ground.y) / 2., true);
     }
-    let y = if g.runner.pos >= 118000 {
-        g.vault.clearance
+    let y = if g.runner.position >= 118000 {
+        g.discipline().vault().clearance
     } else {
         g.runner.height
     } >> 8;
-    if g.runner.pos >= 128000 && y > 250 {
+    if g.runner.position >= 128000 && y > 250 {
         let a = project(c, 500, y, -256);
         let b = project(c, 500, y, 256);
         draw_line(a.x, a.y, b.x, b.y, 5., WHITE);
     }
 }
 fn vault_pole(c: Camera, g: &Game, carried: Option<[f32; 4]>) {
-    use playman_rust::{presentation::sin, vault::length};
-    let p = g.pole;
+    use crate::{presentation::sin, vault::length};
+    let p = g.discipline().vault().pole;
     let (a, b) = if let Some(bounds) = carried {
-        let [a, b] = playman_rust::vault::carried_endpoints(bounds);
+        let [a, b] = crate::vault::carried_endpoints(bounds);
         (vec2(a.0 as f32, a.1 as f32), vec2(b.0 as f32, b.1 as f32))
     } else {
         (
-            project(c, p[0] >> 8, p[1] >> 8, 0),
-            project(c, p[4] >> 8, p[5] >> 8, 0),
+            project(c, p.grip_x >> 8, p.grip_y >> 8, 0),
+            project(c, p.tip_x >> 8, p.tip_y >> 8, 0),
         )
     };
     let dx = ((b.x - a.x) as i32) << 10;
@@ -304,7 +305,7 @@ fn vault_pole(c: Camera, g: &Game, carried: Option<[f32; 4]>) {
     }
 }
 fn javelin_rod(g: &Game, center: Vec2, delta: Vec2, clip: Option<i32>) {
-    use playman_rust::{presentation::SINE, vault::direction};
+    use crate::{presentation::SINE, vault::direction};
     if center.x < -64. || center.x > 304. || center.y < -64. || center.y > 384. {
         return;
     }
@@ -436,7 +437,7 @@ fn javelin_rod(g: &Game, center: Vec2, delta: Vec2, clip: Option<i32>) {
     }
 }
 fn javelin_point(radius: i32, angle: i32) -> (i32, i32) {
-    use playman_rust::presentation::{cos, sin};
+    use crate::presentation::{cos, sin};
     let offset = -cos(4096) * 512 / sin(4096);
     (
         (((((radius - offset) * cos(angle)) >> 14) + offset) * 346) >> 8,
@@ -444,7 +445,7 @@ fn javelin_point(radius: i32, angle: i32) -> (i32, i32) {
     )
 }
 fn javelin_ground_line(c: Camera, a: (i32, i32), b: (i32, i32), rgb: u32) {
-    if let Some([a, b]) = playman_rust::javelin::ground_segment(c, [a.0, a.1], [b.0, b.1]) {
+    if let Some([a, b]) = crate::javelin::ground_segment(c, [a.0, a.1], [b.0, b.1]) {
         draw_line(a[0], a[1], b[0], b[1], 1., color(rgb));
     }
 }
@@ -510,7 +511,7 @@ fn javelin_scene(art: &Art, g: &Game, c: Camera, time: i32) {
     for z in [-512, 512] {
         javelin_ground_line(c, (c.x - 1_000_000, z), (0, z), 0xffffff);
     }
-    if let Some([a, b]) = playman_rust::javelin::ground_segment(c, [0, -512], [0, 512]) {
+    if let Some([a, b]) = crate::javelin::ground_segment(c, [0, -512], [0, 512]) {
         for n in 0..6 {
             draw_line(a[0] - n as f32, a[1], b[0] - n as f32, b[1], 1., WHITE);
         }
@@ -550,14 +551,22 @@ fn javelin_scene(art: &Art, g: &Game, c: Camera, time: i32) {
         art.bottom_center_sprite(id, p.x, p.y);
     }
     for (id, z) in [
-        (8209, -128000),
-        (8208, -19712),
-        (8207, -14592),
-        (8204, -10752),
+        (scene::SKYLINE, -128000),
+        (scene::DISTANT_BUILDINGS, -19712),
+        (scene::NEAR_BUILDINGS, -14592),
+        (scene::CROWD, -10752),
     ] {
         repeat(art, c, id, z, 0, time);
     }
-    repeat_at(art, c, 8206, -9728, 0, time, project(c, 0, 0, -10752).y);
+    repeat_at(
+        art,
+        c,
+        scene::STADIUM_ADVERTISING,
+        -9728,
+        0,
+        time,
+        project(c, 0, 0, -10752).y,
+    );
     for meters in (50..=100).step_by(10) {
         let p = javelin_point(meters << 8, -4096);
         let p = project(c, p.0, 0, p.1);
@@ -566,9 +575,9 @@ fn javelin_scene(art: &Art, g: &Game, c: Camera, time: i32) {
     }
     let official = project(c, 0, 0, -1280);
     art.scene_tween(
-        16385,
-        usize::from(g.javelin.foul),
-        usize::from(g.javelin.foul),
+        scene::THROW_OFFICIAL,
+        usize::from(g.discipline().javelin().foul),
+        usize::from(g.discipline().javelin().foul),
         0,
         official.x,
         official.y,
@@ -578,7 +587,7 @@ fn javelin_scene(art: &Art, g: &Game, c: Camera, time: i32) {
     for (id, z, spacing, end) in [
         (8198, -2048, 384, -7936),
         (8196, -768, 256, -8448),
-        (8200, 1152, 256, -4608),
+        (scene::FOREGROUND_ADVERTISING, 1152, 256, -4608),
     ] {
         let anchor = project(c, end, 0, z);
         let period = art.scene_width(id) + spacing;
@@ -592,41 +601,20 @@ fn javelin_scene(art: &Art, g: &Game, c: Camera, time: i32) {
         }
     }
 }
-pub fn draw(
-    art: &Art,
-    g: &Game,
-    waiting_highlight: bool,
-    countdown: Option<i32>,
-    scenery_time: i32,
-    starter_time: Option<i32>,
-) {
-    let mut c = Camera::for_game(g);
-    if g.event.race()
-        && let Some(t) = countdown
-    {
-        let ease = |a, b, x: i32| {
-            let w = (playman_rust::presentation::sin(x * 65536 / 400 - 32768) + 16384) >> 7;
-            (a * (256 - w) + b * w) / 256
-        };
-        c.x = if t < 100 {
-            0
-        } else if t < 500 {
-            ease(0, 128, t - 100)
-        } else if t < 3100 {
-            128
-        } else if t < 3500 {
-            ease(128, 256, t - 3100)
-        } else {
-            256
-        };
-    }
+pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
+    let g = frame.game;
+    let c = frame.camera;
+    let waiting_highlight = frame.waiting_highlight;
+    let countdown = frame.countdown;
+    let scenery_time = frame.scenery_time;
+    let starter_time = frame.starter_time;
     let ci = 12934952u32;
     let cj = 14715962;
     let ck = 13666640;
     clear_background(color(11725567));
-    if g.event == Event::Javelin {
+    if g.event() == Event::Javelin {
         javelin_scene(art, g, c, scenery_time);
-    } else if g.event.race() {
+    } else if g.event().race() {
         let mut strips = vec![(-128000, 11725567), (-17920, 10143323), (-15360, ck)];
         let greens = [10143323, 12374893, 10143323, 11914837, 9814862, 11783245];
         for (n, col) in greens.iter().enumerate() {
@@ -642,27 +630,38 @@ pub fn draw(
         strips.push((24, 0xffffff));
         strips.push((i32::MAX, 0x3f3f3f));
         bands(c, &strips);
-        repeat(art, c, 8208, -29440, 0, scenery_time);
-        repeat(art, c, 8207, -24320, 0, scenery_time);
-        repeat(art, c, 8204, -20480, 0, scenery_time);
+        repeat(art, c, scene::DISTANT_BUILDINGS, -29440, 0, scenery_time);
+        repeat(art, c, scene::NEAR_BUILDINGS, -24320, 0, scenery_time);
+        repeat(art, c, scene::CROWD, -20480, 0, scenery_time);
         repeat_at(
             art,
             c,
-            8206,
+            scene::STADIUM_ADVERTISING,
             -18432,
             0,
             scenery_time,
             project(c, 0, 0, -20480).y,
         );
-        repeat(art, c, 8202, -14848, art.scene_width(8202), scenery_time);
-        repeat(art, c, 8201, -2664, 64, scenery_time);
-        let finish = if g.event == Event::Dash { 25600 } else { 30720 };
+        repeat(
+            art,
+            c,
+            scene::STADIUM_EQUIPMENT,
+            -14848,
+            art.scene_width(scene::STADIUM_EQUIPMENT),
+            scenery_time,
+        );
+        repeat(art, c, scene::TRACK_EQUIPMENT, -2664, 64, scenery_time);
+        let finish = if g.event() == Event::Dash {
+            25600
+        } else {
+            30720
+        };
         let first = ((c.x - 1920).max(0) / 2560) * 2560;
         let finish_props = project(c, finish, 0, -2126);
-        art.bottom_center_sprite(711, finish_props.x, finish_props.y);
-        art.bottom_center_sprite(712, finish_props.x + 32., finish_props.y);
+        art.bottom_center_sprite(sprite::FINISH_CAMERA, finish_props.x, finish_props.y);
+        art.bottom_center_sprite(sprite::FINISH_BELL, finish_props.x + 32., finish_props.y);
         for x in (first..first + 12800).step_by(2560) {
-            if (g.event == Event::Dash && x == 23040) || (g.event == Event::Hurdles && x != 0) {
+            if (g.event() == Event::Dash && x == 23040) || (g.event() == Event::Hurdles && x != 0) {
                 continue;
             }
             line(
@@ -708,9 +707,9 @@ pub fn draw(
                 art.bottom_right_sprite(710, start.x - 62. - (lane * 28 / 6) as f32, start.y + 5.);
             }
         }
-        repeat(art, c, 8200, 512, 0, scenery_time);
-        if g.event == Event::Hurdles {
-            let h = art.scene_height(16384) as f32;
+        repeat(art, c, scene::FOREGROUND_ADVERTISING, 512, 0, scenery_time);
+        if g.event() == Event::Hurdles {
+            let h = art.scene_height(scene::HURDLE) as f32;
             for lane in 0..6 {
                 for index in 0..7 {
                     let x = (10 + index * 15) * 256;
@@ -720,10 +719,10 @@ pub fn draw(
                     let back = project(c, x, 0, (-6 + lane) * 333 + 12);
                     let front = project(c, x, 0, (-5 + lane) * 333 - 12);
                     let fallen = lane == 3
-                        && g.runner.pos > ((10 + index * 15) << 16) - 25600
-                        && g.tripped & (1 << index) != 0;
+                        && g.runner.position > ((10 + index * 15) << 16) - 25600
+                        && g.discipline().hurdles().fallen & (1 << index) != 0;
                     let frame = usize::from(fallen);
-                    art.scene_tween(16384, frame, frame, 0, back.x, back.y);
+                    art.scene_tween(scene::HURDLE, frame, frame, 0, back.x, back.y);
                     if fallen {
                         draw_line(
                             back.x + h - 1.,
@@ -783,12 +782,12 @@ pub fn draw(
                             );
                         }
                     }
-                    art.scene_tween(16384, frame, frame, 0, front.x, front.y);
+                    art.scene_tween(scene::HURDLE, frame, frame, 0, front.x, front.y);
                 }
             }
         }
     } else {
-        if g.event == Event::PoleVault {
+        if g.event() == Event::PoleVault {
             let depth = |z| c.project_fixed(c.x, 0, z).1;
             let mut strips = vec![
                 (0, 0),
@@ -831,16 +830,16 @@ pub fn draw(
                 ],
             );
         }
-        if matches!(g.event, Event::LongJump | Event::PoleVault) {
+        if matches!(g.event(), Event::LongJump | Event::PoleVault) {
             repeat(art, c, 8222, -128000, 0, scenery_time);
         }
-        repeat(art, c, 8208, -10496, 0, scenery_time);
-        repeat(art, c, 8207, -5376, 0, scenery_time);
+        repeat(art, c, scene::DISTANT_BUILDINGS, -10496, 0, scenery_time);
+        repeat(art, c, scene::NEAR_BUILDINGS, -5376, 0, scenery_time);
         let stadium_y = project(
             c,
             0,
             0,
-            if g.event == Event::PoleVault {
+            if g.event() == Event::PoleVault {
                 -1792
             } else {
                 -1536
@@ -850,12 +849,19 @@ pub fn draw(
         repeat_at(art, c, 8192, -1536, 0, scenery_time, stadium_y - 20.);
         repeat_at(art, c, 8195, -1536, 0, scenery_time, stadium_y - 20.);
         repeat_at(art, c, 8197, -1280, 0, scenery_time, stadium_y);
-        if g.event == Event::LongJump {
+        if g.event() == Event::LongJump {
             approach_equipment(art, c);
             let equipment = project(c, 2496, 0, -768);
-            art.scene_tween(8212, 0, 0, 0, equipment.x, equipment.y);
+            art.scene_tween(
+                scene::LONG_JUMP_EQUIPMENT,
+                0,
+                0,
+                0,
+                equipment.x,
+                equipment.y,
+            );
         }
-        if g.event == Event::LongJump {
+        if g.event() == Event::LongJump {
             // Original inset approach stripes and white/red takeoff board.
             line(c, (0, 0, -244), (0, 0, 244), 8., WHITE);
             let a = project(c, 0, 0, -244);
@@ -1027,19 +1033,26 @@ pub fn draw(
                 let flag = project(c, x, 0, -400);
                 art.bottom_center_sprite(483, flag.x, flag.y);
             }
-            repeat(art, c, 8200, 896, art.scene_width(8200), scenery_time);
+            repeat(
+                art,
+                c,
+                scene::FOREGROUND_ADVERTISING,
+                896,
+                art.scene_width(scene::FOREGROUND_ADVERTISING),
+                scenery_time,
+            );
             let official = project(c, 0, 0, -640);
-            let foul = matches!(g.phase, Phase::FoulRun) || (g.finished && g.result.is_none());
+            let foul = matches!(g.phase(), Phase::FoulRun) || (g.finished && g.result.is_none());
             art.scene_tween(
-                16385,
+                scene::THROW_OFFICIAL,
                 usize::from(foul),
                 usize::from(foul),
                 0,
                 official.x,
                 official.y,
             );
-            if !matches!(g.phase, Phase::Prepare | Phase::Run | Phase::Approach) {
-                let takeoff = project(c, g.takeoff_pos >> 8, 0, 0);
+            if !matches!(g.phase(), Phase::Prepare | Phase::Run | Phase::Approach) {
+                let takeoff = project(c, g.discipline().long_jump().takeoff_position >> 8, 0, 0);
                 art.right_center_sprite(
                     if foul && scenery_time % 600 < 300 {
                         479
@@ -1056,7 +1069,7 @@ pub fn draw(
                 art.sprite(462, mark.x - 6., mark.y - 3., false);
             }
         }
-        if g.event == Event::PoleVault {
+        if g.event() == Event::PoleVault {
             quad(c, -280, -20, -64, 64, color(0x484848));
             quad(c, -20, 20, -256, 256, WHITE);
             for z in [-340, 256] {
@@ -1075,31 +1088,41 @@ pub fn draw(
                 quad(c, -30720, 0, z, z + 45, WHITE);
             }
             let bench = project(c, -5120, 0, -304);
-            let width = art.scene_width(8210);
-            let height = art.scene_height(8210);
+            let width = art.scene_width(scene::BENCH);
+            let height = art.scene_height(scene::BENCH);
             let mut bx = bench.x as i32;
             while bx > -width {
-                art.scene_tween(8210, 0, 0, 0, (bx - width) as f32, bench.y - height as f32);
+                art.scene_tween(
+                    scene::BENCH,
+                    0,
+                    0,
+                    0,
+                    (bx - width) as f32,
+                    bench.y - height as f32,
+                );
                 bx -= width + 256;
             }
             vault_mat(art, c, g);
         }
     }
-    let lane = Camera::athlete_lane(g.event);
-    let x = g.runner.pos >> 8;
+    let lane = Camera::athlete_lane(g.event());
+    let x = g.runner.position >> 8;
     let ground = project(c, x, 0, lane);
     let y = g.runner.height >> 8;
     let mut p = project(c, x, y, lane);
-    if g.event == Event::PoleVault && g.phase == Phase::VaultPlant && g.vault.held {
+    if g.event() == Event::PoleVault
+        && g.phase() == Phase::VaultPlant
+        && g.discipline().vault().held
+    {
         p.x -= 14.;
         p.y -= 84.;
     }
     if p.x > -120. && p.x < 360. && p.y > -160. && p.y < 480. {
-        if g.event == Event::PoleVault && x >= 200 {
+        if g.event() == Event::PoleVault && x >= 200 {
             if g.runner.height > 76800 {
                 let shadow = project(c, x, 250, 0);
                 art.sprite(
-                    518 + ((g.runner.pos / 81920) & 3) as usize,
+                    518 + ((g.runner.position / 81920) & 3) as usize,
                     shadow.x - 9.,
                     shadow.y,
                     true,
@@ -1107,13 +1130,13 @@ pub fn draw(
             }
         } else {
             art.sprite(
-                518 + ((g.runner.pos / 81920) & 3) as usize,
+                518 + ((g.runner.position / 81920) & 3) as usize,
                 ground.x - 9.,
                 ground.y,
                 true,
             );
         }
-        if g.event == Event::PoleVault && countdown.is_some() {
+        if g.event() == Event::PoleVault && countdown.is_some() {
             art.animation_with_hook(
                 Animation::new(3050, 9, scenery_time, 120, true),
                 p.x,
@@ -1122,36 +1145,36 @@ pub fn draw(
                     vault_pole(c, g, Some(bounds));
                 },
             );
-        } else if let Some(t) = countdown.filter(|_| g.event.race()) {
-            if g.event == Event::Hurdles && starter_time.is_none() {
+        } else if let Some(t) = countdown.filter(|_| g.event().race()) {
+            if g.event() == Event::Hurdles && starter_time.is_none() {
                 art.animation(Animation::new(2378, 5, scenery_time, 200, true), p.x, p.y);
             } else {
                 art.animation(Animation::ready(t), p.x, p.y)
             }
         } else {
-            if (g.event == Event::PoleVault && x > 200)
-                || (g.event == Event::LongJump
+            if (g.event() == Event::PoleVault && x > 200)
+                || (g.event() == Event::LongJump
                     && matches!(
-                        g.phase,
+                        g.phase(),
                         Phase::Stretch | Phase::LandGood | Phase::LandBad | Phase::Done
                     ))
             {
                 art.animation_ground_clip(
-                    Animation::for_game(g),
+                    frame.animation,
                     p.x,
                     p.y,
-                    if g.event == Event::PoleVault {
+                    if g.event() == Event::PoleVault {
                         project(c, x, 250, 0).y
                     } else {
                         p.y
                     },
                 );
-            } else if g.event == Event::PoleVault && g.vault_phase() < 2 {
-                art.animation_with_hook(Animation::for_game(g), p.x, p.y, |bounds| {
+            } else if g.event() == Event::PoleVault && g.vault_phase() < 2 {
+                art.animation_with_hook(frame.animation, p.x, p.y, |bounds| {
                     vault_pole(c, g, Some(bounds));
                 });
-            } else if g.event == Event::Javelin && g.javelin_phase() < 6 {
-                art.animation_with_hook(Animation::for_game(g), p.x, p.y, |[x, y, dx, dy]| {
+            } else if g.event() == Event::Javelin && g.javelin_phase() < 6 {
+                art.animation_with_hook(frame.animation, p.x, p.y, |[x, y, dx, dy]| {
                     javelin_rod(g, vec2(x, y + dy - 1.), vec2(dx, -dy), None);
                 });
             } else {
@@ -1159,7 +1182,7 @@ pub fn draw(
             }
         }
     }
-    if g.event == Event::PoleVault {
+    if g.event() == Event::PoleVault {
         if g.vault_phase() >= 2 {
             vault_pole(c, g, None);
         }
@@ -1169,7 +1192,7 @@ pub fn draw(
             let right = project(c, 1800, 250, -256).x - 32.;
             if mark.x >= left && mark.x <= right {
                 art.sprite(
-                    if g.finished && g.phase_time > 600 {
+                    if g.finished && g.phase_elapsed_ms > 600 {
                         517
                     } else {
                         516
@@ -1186,7 +1209,7 @@ pub fn draw(
         art.sprite(693, official.x + 60., official.y + 10., true);
         art.sprite(693, official.x + 100., official.y, true);
     }
-    if g.event.race() {
+    if g.event().race() {
         let (a, b, fraction) = match starter_time {
             None => (0, 0, 0),
             Some(t) if t < 3000 => (1, 1, 0),
@@ -1200,45 +1223,45 @@ pub fn draw(
             Some(_) => (7, 7, 0),
         };
         let position = project(c, 512, 0, 512);
-        art.scene_tween(16386, a, b, fraction, position.x, position.y);
+        art.scene_tween(scene::STARTER, a, b, fraction, position.x, position.y);
     }
-    if g.event == Event::Javelin && matches!(g.phase, Phase::Flight | Phase::Done) {
-        use playman_rust::presentation::{cos, sin};
-        let rod = g.projectile;
-        let angle = (rod[4] >> 8) as i32;
-        let center = project(c, (rod[0] >> 8) as i32, (rod[1] >> 8) as i32, 0);
-        let shift = if g.phase == Phase::Done { 2 } else { 4 };
+    if g.event() == Event::Javelin && matches!(g.phase(), Phase::Flight | Phase::Done) {
+        use crate::presentation::{cos, sin};
+        let rod = g.discipline().javelin().projectile;
+        let angle = (rod.angle >> 8) as i32;
+        let center = project(c, (rod.x >> 8) as i32, (rod.y >> 8) as i32, 0);
+        let shift = if g.phase() == Phase::Done { 2 } else { 4 };
         let tip = project(
             c,
-            ((rod[0] + ((cos(angle) as i64) << shift)) >> 8) as i32,
-            ((rod[1] + ((sin(angle) as i64) << shift)) >> 8) as i32,
+            ((rod.x + ((cos(angle) as i64) << shift)) >> 8) as i32,
+            ((rod.y + ((sin(angle) as i64) << shift)) >> 8) as i32,
             0,
         );
-        let shadow = project(c, (rod[0] >> 8) as i32, 0, 0);
-        art.bottom_center_sprite(522, shadow.x, shadow.y);
-        let clip = if g.phase == Phase::Done {
-            Some(project(c, ((rod[0] + ((cos(angle) as i64) << 2)) >> 8) as i32, 0, 0).y as i32)
+        let shadow = project(c, (rod.x >> 8) as i32, 0, 0);
+        art.bottom_center_sprite(sprite::JAVELIN_SHADOW, shadow.x, shadow.y);
+        let clip = if g.phase() == Phase::Done {
+            Some(project(c, ((rod.x + ((cos(angle) as i64) << 2)) >> 8) as i32, 0, 0).y as i32)
         } else {
             None
         };
         javelin_rod(g, center, tip - center, clip);
     }
-    if g.event == Event::PoleVault {
-        for (sprite, [x, y], _) in g.vault.timing.sprites() {
+    if g.event() == Event::PoleVault {
+        for (sprite, [x, y], _) in g.discipline().vault().timing.sprites() {
             art.sprite(sprite, x as f32, y as f32, true);
         }
         // Keep the timing cursor legible over the accumulated particle glow.
-        if let Some(marker) = playman_rust::vault_effect::marker(g) {
+        if let Some(marker) = crate::vault::timing_marker(g) {
             art.transformed_sprite(
-                469,
+                sprite::TIMING_CURSOR,
                 ((scenery_time >> 7) & 3) as u8,
                 marker.position[0] as f32,
                 marker.position[1] as f32,
             );
         }
     }
-    if g.event == Event::Javelin {
-        for (sprite, [x, y], world) in g.javelin.effects.sprites() {
+    if g.event() == Event::Javelin {
+        for (sprite, [x, y], world) in g.discipline().javelin().effects.sprites() {
             let p = if world {
                 project(c, x, y, 0)
             } else {
@@ -1246,9 +1269,9 @@ pub fn draw(
             };
             art.sprite(sprite, p.x, p.y, true);
         }
-        if let Some([x, y]) = playman_rust::javelin::charge_marker(g) {
+        if let Some([x, y]) = crate::javelin::charge_marker(g) {
             art.transformed_sprite(
-                469,
+                sprite::TIMING_CURSOR,
                 ((scenery_time >> 7) & 3) as u8,
                 (x >> 10) as f32,
                 (y >> 10) as f32,

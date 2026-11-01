@@ -1,13 +1,18 @@
 use crate::render::{draw_line, draw_rectangle};
-use macroquad::prelude::*;
-use playman_rust::{
+use crate::{
     Game,
     artwork::{Artwork, Command},
     presentation::Animation,
 };
+use macroquad::prelude::*;
 pub struct Art {
     atlas: Option<Texture2D>,
     artwork: Artwork,
+}
+impl Default for Art {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl Art {
     pub fn new() -> Self {
@@ -21,7 +26,6 @@ impl Art {
             artwork: Artwork::new(),
         }
     }
-    #[allow(dead_code)]
     pub fn new_software() -> Self {
         crate::render::begin_software();
         Self {
@@ -199,7 +203,7 @@ impl Art {
         }
     }
     pub fn label(&self, font: usize, text: &str, mut x: f32, y: f32, align: u8) {
-        let font = playman_rust::bitmap_font::BitmapFont::get(font);
+        let font = crate::bitmap_font::BitmapFont::get(font);
         let width = font.width(text) as f32;
         if align == 1 {
             x -= width / 2.

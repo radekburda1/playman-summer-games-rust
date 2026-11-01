@@ -1,12 +1,6 @@
 //! Uses the game's actual world renderer with software primitives, without a window/GPU.
-#[allow(dead_code)]
-#[path = "../art.rs"]
-mod art;
-#[path = "../render.rs"]
-mod render;
-#[path = "../world.rs"]
-mod world;
 use playman_rust::{Event, Game, Input};
+use playman_rust::{art, render, world};
 fn main() {
     let output = std::env::args()
         .nth(1)
@@ -52,7 +46,16 @@ fn main() {
                 g.step();
             }
             if v[0] % 40 == 0 {
-                world::draw(&artwork, &g, false, None, v[0] * 32, Some(5032 + v[0] * 32));
+                world::draw(
+                    &artwork,
+                    &playman_rust::presentation::SceneFrame::new(
+                        &g,
+                        false,
+                        None,
+                        v[0] * 32,
+                        Some(5032 + v[0] * 32),
+                    ),
+                );
                 render::save_software(&format!("{output}/{scenario}-{}.png", v[0]));
             }
         }
@@ -88,7 +91,10 @@ fn main() {
                 g.step();
             }
             if v[0] % 40 == 0 {
-                world::draw(&artwork, &g, false, None, v[0] * 32, None);
+                world::draw(
+                    &artwork,
+                    &playman_rust::presentation::SceneFrame::new(&g, false, None, v[0] * 32, None),
+                );
                 render::save_software(&format!("{output}/pole-vault/{scenario}-{}.png", v[0]));
             }
         }
@@ -126,7 +132,10 @@ fn main() {
                 g.step();
             }
             if v[0] % 40 == 0 {
-                world::draw(&artwork, &g, false, None, v[0] * 32, None);
+                world::draw(
+                    &artwork,
+                    &playman_rust::presentation::SceneFrame::new(&g, false, None, v[0] * 32, None),
+                );
                 render::save_software(&format!("{output}/javelin/{scenario}-{}.png", v[0]));
             }
         }
@@ -192,11 +201,13 @@ fn matched_java_world_states_remain_close() {
         }
         world::draw(
             &artwork,
-            &game,
-            false,
-            None,
-            tick as i32 * 32,
-            Some(5032 + tick as i32 * 32),
+            &playman_rust::presentation::SceneFrame::new(
+                &game,
+                false,
+                None,
+                tick as i32 * 32,
+                Some(5032 + tick as i32 * 32),
+            ),
         );
         let actual = render::software_frame();
         let bytes = std::fs::read(format!(
@@ -236,7 +247,16 @@ fn carried_pole_matches_original_preparation_and_runup() {
             }
             game.step();
         }
-        world::draw(&art, &game, false, None, tick as i32 * 32, None);
+        world::draw(
+            &art,
+            &playman_rust::presentation::SceneFrame::new(
+                &game,
+                false,
+                None,
+                tick as i32 * 32,
+                None,
+            ),
+        );
         let actual = render::software_frame();
         let bytes = std::fs::read(format!(
             "{root}/tests/fixtures/pole-vault/carry/clean-{tick}.png"
@@ -294,7 +314,16 @@ fn javelin_carried_and_flying_rendering_matches_reference() {
             }
             game.step();
         }
-        world::draw(&art, &game, false, None, tick as i32 * 32, None);
+        world::draw(
+            &art,
+            &playman_rust::presentation::SceneFrame::new(
+                &game,
+                false,
+                None,
+                tick as i32 * 32,
+                None,
+            ),
+        );
         let actual = render::software_frame();
         let bytes = std::fs::read(format!(
             "{root}/tests/fixtures/javelin/world/valid-{tick}.png"

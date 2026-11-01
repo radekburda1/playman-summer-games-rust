@@ -184,3 +184,7 @@ limitations. Original WAV effects are unchanged.
 
 The local [Miniquad patch](vendor/miniquad/PATCHES.md) fixes a nil Cocoa application
 name crash. It does not resolve host graphics-access failures.
+
+## Development
+
+See [DEVELOPER.md](DEVELOPER.md) for architecture, simulation units, asset mappings, regression evidence and instructions for extending a discipline.

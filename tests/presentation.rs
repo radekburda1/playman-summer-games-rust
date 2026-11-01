@@ -25,18 +25,18 @@ fn sine_matches_all_512_original_values() {
 fn race_animation_depends_on_distance_not_elapsed_time() {
     let mut g = Game::new(Event::Dash, 1);
     g.runner.speed = 20000;
-    g.runner.pos = 4000 << 8;
+    g.runner.position = 4000 << 8;
     let a = Animation::for_game(&g);
-    g.elapsed += 1000;
-    g.phase_time += 1000;
+    g.elapsed_ms += 1000;
+    g.phase_elapsed_ms += 1000;
     assert_eq!(a, Animation::for_game(&g));
-    g.runner.pos += 160 << 8;
+    g.runner.position += 160 << 8;
     assert_eq!(Animation::for_game(&g).time, a.time + 160);
 }
 #[test]
 fn field_animation_wraps_negative_runup() {
     let mut g = Game::new(Event::LongJump, 1);
-    g.phase = playman_rust::Phase::Run;
+    g.set_phase(playman_rust::Phase::Run).unwrap();
     let a = Animation::for_game(&g);
     let (i, j, f) = a.frames(include_bytes!("../assets/tables.bin"));
     assert_ne!(i, j);
@@ -45,12 +45,12 @@ fn field_animation_wraps_negative_runup() {
 #[test]
 fn pole_run_repeats_only_after_intro() {
     let mut g = Game::new(Event::PoleVault, 1);
-    g.phase = playman_rust::Phase::Run;
+    g.set_phase(playman_rust::Phase::Run).unwrap();
     g.runner.speed = 20000;
     let intro = Animation::for_game(&g);
     assert_eq!(intro.time, 0);
     assert_eq!(intro.loop_start, 4);
-    g.runner.pos += 2240 << 8;
+    g.runner.position += 2240 << 8;
     let (frame, _, _) = Animation::for_game(&g).frames(include_bytes!("../assets/tables.bin"));
     let table = include_bytes!("../assets/tables.bin");
     let offset = 3080 + 4 * 2;

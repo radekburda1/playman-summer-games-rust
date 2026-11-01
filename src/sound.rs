@@ -78,7 +78,8 @@ impl Sounds {
             set_sound_volume(sound, if self.muted { 0. } else { 0.45 });
         }
     }
-    pub fn play(&mut self, id: usize) {
+    pub fn play(&mut self, cue: playman_rust::audio::SoundCue) {
+        let id = cue.resource_id();
         if id < 12 {
             self.requested_jingle = Some(id);
             return;

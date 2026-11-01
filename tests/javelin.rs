@@ -34,20 +34,26 @@ fn javelin_matches_original_states_and_camera() {
             }
             let mut actual = vec![
                 game.javelin_phase(),
-                game.phase_time,
-                game.runner.pos,
+                game.phase_elapsed_ms,
+                game.runner.position,
                 game.runner.speed,
                 game.runner.height,
-                game.runner.vertical,
-                game.runner.expected as i32,
+                game.runner.vertical_velocity,
+                game.runner.expected_key as i32,
             ];
-            actual.extend(game.projectile.map(|p| p as i32));
+            actual.extend(
+                game.discipline()
+                    .javelin()
+                    .projectile
+                    .reference_values()
+                    .map(|p| p as i32),
+            );
             actual.extend([
-                game.javelin.charge_angle,
-                game.javelin.release_position,
-                game.javelin.initial_vertical,
-                game.javelin.landing,
-                i32::from(game.javelin.foul),
+                game.discipline().javelin().charge_angle,
+                game.discipline().javelin().release_position,
+                game.discipline().javelin().initial_vertical,
+                game.discipline().javelin().landing,
+                i32::from(game.discipline().javelin().foul),
             ]);
             let c = Camera::for_game(&game);
             actual.extend([c.x, c.y, c.z, c.angle]);
@@ -96,7 +102,8 @@ fn javelin_particles_match_original() {
             game.step();
         }
         let actual: Vec<Vec<i32>> = game
-            .javelin
+            .discipline()
+            .javelin()
             .effects
             .particles
             .iter()
