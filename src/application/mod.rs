@@ -1,6 +1,11 @@
-//! Application flow. Simulation and record decisions require no window or filesystem.
-use crate::audio::SoundCue;
-use crate::{Event, Game, Input, TICK, records::better};
+pub mod gameplay;
+pub mod records;
+// Application flow. Simulation and record decisions require no window or filesystem.
+use crate::simulation::audio::SoundCue;
+use crate::{
+    application::records::better, simulation::Event, simulation::Game, simulation::Input,
+    simulation::TICK,
+};
 #[derive(Clone, Copy, PartialEq)]
 pub enum Screen {
     Menu,
@@ -16,6 +21,7 @@ pub struct App {
     pub screen: Screen,
     pub selected: usize,
     pub game: Game,
+    pub effects: crate::presentation::effects::TimingEffect,
     pub paused: bool,
     pub clock: f32,
     pub ready: f32,
@@ -39,6 +45,7 @@ impl App {
             screen: Screen::Menu,
             selected: 0,
             game: Game::new(Event::Dash, 25),
+            effects: Default::default(),
             paused: false,
             clock: 0.,
             ready: 0.,
@@ -60,6 +67,7 @@ impl App {
     pub fn start(&mut self) {
         self.seed = self.seed.wrapping_add(1009);
         self.game = Game::new(Event::ALL[self.selected], self.seed);
+        self.effects = Default::default();
         self.game.record_distance = self.records[self.selected];
         self.outgoing = None;
         self.screen = Screen::AwaitStart;
@@ -142,7 +150,7 @@ pub struct FrameInput {
 }
 #[derive(Default)]
 pub struct FrameEffects {
-    pub sounds: Vec<crate::audio::SoundCue>,
+    pub sounds: Vec<crate::simulation::audio::SoundCue>,
     pub toggle_mute: bool,
     pub sounds_after_music: Vec<SoundCue>,
 }
@@ -245,21 +253,21 @@ impl App {
                 }
                 if !self.paused && !was_paused && self.screen == Screen::Play {
                     if input.left {
-                        self.game.input(Input::Left)
+                        gameplay::input(&mut self.game, &mut self.effects, Input::Left)
                     }
                     if input.right {
-                        self.game.input(Input::Right)
+                        gameplay::input(&mut self.game, &mut self.effects, Input::Right)
                     }
                     if input.action {
-                        self.game.input(Input::ActionDown)
+                        gameplay::input(&mut self.game, &mut self.effects, Input::ActionDown)
                     }
                     if input.action_released {
-                        self.game.input(Input::ActionUp)
+                        gameplay::input(&mut self.game, &mut self.effects, Input::ActionUp)
                     }
                     self.clock += dt;
                     while self.clock >= TICK {
                         self.clock -= TICK;
-                        self.game.step();
+                        gameplay::step(&mut self.game, &mut self.effects);
                         if self.game.finished {
                             self.finish();
                             break;
@@ -271,7 +279,7 @@ impl App {
                 self.clock += dt;
                 while self.clock >= TICK {
                     self.clock -= TICK;
-                    self.game.step_finish();
+                    gameplay::step_finish(&mut self.game, &mut self.effects);
                 }
                 if confirm && (!self.game.event().race() || self.game.runner.speed < 4000) {
                     self.advance_after_transition = !self.game.event().race();

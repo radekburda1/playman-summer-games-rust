@@ -1,8 +1,8 @@
-use crate::render::{draw_line, draw_rectangle};
+use crate::rendering::backend::{draw_line, draw_rectangle};
 use crate::{
-    Game,
-    artwork::{Artwork, Command},
+    assets::artwork::{Artwork, Command},
     presentation::Animation,
+    simulation::Game,
 };
 use macroquad::prelude::*;
 pub struct Art {
@@ -17,7 +17,7 @@ impl Default for Art {
 impl Art {
     pub fn new() -> Self {
         let atlas = Texture2D::from_file_with_format(
-            include_bytes!("../assets/atlas.png"),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/atlas.png")),
             Some(ImageFormat::Png),
         );
         atlas.set_filter(FilterMode::Nearest);
@@ -27,7 +27,7 @@ impl Art {
         }
     }
     pub fn new_software() -> Self {
-        crate::render::begin_software();
+        crate::rendering::backend::begin_software();
         Self {
             atlas: None,
             artwork: Artwork::new(),
@@ -41,7 +41,7 @@ impl Art {
                 dest: [dx, dy],
             } => {
                 if self.atlas.is_none() {
-                    crate::render::blit([x, y, w, h], [dx, dy], 1.);
+                    crate::rendering::backend::blit([x, y, w, h], [dx, dy], 1.);
                     return;
                 }
                 draw_texture_ex(
@@ -126,7 +126,7 @@ impl Art {
         }) = self.artwork.sprite(id, 0, 0., 0., false)
         {
             if self.atlas.is_none() {
-                crate::render::blit(
+                crate::rendering::backend::blit(
                     [sx, sy, w, h],
                     [x - w * scale / 2., y - h * scale / 2.],
                     scale,
@@ -203,7 +203,7 @@ impl Art {
         }
     }
     pub fn label(&self, font: usize, text: &str, mut x: f32, y: f32, align: u8) {
-        let font = crate::bitmap_font::BitmapFont::get(font);
+        let font = crate::assets::bitmap_font::BitmapFont::get(font);
         let width = font.width(text) as f32;
         if align == 1 {
             x -= width / 2.
@@ -222,7 +222,10 @@ impl Art {
         self.animation(Animation::for_game(g), x, y);
     }
     pub fn animation(&self, animation: Animation, x: f32, y: f32) {
-        let (a, b, f) = animation.frames(include_bytes!("../assets/tables.bin"));
+        let (a, b, f) = animation.frames(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/tables.bin"
+        )));
         for c in self.artwork.frame(0, a, b, f, x, y) {
             self.draw(c)
         }
@@ -235,7 +238,10 @@ impl Art {
         y: f32,
         mut hook: impl FnMut([f32; 4]),
     ) {
-        let (a, b, f) = animation.frames(include_bytes!("../assets/tables.bin"));
+        let (a, b, f) = animation.frames(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/tables.bin"
+        )));
         for command in self.artwork.frame(0, a, b, f, x, y) {
             if let Command::Hook { bounds } = command {
                 hook(bounds);
@@ -245,7 +251,10 @@ impl Art {
         }
     }
     pub fn animation_ground_clip(&self, animation: Animation, x: f32, y: f32, ground: f32) {
-        let (a, b, f) = animation.frames(include_bytes!("../assets/tables.bin"));
+        let (a, b, f) = animation.frames(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/tables.bin"
+        )));
         for mut command in self.artwork.frame(0, a, b, f, x, y) {
             match &mut command {
                 Command::Image { source, dest } => {

@@ -1,10 +1,12 @@
-use crate::resources::{scene, sprite};
+use crate::assets::resources::{scene, sprite};
 // Perspective track and scene placement, using the original world coordinate system.
-use crate::art::Art;
-use crate::render::{clear_background, draw_line, draw_rectangle, draw_triangle};
+use crate::rendering::art::Art;
+use crate::rendering::backend::{clear_background, draw_line, draw_rectangle, draw_triangle};
 use crate::{
-    Event, Game, Phase,
     presentation::{Animation, Camera},
+    simulation::Event,
+    simulation::Game,
+    simulation::Phase,
 };
 use macroquad::prelude::*;
 fn color(rgb: u32) -> Color {
@@ -148,7 +150,7 @@ fn rod(a: Vec2, b: Vec2, width: i32, mut bright: u32, mut shade: u32) {
     let mut down = 0;
     let mut remaining = ((width * major) >> 1) + 1;
     let mut error = major >> 1;
-    let step = crate::vault::length(major, minor).max(1);
+    let step = crate::simulation::events::vault::length(major, minor).max(1);
     if x > x2 {
         std::mem::swap(&mut bright, &mut shade);
     }
@@ -248,10 +250,10 @@ fn vault_mat(art: &Art, c: Camera, g: &Game) {
     }
 }
 fn vault_pole(c: Camera, g: &Game, carried: Option<[f32; 4]>) {
-    use crate::{presentation::sin, vault::length};
+    use crate::{simulation::events::vault::length, simulation::math::sin};
     let p = g.discipline().vault().pole;
     let (a, b) = if let Some(bounds) = carried {
-        let [a, b] = crate::vault::carried_endpoints(bounds);
+        let [a, b] = crate::presentation::vault_marker::carried_endpoints(bounds);
         (vec2(a.0 as f32, a.1 as f32), vec2(b.0 as f32, b.1 as f32))
     } else {
         (
@@ -305,7 +307,7 @@ fn vault_pole(c: Camera, g: &Game, carried: Option<[f32; 4]>) {
     }
 }
 fn javelin_rod(g: &Game, center: Vec2, delta: Vec2, clip: Option<i32>) {
-    use crate::{presentation::SINE, vault::direction};
+    use crate::{simulation::events::vault::direction, simulation::math::SINE};
     if center.x < -64. || center.x > 304. || center.y < -64. || center.y > 384. {
         return;
     }
@@ -437,7 +439,7 @@ fn javelin_rod(g: &Game, center: Vec2, delta: Vec2, clip: Option<i32>) {
     }
 }
 fn javelin_point(radius: i32, angle: i32) -> (i32, i32) {
-    use crate::presentation::{cos, sin};
+    use crate::simulation::math::{cos, sin};
     let offset = -cos(4096) * 512 / sin(4096);
     (
         (((((radius - offset) * cos(angle)) >> 14) + offset) * 346) >> 8,
@@ -445,7 +447,7 @@ fn javelin_point(radius: i32, angle: i32) -> (i32, i32) {
     )
 }
 fn javelin_ground_line(c: Camera, a: (i32, i32), b: (i32, i32), rgb: u32) {
-    if let Some([a, b]) = crate::javelin::ground_segment(c, [a.0, a.1], [b.0, b.1]) {
+    if let Some([a, b]) = crate::presentation::javelin::ground_segment(c, [a.0, a.1], [b.0, b.1]) {
         draw_line(a[0], a[1], b[0], b[1], 1., color(rgb));
     }
 }
@@ -511,7 +513,7 @@ fn javelin_scene(art: &Art, g: &Game, c: Camera, time: i32) {
     for z in [-512, 512] {
         javelin_ground_line(c, (c.x - 1_000_000, z), (0, z), 0xffffff);
     }
-    if let Some([a, b]) = crate::javelin::ground_segment(c, [0, -512], [0, 512]) {
+    if let Some([a, b]) = crate::presentation::javelin::ground_segment(c, [0, -512], [0, 512]) {
         for n in 0..6 {
             draw_line(a[0] - n as f32, a[1], b[0] - n as f32, b[1], 1., WHITE);
         }
@@ -1226,7 +1228,7 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
         art.scene_tween(scene::STARTER, a, b, fraction, position.x, position.y);
     }
     if g.event() == Event::Javelin && matches!(g.phase(), Phase::Flight | Phase::Done) {
-        use crate::presentation::{cos, sin};
+        use crate::simulation::math::{cos, sin};
         let rod = g.discipline().javelin().projectile;
         let angle = (rod.angle >> 8) as i32;
         let center = project(c, (rod.x >> 8) as i32, (rod.y >> 8) as i32, 0);
@@ -1247,11 +1249,11 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
         javelin_rod(g, center, tip - center, clip);
     }
     if g.event() == Event::PoleVault {
-        for (sprite, [x, y], _) in g.discipline().vault().timing.sprites() {
+        for (sprite, [x, y], _) in frame.effects.sprites() {
             art.sprite(sprite, x as f32, y as f32, true);
         }
         // Keep the timing cursor legible over the accumulated particle glow.
-        if let Some(marker) = crate::vault::timing_marker(g) {
+        if let Some(marker) = crate::presentation::vault_marker::timing_marker(g) {
             art.transformed_sprite(
                 sprite::TIMING_CURSOR,
                 ((scenery_time >> 7) & 3) as u8,
@@ -1261,7 +1263,7 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
         }
     }
     if g.event() == Event::Javelin {
-        for (sprite, [x, y], world) in g.discipline().javelin().effects.sprites() {
+        for (sprite, [x, y], world) in frame.effects.sprites() {
             let p = if world {
                 project(c, x, y, 0)
             } else {
@@ -1269,7 +1271,7 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
             };
             art.sprite(sprite, p.x, p.y, true);
         }
-        if let Some([x, y]) = crate::javelin::charge_marker(g) {
+        if let Some([x, y]) = crate::presentation::javelin::charge_marker(g) {
             art.transformed_sprite(
                 sprite::TIMING_CURSOR,
                 ((scenery_time >> 7) & 3) as u8,

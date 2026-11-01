@@ -1,5 +1,9 @@
 //! Mutually exclusive event data. A game owns exactly one discipline.
-use crate::{Event, Phase, javelin::Javelin, long_jump::LongJump, race::Hurdles, vault::Vault};
+use crate::{
+    simulation::Event, simulation::Phase, simulation::events::javelin::Javelin,
+    simulation::events::long_jump::LongJump, simulation::events::race::Hurdles,
+    simulation::events::vault::Vault,
+};
 #[derive(Clone, Debug)]
 pub enum Discipline {
     Dash(RacePhase),
@@ -30,13 +34,21 @@ impl Discipline {
 }
 
 impl Discipline {
-    pub fn vault(&self) -> &Vault {
+    /// Checked access for callers that have not already matched the discipline.
+    pub fn as_vault(&self) -> Option<&Vault> {
+        match self {
+            Self::PoleVault(state) => Some(state),
+            _ => None,
+        }
+    }
+    // Internal callers dispatch on event identity before requesting event data.
+    pub(crate) fn vault(&self) -> &Vault {
         match self {
             Self::PoleVault(state) => state,
             _ => unreachable!("vault data requested for another discipline"),
         }
     }
-    pub(crate) fn vault_mut(&mut self) -> &mut Vault {
+    pub(in crate::simulation) fn vault_mut(&mut self) -> &mut Vault {
         match self {
             Self::PoleVault(state) => state,
             _ => unreachable!("vault data requested for another discipline"),
@@ -44,13 +56,21 @@ impl Discipline {
     }
 }
 impl Discipline {
-    pub fn javelin(&self) -> &Javelin {
+    /// Checked access for callers that have not already matched the discipline.
+    pub fn as_javelin(&self) -> Option<&Javelin> {
+        match self {
+            Self::Javelin(state) => Some(state),
+            _ => None,
+        }
+    }
+    // Internal callers dispatch on event identity before requesting event data.
+    pub(crate) fn javelin(&self) -> &Javelin {
         match self {
             Self::Javelin(state) => state,
             _ => unreachable!("javelin data requested for another discipline"),
         }
     }
-    pub(crate) fn javelin_mut(&mut self) -> &mut Javelin {
+    pub(in crate::simulation) fn javelin_mut(&mut self) -> &mut Javelin {
         match self {
             Self::Javelin(state) => state,
             _ => unreachable!("javelin data requested for another discipline"),
@@ -58,13 +78,21 @@ impl Discipline {
     }
 }
 impl Discipline {
-    pub fn long_jump(&self) -> &LongJump {
+    /// Checked access for callers that have not already matched the discipline.
+    pub fn as_long_jump(&self) -> Option<&LongJump> {
+        match self {
+            Self::LongJump(state) => Some(state),
+            _ => None,
+        }
+    }
+    // Internal callers dispatch on event identity before requesting event data.
+    pub(crate) fn long_jump(&self) -> &LongJump {
         match self {
             Self::LongJump(state) => state,
             _ => unreachable!("long_jump data requested for another discipline"),
         }
     }
-    pub(crate) fn long_jump_mut(&mut self) -> &mut LongJump {
+    pub(in crate::simulation) fn long_jump_mut(&mut self) -> &mut LongJump {
         match self {
             Self::LongJump(state) => state,
             _ => unreachable!("long_jump data requested for another discipline"),
@@ -72,13 +100,21 @@ impl Discipline {
     }
 }
 impl Discipline {
-    pub fn hurdles(&self) -> &Hurdles {
+    /// Checked access for callers that have not already matched the discipline.
+    pub fn as_hurdles(&self) -> Option<&Hurdles> {
+        match self {
+            Self::Hurdles(state) => Some(state),
+            _ => None,
+        }
+    }
+    // Internal callers dispatch on event identity before requesting event data.
+    pub(crate) fn hurdles(&self) -> &Hurdles {
         match self {
             Self::Hurdles(state) => state,
             _ => unreachable!("hurdles data requested for another discipline"),
         }
     }
-    pub(crate) fn hurdles_mut(&mut self) -> &mut Hurdles {
+    pub(in crate::simulation) fn hurdles_mut(&mut self) -> &mut Hurdles {
         match self {
             Self::Hurdles(state) => state,
             _ => unreachable!("hurdles data requested for another discipline"),
@@ -255,7 +291,7 @@ impl Discipline {
             Self::Javelin(state) => state.phase.into(),
         }
     }
-    pub(crate) fn set_phase(&mut self, phase: Phase) -> Result<(), InvalidPhase> {
+    pub(in crate::simulation) fn set_phase(&mut self, phase: Phase) -> Result<(), InvalidPhase> {
         match self {
             Self::Dash(current) => *current = phase.try_into()?,
             Self::LongJump(state) => state.phase = phase.try_into()?,

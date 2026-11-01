@@ -1,7 +1,7 @@
 # Pole Vault
 
 The scripted arc has been replaced by the original integer end-point/spring model.
-`src/vault.rs` translates `d.h(c)`, `d.h/i(c,int,boolean)`, `d.e(c,boolean)`,
+`src/simulation/events/vault.rs` translates `d.h(c)`, `d.h/i(c,int,boolean)`, `d.e(c,boolean)`,
 `d.i/j(c)` and `d.a(c)`; `d.o(int,int)` supplies the original length approximation.
 The twelve existing pole values retain Java's r,s,t,u,v,w,x,y,C,B,E,D order.
 `Vault` stores the held latch, measured clearance, fall height and camera look-ahead.

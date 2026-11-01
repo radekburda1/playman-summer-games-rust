@@ -1,9 +1,13 @@
-//! Current-game preservation fixtures, distinct from Java parity evidence.
+use playman_rust::{application::gameplay, presentation::effects::TimingEffect};
+// Current-game preservation fixtures, distinct from Java parity evidence.
 use playman_rust::{
-    Event, Game, Input, Phase,
     presentation::{Animation, Camera},
+    simulation::Event,
+    simulation::Game,
+    simulation::Input,
+    simulation::Phase,
 };
-use playman_rust::{art, render, world};
+use playman_rust::{rendering::art, rendering::backend as render, rendering::world};
 fn hash(mut h: u64, bytes: &[u8]) -> u64 {
     for b in bytes {
         h = (h ^ u64::from(*b)).wrapping_mul(1099511628211);
@@ -12,6 +16,7 @@ fn hash(mut h: u64, bytes: &[u8]) -> u64 {
 }
 fn replay(event: Event, seed: u64) -> (u64, u64) {
     let mut g = Game::new(event, seed);
+    let mut g_effects = TimingEffect::default();
     let art = art::Art::new_software();
     let (mut state, mut pixels) = (14695981039346656037, 14695981039346656037);
     for tick in 0..1200 {
@@ -22,38 +27,57 @@ fn replay(event: Event, seed: u64) -> (u64, u64) {
                 } else {
                     g.runner.expected_key
                 };
-                g.input(if key == 0 { Input::Left } else { Input::Right });
+                gameplay::input(
+                    &mut g,
+                    &mut g_effects,
+                    if key == 0 { Input::Left } else { Input::Right },
+                );
             }
             match event {
                 Event::LongJump if g.phase() == Phase::Approach && g.runner.position > -50000 => {
-                    g.input(Input::ActionDown)
+                    gameplay::input(&mut g, &mut g_effects, Input::ActionDown)
                 }
                 Event::LongJump if g.phase() == Phase::Air && g.runner.vertical_velocity <= 650 => {
-                    g.input(Input::ActionDown)
+                    gameplay::input(&mut g, &mut g_effects, Input::ActionDown)
                 }
                 Event::PoleVault
                     if g.phase() == Phase::VaultPlant
-                        && g.discipline().vault().pole.tip_x
-                            + g.discipline().vault().pole.tip_velocity_x
+                        && g.discipline()
+                            .as_vault()
+                            .expect("reference scenario discipline")
+                            .pole
+                            .tip_x
+                            + g.discipline()
+                                .as_vault()
+                                .expect("reference scenario discipline")
+                                .pole
+                                .tip_velocity_x
                             >= -100000 =>
                 {
-                    g.input(Input::ActionDown)
+                    gameplay::input(&mut g, &mut g_effects, Input::ActionDown)
                 }
                 Event::PoleVault
                     if g.phase() == Phase::VaultStraighten
-                        && g.discipline().vault().pole.length >= 4800 =>
+                        && g.discipline()
+                            .as_vault()
+                            .expect("reference scenario discipline")
+                            .pole
+                            .length
+                            >= 4800 =>
                 {
-                    g.input(Input::ActionUp)
+                    gameplay::input(&mut g, &mut g_effects, Input::ActionUp)
                 }
-                Event::Javelin if g.phase() == Phase::Approach => g.input(Input::ActionDown),
+                Event::Javelin if g.phase() == Phase::Approach => {
+                    gameplay::input(&mut g, &mut g_effects, Input::ActionDown)
+                }
                 Event::Javelin if g.phase() == Phase::Charge && g.phase_elapsed_ms >= 1088 => {
-                    g.input(Input::ActionUp)
+                    gameplay::input(&mut g, &mut g_effects, Input::ActionUp)
                 }
                 _ => {}
             }
-            g.step();
+            gameplay::step(&mut g, &mut g_effects);
         } else {
-            g.step_finish();
+            gameplay::step_finish(&mut g, &mut g_effects);
         }
         let r = &g.runner;
         let scalars = [
@@ -91,7 +115,14 @@ fn replay(event: Event, seed: u64) -> (u64, u64) {
         if tick % 120 == 0 {
             world::draw(
                 &art,
-                &playman_rust::presentation::SceneFrame::new(&g, false, None, tick * 32, None),
+                &playman_rust::presentation::SceneFrame::new(
+                    &g,
+                    &g_effects,
+                    false,
+                    None,
+                    tick * 32,
+                    None,
+                ),
             );
             pixels = hash(pixels, &render::software_frame().bytes);
         }
@@ -118,7 +149,10 @@ fn all_five_disciplines_preserve_simulation_and_pixels() {
 #[test]
 fn invalid_phase_setup_is_rejected_without_changing_the_event() {
     let mut game = Game::new(Event::Dash, 1);
+
     assert!(game.set_phase(Phase::Flight).is_err());
+    assert!(game.discipline().as_vault().is_none());
+    assert!(game.discipline().as_javelin().is_none());
     assert_eq!(game.event(), Event::Dash);
     assert_eq!(game.phase(), Phase::Run);
 }
@@ -126,9 +160,11 @@ fn invalid_phase_setup_is_rejected_without_changing_the_event() {
 #[test]
 fn presentation_is_repeatable_and_does_not_advance_particles_or_simulation() {
     let game = Game::new(Event::PoleVault, 12345);
+    let game_effects = TimingEffect::default();
     let before = format!("{game:?}");
     let art = art::Art::new_software();
-    let frame = playman_rust::presentation::SceneFrame::new(&game, false, None, 320, None);
+    let frame =
+        playman_rust::presentation::SceneFrame::new(&game, &game_effects, false, None, 320, None);
     world::draw(&art, &frame);
     let first = render::software_frame().bytes;
     world::draw(&art, &frame);

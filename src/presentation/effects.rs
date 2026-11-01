@@ -1,5 +1,5 @@
 //! Deterministic visual effects with a separate RNG and fixed-step clock.
-use crate::presentation::SINE;
+use crate::simulation::math::SINE;
 #[derive(Clone, Copy, Debug)]
 pub struct Marker {
     pub position: [i32; 2],
@@ -149,7 +149,7 @@ struct ParticlePreset {
     bounce_scale: i32,
 }
 fn preset(id: usize) -> ParticlePreset {
-    let data = include_bytes!("../assets/tables.bin");
+    let data = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/tables.bin"));
     // Resource records are sixteen big-endian i16 values at byte offset 3568.
     let value = |index: usize| {
         let offset = 3568 + id * 32 + index * 2;

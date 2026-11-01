@@ -1,12 +1,5 @@
 //! Feedback timings and prompt positions recovered from d.a(c,int,int).
-use crate::{Event, Game, Phase, presentation::Camera};
-#[derive(Clone, Copy, Debug)]
-pub struct RunFeedback {
-    pub key: usize,
-    pub correct: bool,
-    pub at_ms: i32,
-    pub slot: usize,
-}
+use crate::{presentation::Camera, simulation::Event, simulation::Game, simulation::Phase};
 #[derive(Clone, Copy, Debug)]
 pub struct Prompt {
     pub sprite: usize,

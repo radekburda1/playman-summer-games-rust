@@ -1,4 +1,4 @@
-use playman_rust::{Event, Game, Input, Phase};
+use playman_rust::{simulation::Event, simulation::Game, simulation::Input, simulation::Phase};
 #[test]
 fn flight_and_landing_match_executed_java_ticks() {
     for (scenario, csv) in [

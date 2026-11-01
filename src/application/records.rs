@@ -1,6 +1,5 @@
 //! Record comparison and the existing text-file persistence format.
-use crate::Event;
-use std::path::PathBuf;
+use crate::simulation::Event;
 pub fn better(event: Event, new: Option<i32>, old: Option<i32>) -> bool {
     match (new, old) {
         (Some(a), Some(b)) => {
@@ -13,16 +12,6 @@ pub fn better(event: Event, new: Option<i32>, old: Option<i32>) -> bool {
         (Some(_), None) => true,
         _ => false,
     }
-}
-fn record_path() -> PathBuf {
-    // Store beside the executable; failures are surfaced in the result screen.
-    std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.join("playman-records.txt")))
-        .unwrap_or_else(|| PathBuf::from("playman-records.txt"))
-}
-pub fn load_records() -> [Option<i32>; 5] {
-    std::fs::read_to_string(record_path()).map_or([None; 5], |text| decode(&text))
 }
 /// Missing, negative and malformed entries retain the original no-record semantics.
 pub fn decode(text: &str) -> [Option<i32>; 5] {
@@ -39,13 +28,6 @@ pub fn encode(records: &[Option<i32>; 5]) -> String {
         .collect::<Vec<_>>()
         .join("\n")
 }
-pub fn save_records(r: &[Option<i32>; 5]) -> std::io::Result<()> {
-    let path = record_path();
-    let temp = path.with_extension("tmp");
-    std::fs::write(&temp, encode(r))?;
-    std::fs::rename(temp, path)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

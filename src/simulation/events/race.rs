@@ -1,8 +1,8 @@
-use crate::audio::SoundCue;
-use crate::discipline::RacePhase;
-use crate::{Event, Game};
+use crate::simulation::audio::SoundCue;
+use crate::simulation::discipline::RacePhase;
+use crate::{simulation::Event, simulation::Game};
 impl Game {
-    pub(crate) fn race_step(&mut self) {
+    pub(in crate::simulation) fn race_step(&mut self) {
         let event = self.event();
         let r = &mut self.runner;
         if event == Event::Dash {
@@ -56,7 +56,7 @@ impl Game {
 }
 
 impl Game {
-    pub(crate) fn race_action(&mut self) {
+    pub(in crate::simulation) fn race_action(&mut self) {
         let min = if self.event() == Event::Dash {
             0x500000
         } else {
@@ -75,7 +75,7 @@ impl Game {
 
 #[derive(Clone, Debug, Default)]
 pub struct Hurdles {
-    pub(crate) phase: RacePhase,
+    pub(in crate::simulation) phase: RacePhase,
     pub next_hurdle: usize,
     pub fallen: u32,
 }

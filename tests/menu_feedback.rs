@@ -1,4 +1,7 @@
-use playman_rust::{Event, Game, Input, bitmap_font::BitmapFont, prompts};
+use playman_rust::{
+    assets::bitmap_font::BitmapFont, presentation::prompts, simulation::Event, simulation::Game,
+    simulation::Input,
+};
 #[test]
 fn bitmap_fonts_have_original_heights_and_signed_offsets() {
     assert_eq!(

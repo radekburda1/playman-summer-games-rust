@@ -85,16 +85,15 @@ Field events have three attempts. A tournament plays the five events in the orig
 
 ```text
 Cargo.toml / Cargo.lock  One direct framework dependency: macroquad 0.4.16, audio enabled
-src/lib.rs              Deterministic 32 ms simulation, input actions, events, scoring, tests
-src/main.rs             Explicit menu/help/countdown/play/results states, input, stadium, save data
-src/ui.rs               White/red menus, original bitmap text and game HUD
-src/prompts.rs          Original 4/6 feedback positions and timings
-src/bitmap_font.rs      Original glyph metrics and lookup
-src/art.rs              GPU drawing of shared scene commands
-src/artwork.rs          Shared sprite/scene decoder, including tiled and nested scenery
-src/presentation.rs     Original integer sine table, perspective camera and animation selection
-src/world.rs            Projected lanes, event geometry, original stadium scene placement
-src/sound.rs            Embedded original PCM effects, graceful handling of failed sound loads
+src/lib.rs              Deliberate layer declarations
+src/main.rs             Thin Macroquad bootstrap
+src/application/        Menu/event flow, complete-tick orchestration, record decisions
+src/simulation/         Deterministic mechanics, event states, scoring and integer maths
+src/presentation/       Camera, animation, prompts, effects and equipment geometry
+src/rendering/          Shared software/GPU scene drawing and UI
+src/platform/           Window/input, audio playback and record-file adapters
+src/assets/             Pure binary decoding, fonts and resource mappings
+src/bin/compare.rs      Development-only replay renderer
 assets/atlas.png        838 base images; 1,735 images including stored transforms
 assets/rects.rs          Physical sprite rectangles and transform lookup
 assets/fonts.rs          Original bitmap font glyphs, advances and signed offsets

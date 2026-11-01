@@ -1,33 +1,36 @@
 use macroquad::audio::{
     PlaySoundParams, Sound, load_sound_from_bytes, play_sound, set_sound_volume, stop_sound,
 };
-include!("../assets/music/catalog.rs");
-pub struct Sounds {
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/music/catalog.rs"
+));
+pub(super) struct Sounds {
     clips: Vec<Option<Sound>>,
-    pub muted: bool,
+    pub(super) muted: bool,
     music: Option<Sound>,
     music_id: Option<usize>,
     jingle_until: f64,
     requested_jingle: Option<usize>,
 }
 impl Sounds {
-    pub async fn load() -> Self {
+    pub(super) async fn load() -> Self {
         let bytes: &[&[u8]] = &[
-            include_bytes!("../assets/sounds/12.wav"),
-            include_bytes!("../assets/sounds/13.wav"),
-            include_bytes!("../assets/sounds/14.wav"),
-            include_bytes!("../assets/sounds/15.wav"),
-            include_bytes!("../assets/sounds/16.wav"),
-            include_bytes!("../assets/sounds/17.wav"),
-            include_bytes!("../assets/sounds/18.wav"),
-            include_bytes!("../assets/sounds/19.wav"),
-            include_bytes!("../assets/sounds/20.wav"),
-            include_bytes!("../assets/sounds/21.wav"),
-            include_bytes!("../assets/sounds/22.wav"),
-            include_bytes!("../assets/sounds/23.wav"),
-            include_bytes!("../assets/sounds/24.wav"),
-            include_bytes!("../assets/sounds/25.wav"),
-            include_bytes!("../assets/sounds/26.wav"),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/12.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/13.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/14.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/15.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/16.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/17.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/18.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/19.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/20.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/21.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/22.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/23.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/24.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/25.wav")),
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/sounds/26.wav")),
         ];
         let mut clips = Vec::new();
         for bytes in bytes {
@@ -42,7 +45,7 @@ impl Sounds {
             requested_jingle: Some(11),
         }
     }
-    pub async fn update_music(&mut self, background: usize) {
+    pub(super) async fn update_music(&mut self, background: usize) {
         for sound in self.clips.iter().flatten() {
             set_sound_volume(sound, if self.muted { 0. } else { 0.55 });
         }
@@ -78,7 +81,7 @@ impl Sounds {
             set_sound_volume(sound, if self.muted { 0. } else { 0.45 });
         }
     }
-    pub fn play(&mut self, cue: playman_rust::audio::SoundCue) {
+    pub(super) fn play(&mut self, cue: crate::simulation::audio::SoundCue) {
         let id = cue.resource_id();
         if id < 12 {
             self.requested_jingle = Some(id);

@@ -1,8 +1,8 @@
-use crate::audio::SoundCue;
-use crate::discipline::LongJumpPhase;
-use crate::{Game, Phase};
+use crate::simulation::audio::SoundCue;
+use crate::simulation::discipline::LongJumpPhase;
+use crate::{simulation::Game, simulation::Phase};
 impl Game {
-    pub(crate) fn jump_step(&mut self) {
+    pub(in crate::simulation) fn jump_step(&mut self) {
         match self.phase() {
             Phase::Prepare => {
                 if self.phase_elapsed_ms >= 1200 {
@@ -91,7 +91,7 @@ impl Game {
 }
 
 impl Game {
-    pub(crate) fn jump_action(&mut self) {
+    pub(in crate::simulation) fn jump_action(&mut self) {
         if self.phase() == Phase::Approach {
             self.discipline.long_jump_mut().takeoff_position = self.runner.position;
             if self.runner.position > 0 {
@@ -127,7 +127,7 @@ impl Game {
 
 #[derive(Clone, Debug, Default)]
 pub struct LongJump {
-    pub(crate) phase: LongJumpPhase,
+    pub(in crate::simulation) phase: LongJumpPhase,
     pub takeoff_position: i32,
     pub landing_good: bool,
 }

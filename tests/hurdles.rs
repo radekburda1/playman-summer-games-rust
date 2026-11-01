@@ -1,4 +1,4 @@
-use playman_rust::{Event, Game, Input};
+use playman_rust::{simulation::Event, simulation::Game, simulation::Input};
 #[test]
 fn hurdle_races_match_executed_java() {
     for scenario in [
@@ -43,7 +43,10 @@ fn hurdle_races_match_executed_java() {
                 game.runner.sequence_cursor as i32,
                 game.runner.mistakes,
                 game.runner.previous_mistakes,
-                game.discipline().hurdles().fallen as i32,
+                game.discipline()
+                    .as_hurdles()
+                    .expect("reference scenario discipline")
+                    .fallen as i32,
                 game.runner.dive.unwrap_or(-1),
                 game.runner.sequence[0] as i32,
                 game.runner.sequence[1] as i32,
@@ -89,7 +92,13 @@ fn mistake_count_selects_original_hurdle_pose_and_sound() {
         g.runner.mistakes = count;
         g.step();
         assert_eq!(g.runner.previous_mistakes, count);
-        assert_eq!(g.discipline().hurdles().fallen, 1);
+        assert_eq!(
+            g.discipline()
+                .as_hurdles()
+                .expect("reference scenario discipline")
+                .fallen,
+            1
+        );
         assert_eq!(
             g.sound_events
                 .iter()

@@ -1,4 +1,4 @@
-use playman_rust::{Event, Game, presentation::Animation};
+use playman_rust::{presentation::Animation, simulation::Event, simulation::Game};
 #[test]
 fn runout_moves_then_stops_without_changing_result_or_clock() {
     let mut game = Game::new(Event::Dash, 1);

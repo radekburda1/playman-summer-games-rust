@@ -1,7 +1,10 @@
-use crate::{Event, Phase, bitmap_font::BitmapFont, presentation::Camera, prompts};
 use crate::{
     application::{App, Screen},
-    art::Art,
+    rendering::art::Art,
+};
+use crate::{
+    assets::bitmap_font::BitmapFont, presentation::Camera, presentation::prompts,
+    simulation::Event, simulation::Phase,
 };
 use macroquad::prelude::*;
 const RED: Color = Color::new(1., 0.035, 0.12, 1.);

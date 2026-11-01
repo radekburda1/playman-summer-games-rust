@@ -1,63 +1,94 @@
 # Extending the game
 
-## Ownership and flow
+## Layout and dependency direction
 
-`main.rs` is the Macroquad adapter: keyboard edges, frame time, record file I/O,
-audio playback and window scaling. It samples aliases once into `FrameInput`.
-`application.rs` owns menu/attempt/tournament flow, pause, transitions and the
-32 ms accumulator. `App::update` accepts plain data and returns audio requests;
-it never opens files, polls a device or draws. `records.rs` owns record comparison
-and the existing five-line persistence format. Storage failure still appears in
-the result screen; browser persistence behavior is unchanged.
+```text
+src/
+  lib.rs                    Layer declarations only
+  main.rs                   Macroquad bootstrap only
+  application/
+    mod.rs                  Menu, attempts, tournament, pause and transitions
+    gameplay.rs             Fixed-step physics/effects choreography and flight skip
+    records.rs              Record decisions and pure text codec
+  simulation/
+    mod.rs                  Game state, inputs and fixed-step dispatch
+    discipline.rs           Exclusive event data and restricted phases
+    event.rs                Event descriptions, scoring and result formatting
+    runner.rs               Shared acceleration, input history and RNG
+    math.rs                 Original integer trigonometry
+    audio.rs                Logical audio requests
+    events/                 Shared race, Long Jump, Vault and Javelin mechanics
+  presentation/
+    mod.rs                  Camera, animation and immutable SceneFrame
+    prompts.rs              Input feedback layout
+    effects.rs              Visual particle state, RNG and updates
+    vault_marker.rs         Pole timing and carried-equipment geometry
+    javelin.rs              Pose-hook markers, particle triggers and ground clipping
+  rendering/                Artwork drawing, software/GPU primitives, world and UI
+  platform/                 Window/input adapter, audio playback and record-file I/O
+  assets/                   Pure artwork/font decoding and named resource mappings
+  bin/compare.rs            Development-only software replay exporter
+```
 
-`Game` is the simulation facade. `Discipline` owns exactly one event's data:
+The root does not re-export the old flat namespace. Callers import from the
+owning layer. Binary resources stay in the existing top-level `assets/` directory;
+compile-time includes are anchored to the manifest directory, not a workstation.
 
-- Dash and Hurdles share running and dive equations in `race.rs`; Hurdles owns
-  sequence progress and the fallen-hurdle mask alongside that behavior.
-- `long_jump.rs` owns takeoff, stretch, landing and recovery.
-- `vault.rs` owns the pole endpoints, spring constraints and release/landing.
-- `javelin.rs` owns charging, the aerodynamic projectile and ground measurement.
+Dependency direction is enforced by visibility and an architectural regression
+check in `tests/layer_boundaries.rs`: simulation imports no application,
+presentation, rendering, platform, Macroquad, filesystem or environment APIs.
+Application orchestrates simulation and presentation. Presentation reads simulation
+and pure assets; rendering consumes both. Platform adapters perform device and I/O
+work. The compare binary shares the library renderer without path-based modules.
 
-`runner.rs` shares the same input history, acceleration and Java RNG wherever the
-original mechanics share them. Each discipline has a restricted phase enum.
-`Game::phase()` exposes a common read-only vocabulary for presentation. Reference
-scenario setup uses the checked `set_phase`; invalid pairs leave state unchanged.
-Internal transitions assert the same invariant. Event identity is derived from
-its state, never separately writable.
+## Ownership and event flow
 
-The application sequence is Menu → Help → AwaitStart → Ready → Play → Finish.
-Races continue to Results; field events advance through three attempts before
-returning to the menu or continuing the tournament. Finish movement has its own
-fixed-step update and does not advance measured race time. Javelin fouls can show
-a result while the projectile is still flying; do not conflate `finished` with a
-stationary scene. Performance feedback and personal-record detection remain
-independent decisions.
+`simulation::Game` owns mechanics and domain feedback only. It owns no camera,
+particle RNG, texture, device or file handle. `Discipline` holds exactly one event's
+state. Dash/Hurdles share race equations; each field discipline keeps its own
+mechanics. Event identity is derived from its state, never separately writable.
+`Game::phase()` provides a common read vocabulary, while each event stores a
+restricted phase type. Checked `set_phase` supports oracle setup and leaves state
+unchanged on error. Internal transitions retain invariant assertions. Public
+`as_vault`/`as_javelin`/`as_long_jump`/`as_hurdles` accessors return `Option`;
+infallible accessors are crate-private and follow explicit event dispatch.
 
-## Presentation and resources
+`application::App` owns the game and a separate visual-effects timeline. Keyboard
+aliases are sampled once into `FrameInput` by the platform. `App::update` owns the
+32 ms accumulator and returns audio requests without polling devices or writing
+files. Record comparison/encoding is pure; executable-adjacent I/O is private to
+the platform. Browser save-failure behavior remains unchanged.
 
-`presentation.rs` computes fixed-point camera projection, animation selection and
-an immutable `SceneFrame`. A frame borrows simulation state, carries explicit
-presentation clocks, camera and animation, and cannot advance the game.
-`prompts.rs` computes input feedback. `effects.rs` updates deterministic particles
-with a separate RNG; `vault_marker.rs` computes pole timing geometry. Effects
-remain synchronized with simulation ticks, including post-finish updates.
+For complete replay/presentation behavior, use `application::gameplay::input`,
+`step` and `step_finish`, passing both the game and its effects timeline. These
+functions coordinate the independent layers. Low-level `Game::step` advances
+physics only. Pole mechanics emit timing progress/activation as domain outputs;
+application then advances the marker and particle clock. Javelin flight-skip is
+application orchestration: it repeats complete physics/effects ticks. Do not call
+raw physics steps in a replay intended to verify visual effects or flight skip.
 
-`world.rs` and `ui.rs` consume immutable state. `artwork.rs` decodes original data
-into image/rectangle/hook commands; `art.rs` draws them through `render.rs`.
-Equipment attachments must remain inside pose hooks to preserve sprite ordering.
-The same renderer is used by the window and software comparison tool; there are
-no copied renderer modules or broad dead-code allowances for that tool.
+Flow remains Menu → Help → AwaitStart → Ready → Play → Finish. Races continue to
+Results; field events advance through three attempts before returning to the menu
+or continuing a tournament. Finish movement does not advance measured race time.
+Javelin foul results can appear while the rod still flies. Performance feedback
+and record detection are independent decisions.
 
-`resources.rs` maps animation-table offsets, shared scenes and equipment sprites
-to names. `audio.rs` maps logical `SoundCue`s to original bank IDs. Binary-format
-indexing stays in resource readers, not physics equations. `Pole` and `Projectile`
-use named scalar fields. Their `reference_values()` methods document legacy CSV
-column order solely for oracle tests. Existing event analysis and fixture
-provenance retain Java method names and source details.
+## Presentation, rendering and assets
 
-Audio decoding/mixing stays in `sound.rs`. Application cues are played before the
-music update, simulation cues after it, preserving the existing jingle ordering.
-Music remains the existing offline MIDI renders; no new decoder was introduced.
+`SceneFrame` borrows a game and its effects timeline immutably and carries explicit
+presentation clocks, camera and animation. Creating or drawing it cannot advance
+physics, particles or random numbers. Equipment attachments stay inside pose hooks
+to preserve sprite ordering. `assets::artwork` decodes commands without a graphics
+dependency; `rendering::art` executes them using shared GPU/software primitives.
+The software backend remains thread-local as before; replacing its backend model
+would be a separate change with additional rendering risk.
+
+`assets::resources` names original animation offsets, scenes and equipment sprites.
+`simulation::audio::SoundCue` describes logical requests; platform audio performs
+playback and music scheduling. Application cues still precede the music update and
+simulation cues follow it. The existing offline MIDI renders and mixing settings
+are unchanged. Pole/projectile `reference_values()` methods retain only the oracle
+CSV order. Java names, equations and trace provenance remain in reference notes.
 
 ## Arithmetic and clocks
 
@@ -99,6 +130,7 @@ frames; those exports and native/browser build output are ignored.
 Java oracle fixtures test source-recovered state, camera, poses, equipment and
 particles. `tests/application_flow.rs` separately checks confirmation/countdown,
 pause and independent record detection; record serialization has a pure test.
+The layer-boundary check prevents simulation from acquiring outer-layer imports.
 `tests/architecture_regression.rs` preserves the pre-refactor Rust behavior across
 all five events, seeds 1/17/12345, 1200 ticks per replay and ten rendered frames per
 replay. `tests/fixtures/refactor.csv` was generated from commit
@@ -108,24 +140,24 @@ phase/camera/animation and sound requests, plus RGBA frame bytes. This is a Rust
 preservation fixture, **not additional proof of Java parity**. Do not regenerate
 it merely to make a changed implementation pass.
 
-During this refactor, all 245 existing replay PNG exports matched their baseline
+During both architectural passes, all 245 existing replay PNG exports matched their baseline
 byte for byte; the additional preservation fixture covers 18,000 simulation ticks
 and 150 software frames. Existing Java fixtures were retained without changing
 expected values. These checks are representative, not exhaustive equivalence.
 
-Live verification remains limited: native launch from the agent process fails
-before window creation at Miniquad's null OpenGL pixel-format assertion, after a
-LaunchServices notification failure. Native computer inventory now works, but the
-browser access host is unavailable; the fallback browser computer-use session
-was ended by an access-policy rejection. No interactive graphics, browser input
-or audible playback verification is claimed. These are existing environment
-limitations, not resolved by architectural changes.
+Live verification was retried after this cleanup: native launch still fails before
+window creation at Miniquad's null OpenGL pixel-format assertion (macos.rs:1039),
+after a LaunchServices notification failure. Computer-use inventory works, but
+reports that the browser access host is unavailable. The previously prohibited
+browser URL was not accessed again. Interactive graphics, browser input and
+audible playback remain unverified; successful builds are not proof of runtime
+or Java parity.
 
 ## Adding or changing a discipline
 
 Add cohesive event data and a restricted phase enum, then add its `Discipline`
 variant and event mapping. Implement fixed-step updates and action handlers in
-its module; wire the small `Game` dispatch. Reuse `Runner` only when the mechanics
+its `simulation/events/` module; wire the small `Game` dispatch. Reuse `Runner` only when the mechanics
 really match. Add application progression rules explicitly if they differ from
 races or three-attempt field events. Define resource and audio mappings, then add
 camera/animation/prompt selection and scene drawing. Rendering should never
@@ -137,8 +169,8 @@ native and browser input, release edges, pause and audio after automated checks.
 Record any discovered parity defect separately; this refactor intentionally does
 not change recovered physics or fill in missing game modes.
 
-Suggested review commits: (1) simulation modules and named equipment, (2) exclusive
-discipline/phase models and resource mappings, (3) application/audio/persistence
-boundaries, (4) immutable presentation and shared renderer, (5) preservation tests
-and documentation. Some steps depend on earlier API moves; all should be reviewed
-with their corresponding test migrations. No commits were created automatically.
+Suggested review commits: (1) module moves, explicit imports and resource include
+paths, (2) independent simulation/presentation clocks and application orchestration,
+(3) visibility, architectural checks and replay migrations, (4) documentation.
+The second step needs its replay-test changes in the same commit. No commits are
+created automatically.

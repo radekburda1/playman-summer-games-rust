@@ -1,6 +1,6 @@
 # Javelin
 
-`src/javelin.rs` translates the original `d.c(c,boolean)` state machine and
+`src/simulation/events/javelin.rs` translates the original `d.c(c,boolean)` state machine and
 `d.f/g(c,int,boolean)` input handlers. The launch prediction uses 15 simulation
 ticks (Java truncates the 500 ms prediction to 15 ticks). The throwing animation
 lasts 800 ms. Charge phase

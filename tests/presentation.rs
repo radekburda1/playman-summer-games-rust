@@ -1,6 +1,8 @@
 use playman_rust::{
-    Event, Game,
-    presentation::{Animation, Camera, SINE},
+    presentation::{Animation, Camera},
+    simulation::Event,
+    simulation::Game,
+    simulation::math::SINE,
 };
 #[test]
 fn projection_matches_executed_original_java() {
@@ -36,7 +38,7 @@ fn race_animation_depends_on_distance_not_elapsed_time() {
 #[test]
 fn field_animation_wraps_negative_runup() {
     let mut g = Game::new(Event::LongJump, 1);
-    g.set_phase(playman_rust::Phase::Run).unwrap();
+    g.set_phase(playman_rust::simulation::Phase::Run).unwrap();
     let a = Animation::for_game(&g);
     let (i, j, f) = a.frames(include_bytes!("../assets/tables.bin"));
     assert_ne!(i, j);
@@ -45,7 +47,7 @@ fn field_animation_wraps_negative_runup() {
 #[test]
 fn pole_run_repeats_only_after_intro() {
     let mut g = Game::new(Event::PoleVault, 1);
-    g.set_phase(playman_rust::Phase::Run).unwrap();
+    g.set_phase(playman_rust::simulation::Phase::Run).unwrap();
     g.runner.speed = 20000;
     let intro = Animation::for_game(&g);
     assert_eq!(intro.time, 0);

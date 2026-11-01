@@ -1,3 +1,10 @@
+#[derive(Clone, Copy, Debug)]
+pub struct RunFeedback {
+    pub key: usize,
+    pub correct: bool,
+    pub at_ms: i32,
+    pub slot: usize,
+}
 #[derive(Clone, Debug)]
 pub struct Runner {
     pub position: i32,

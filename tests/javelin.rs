@@ -1,4 +1,5 @@
-use playman_rust::{Event, Game, Input, presentation::Camera};
+use playman_rust::{application::gameplay, presentation::effects::TimingEffect};
+use playman_rust::{presentation::Camera, simulation::Event, simulation::Game, simulation::Input};
 #[test]
 fn javelin_matches_original_states_and_camera() {
     for scenario in [
@@ -17,20 +18,21 @@ fn javelin_matches_original_states_and_camera() {
         ))
         .unwrap();
         let mut game = Game::new(Event::Javelin, 12345);
+        let mut game_effects = TimingEffect::default();
         for row in csv.lines().skip(1) {
             let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
             match v[1] {
-                0 => game.input(Input::Left),
-                1 => game.input(Input::Right),
-                10 => game.input(Input::ActionDown),
-                11 => game.input(Input::ActionUp),
-                12 => game.input(Input::ActionDown),
+                0 => gameplay::input(&mut game, &mut game_effects, Input::Left),
+                1 => gameplay::input(&mut game, &mut game_effects, Input::Right),
+                10 => gameplay::input(&mut game, &mut game_effects, Input::ActionDown),
+                11 => gameplay::input(&mut game, &mut game_effects, Input::ActionUp),
+                12 => gameplay::input(&mut game, &mut game_effects, Input::ActionDown),
                 _ => {}
             }
             if game.finished {
-                game.step_finish();
+                gameplay::step_finish(&mut game, &mut game_effects);
             } else {
-                game.step();
+                gameplay::step(&mut game, &mut game_effects);
             }
             let mut actual = vec![
                 game.javelin_phase(),
@@ -43,17 +45,35 @@ fn javelin_matches_original_states_and_camera() {
             ];
             actual.extend(
                 game.discipline()
-                    .javelin()
+                    .as_javelin()
+                    .expect("reference scenario discipline")
                     .projectile
                     .reference_values()
                     .map(|p| p as i32),
             );
             actual.extend([
-                game.discipline().javelin().charge_angle,
-                game.discipline().javelin().release_position,
-                game.discipline().javelin().initial_vertical,
-                game.discipline().javelin().landing,
-                i32::from(game.discipline().javelin().foul),
+                game.discipline()
+                    .as_javelin()
+                    .expect("reference scenario discipline")
+                    .charge_angle,
+                game.discipline()
+                    .as_javelin()
+                    .expect("reference scenario discipline")
+                    .release_position,
+                game.discipline()
+                    .as_javelin()
+                    .expect("reference scenario discipline")
+                    .initial_vertical,
+                game.discipline()
+                    .as_javelin()
+                    .expect("reference scenario discipline")
+                    .landing,
+                i32::from(
+                    game.discipline()
+                        .as_javelin()
+                        .expect("reference scenario discipline")
+                        .foul,
+                ),
             ]);
             let c = Camera::for_game(&game);
             actual.extend([c.x, c.y, c.z, c.angle]);
@@ -87,24 +107,22 @@ fn javelin_particles_match_original() {
     let input =
         std::fs::read_to_string(format!("{root}/tests/fixtures/javelin/valid.csv")).unwrap();
     let mut game = Game::new(Event::Javelin, 12345);
+    let mut game_effects = TimingEffect::default();
     for row in input.lines().skip(1) {
         let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
         match v[1] {
-            0 => game.input(Input::Left),
-            1 => game.input(Input::Right),
-            10 => game.input(Input::ActionDown),
-            11 => game.input(Input::ActionUp),
+            0 => gameplay::input(&mut game, &mut game_effects, Input::Left),
+            1 => gameplay::input(&mut game, &mut game_effects, Input::Right),
+            10 => gameplay::input(&mut game, &mut game_effects, Input::ActionDown),
+            11 => gameplay::input(&mut game, &mut game_effects, Input::ActionUp),
             _ => {}
         }
         if game.finished {
-            game.step_finish();
+            gameplay::step_finish(&mut game, &mut game_effects);
         } else {
-            game.step();
+            gameplay::step(&mut game, &mut game_effects);
         }
-        let actual: Vec<Vec<i32>> = game
-            .discipline()
-            .javelin()
-            .effects
+        let actual: Vec<Vec<i32>> = game_effects
             .particles
             .iter()
             .map(|p| {
@@ -130,8 +148,8 @@ fn javelin_particles_match_original() {
 #[test]
 fn field_markings_never_wrap_above_the_ground_horizon() {
     use playman_rust::{
-        javelin::ground_segment,
-        presentation::{cos, sin},
+        presentation::javelin::ground_segment,
+        simulation::math::{cos, sin},
     };
     let csv = include_str!("fixtures/javelin/late.csv");
     let mut clipped = 0;

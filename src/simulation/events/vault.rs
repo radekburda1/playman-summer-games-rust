@@ -1,5 +1,5 @@
-use crate::audio::SoundCue;
-use crate::discipline::VaultPhase as Stage;
+use crate::simulation::audio::SoundCue;
+use crate::simulation::discipline::VaultPhase as Stage;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Pole {
@@ -36,27 +36,29 @@ impl Pole {
     }
 }
 // Original d.h/i(c,int,bool), d.e(c,bool) and spring constraints.
-use crate::{Game, Phase};
+use crate::{simulation::Game, simulation::Phase};
 #[derive(Clone, Debug)]
 pub struct Vault {
-    pub(crate) phase: crate::discipline::VaultPhase,
+    pub(in crate::simulation) phase: crate::simulation::discipline::VaultPhase,
     pub pole: Pole,
     pub held: bool,
     pub clearance: i32,
     pub fall_height: i32,
     pub camera_offset: i32,
-    pub timing: crate::effects::TimingEffect,
+    pub timing_progress: i32,
+    pub emit_timing: bool,
 }
 impl Default for Vault {
     fn default() -> Self {
         Self {
-            phase: crate::discipline::VaultPhase::Prepare,
+            phase: crate::simulation::discipline::VaultPhase::Prepare,
             pole: Pole::default(),
             held: false,
             clearance: 655360000,
             fall_height: 0,
             camera_offset: 0,
-            timing: crate::effects::TimingEffect::default(),
+            timing_progress: -1,
+            emit_timing: false,
         }
     }
 }
@@ -65,20 +67,6 @@ pub fn length(x: i32, y: i32) -> i32 {
     let (x, y) = (x.abs(), y.abs());
     let (small, big) = if x < y { (x, y) } else { (y, x) };
     (small * 441 + big * if big < small << 4 { 967 } else { 1007 }) >> 10
-}
-/// Java d.j hook -> d.i direction approximation -> carried pole endpoints.
-pub fn carried_endpoints([x, y, dx, dy]: [f32; 4]) -> [(i32, i32); 2] {
-    let (dx, dy) = (dx as i32, -(dy as i32));
-    let angle = direction(dx, dy);
-    let start = (x as i32, (y as i32) - dy);
-    let sine = crate::presentation::SINE;
-    [
-        start,
-        (
-            start.0 + ((sine[(angle & 511) as usize] * 184) >> 14),
-            start.1 - ((sine[((128 + angle) & 511) as usize] * 184) >> 14),
-        ),
-    ]
 }
 pub fn direction(dx: i32, dy: i32) -> i32 {
     if dx == 0 {
@@ -138,7 +126,7 @@ impl Game {
             _ => 7,
         }
     }
-    pub(crate) fn vault_down(&mut self) {
+    pub(in crate::simulation) fn vault_down(&mut self) {
         if self.discipline.vault_mut().held {
             return;
         }
@@ -163,7 +151,7 @@ impl Game {
         self.discipline.vault_mut().held = true;
         self.sound_events.push(SoundCue::Takeoff);
     }
-    pub(crate) fn vault_up(&mut self) {
+    pub(in crate::simulation) fn vault_up(&mut self) {
         match self.phase() {
             Phase::VaultPlant => {
                 self.runner.vertical_velocity = 4000;
@@ -187,8 +175,8 @@ impl Game {
         self.transition(Phase::VaultRelease);
         self.phase_elapsed_ms = 0;
     }
-    pub(crate) fn vault_step(&mut self) {
-        self.discipline.vault_mut().timing.emit = false;
+    pub(in crate::simulation) fn vault_step(&mut self) {
+        self.discipline.vault_mut().emit_timing = false;
         let phase = self.discipline.vault().phase;
         if matches!(
             phase,
@@ -235,7 +223,7 @@ impl Game {
                 p.grip_velocity_x = self.runner.speed;
                 p.grip_velocity_y = self.runner.vertical_velocity;
                 if self.runner.position > -1310720 {
-                    vault.phase = crate::discipline::VaultPhase::VaultPlant;
+                    vault.phase = crate::simulation::discipline::VaultPhase::VaultPlant;
                     p.stored_energy = self.runner.speed - 16000;
                 }
             }
@@ -280,8 +268,8 @@ impl Game {
                     }
                     p.tip_x += p.tip_velocity_x;
                     p.tip_y += p.tip_velocity_y;
-                    vault.timing.progress = (16384 - (p.tip_y >> 4)).max(0);
-                    vault.timing.emit = true;
+                    vault.timing_progress = (16384 - (p.tip_y >> 4)).max(0);
+                    vault.emit_timing = true;
                     p.grip_velocity_x = self.runner.speed;
                     p.grip_velocity_y = self.runner.vertical_velocity;
                 }
@@ -302,14 +290,14 @@ impl Game {
                 }
                 if vault.held && p.grip_y < 51200 && p.grip_velocity_y < 0 {
                     p.grip_velocity_y += 51200 - p.grip_y;
-                    vault.phase = crate::discipline::VaultPhase::VaultFall;
+                    vault.phase = crate::simulation::discipline::VaultPhase::VaultFall;
                     self.runner.vertical_velocity = p.grip_velocity_y;
                     vault.fall_height = 51200;
                     self.phase_elapsed_ms = 0;
                     return;
                 }
-                vault.timing.progress = (((p.tip_x - p.grip_x) >> 4) - 2000).min(16384);
-                vault.timing.emit = true;
+                vault.timing_progress = (((p.tip_x - p.grip_x) >> 4) - 2000).min(16384);
+                vault.emit_timing = true;
                 if vault.held {
                     p.grip_velocity_x = if self.phase_elapsed_ms < 1000 && p.grip_y > 120000 {
                         p.grip_velocity_x
@@ -326,11 +314,14 @@ impl Game {
                 if self.phase_elapsed_ms > 3000
                     || (matches!(phase, Stage::VaultBend) && previous - p.length < 0)
                 {
-                    vault.phase = crate::discipline::VaultPhase::VaultStraighten;
+                    vault.phase = crate::simulation::discipline::VaultPhase::VaultStraighten;
                 }
                 self.runner.position = p.grip_x;
                 self.runner.speed = p.grip_velocity_x;
-                if matches!(vault.phase, crate::discipline::VaultPhase::VaultStraighten) {
+                if matches!(
+                    vault.phase,
+                    crate::simulation::discipline::VaultPhase::VaultStraighten
+                ) {
                     self.runner.height += self.runner.vertical_velocity;
                     let delta = p.grip_y - self.runner.height;
                     let delta = if delta < 0 {
@@ -431,7 +422,7 @@ impl Game {
             }
         }
     }
-    fn vault_land(&mut self, sound: crate::audio::SoundCue) {
+    fn vault_land(&mut self, sound: crate::simulation::audio::SoundCue) {
         if self.discipline.vault_mut().clearance > 1024000 {
             self.discipline.vault_mut().clearance = 0;
         }
@@ -446,5 +437,3 @@ impl Game {
         }
     }
 }
-
-pub use crate::vault_marker::timing_marker;

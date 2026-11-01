@@ -1,6 +1,7 @@
-//! Uses the game's actual world renderer with software primitives, without a window/GPU.
-use playman_rust::{Event, Game, Input};
-use playman_rust::{art, render, world};
+use playman_rust::{application::gameplay, presentation::effects::TimingEffect};
+// Uses the game's actual world renderer with software primitives, without a window/GPU.
+use playman_rust::{rendering::art, rendering::backend as render, rendering::world};
+use playman_rust::{simulation::Event, simulation::Game, simulation::Input};
 fn main() {
     let output = std::env::args()
         .nth(1)
@@ -32,24 +33,26 @@ fn main() {
         ))
         .unwrap();
         let mut g = Game::new(Event::Hurdles, 12345);
+        let mut g_effects = TimingEffect::default();
         for row in csv.lines().skip(1) {
             let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
             match v[1] {
-                0 => g.input(Input::Left),
-                1 => g.input(Input::Right),
-                10 => g.input(Input::ActionDown),
+                0 => gameplay::input(&mut g, &mut g_effects, Input::Left),
+                1 => gameplay::input(&mut g, &mut g_effects, Input::Right),
+                10 => gameplay::input(&mut g, &mut g_effects, Input::ActionDown),
                 _ => {}
             }
             if g.finished {
-                g.step_finish();
+                gameplay::step_finish(&mut g, &mut g_effects);
             } else {
-                g.step();
+                gameplay::step(&mut g, &mut g_effects);
             }
             if v[0] % 40 == 0 {
                 world::draw(
                     &artwork,
                     &playman_rust::presentation::SceneFrame::new(
                         &g,
+                        &g_effects,
                         false,
                         None,
                         v[0] * 32,
@@ -76,24 +79,32 @@ fn main() {
         ))
         .unwrap();
         let mut g = Game::new(Event::PoleVault, 12345);
+        let mut g_effects = TimingEffect::default();
         for row in csv.lines().skip(1) {
             let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
             match v[1] {
-                0 => g.input(Input::Left),
-                1 => g.input(Input::Right),
-                10 => g.input(Input::ActionDown),
-                11 => g.input(Input::ActionUp),
+                0 => gameplay::input(&mut g, &mut g_effects, Input::Left),
+                1 => gameplay::input(&mut g, &mut g_effects, Input::Right),
+                10 => gameplay::input(&mut g, &mut g_effects, Input::ActionDown),
+                11 => gameplay::input(&mut g, &mut g_effects, Input::ActionUp),
                 _ => {}
             }
             if g.finished {
-                g.step_finish();
+                gameplay::step_finish(&mut g, &mut g_effects);
             } else {
-                g.step();
+                gameplay::step(&mut g, &mut g_effects);
             }
             if v[0] % 40 == 0 {
                 world::draw(
                     &artwork,
-                    &playman_rust::presentation::SceneFrame::new(&g, false, None, v[0] * 32, None),
+                    &playman_rust::presentation::SceneFrame::new(
+                        &g,
+                        &g_effects,
+                        false,
+                        None,
+                        v[0] * 32,
+                        None,
+                    ),
                 );
                 render::save_software(&format!("{output}/pole-vault/{scenario}-{}.png", v[0]));
             }
@@ -116,25 +127,33 @@ fn main() {
         ))
         .unwrap();
         let mut g = Game::new(Event::Javelin, 12345);
+        let mut g_effects = TimingEffect::default();
         for row in csv.lines().skip(1) {
             let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
             match v[1] {
-                0 => g.input(Input::Left),
-                1 => g.input(Input::Right),
-                10 => g.input(Input::ActionDown),
-                11 => g.input(Input::ActionUp),
-                12 => g.input(Input::ActionDown),
+                0 => gameplay::input(&mut g, &mut g_effects, Input::Left),
+                1 => gameplay::input(&mut g, &mut g_effects, Input::Right),
+                10 => gameplay::input(&mut g, &mut g_effects, Input::ActionDown),
+                11 => gameplay::input(&mut g, &mut g_effects, Input::ActionUp),
+                12 => gameplay::input(&mut g, &mut g_effects, Input::ActionDown),
                 _ => {}
             }
             if g.finished {
-                g.step_finish();
+                gameplay::step_finish(&mut g, &mut g_effects);
             } else {
-                g.step();
+                gameplay::step(&mut g, &mut g_effects);
             }
             if v[0] % 40 == 0 {
                 world::draw(
                     &artwork,
-                    &playman_rust::presentation::SceneFrame::new(&g, false, None, v[0] * 32, None),
+                    &playman_rust::presentation::SceneFrame::new(
+                        &g,
+                        &g_effects,
+                        false,
+                        None,
+                        v[0] * 32,
+                        None,
+                    ),
                 );
                 render::save_software(&format!("{output}/javelin/{scenario}-{}.png", v[0]));
             }
@@ -185,24 +204,26 @@ fn matched_java_world_states_remain_close() {
         let csv = std::fs::read_to_string(format!("{root}/tests/fixtures/hurdles/{scenario}.csv"))
             .unwrap();
         let mut game = Game::new(Event::Hurdles, 12345);
+        let mut game_effects = TimingEffect::default();
         for row in csv.lines().skip(1).take(tick + 1) {
             let input: i32 = row.split(',').nth(1).unwrap().parse().unwrap();
             match input {
-                0 => game.input(Input::Left),
-                1 => game.input(Input::Right),
-                10 => game.input(Input::ActionDown),
+                0 => gameplay::input(&mut game, &mut game_effects, Input::Left),
+                1 => gameplay::input(&mut game, &mut game_effects, Input::Right),
+                10 => gameplay::input(&mut game, &mut game_effects, Input::ActionDown),
                 _ => {}
             }
             if game.finished {
-                game.step_finish();
+                gameplay::step_finish(&mut game, &mut game_effects);
             } else {
-                game.step();
+                gameplay::step(&mut game, &mut game_effects);
             }
         }
         world::draw(
             &artwork,
             &playman_rust::presentation::SceneFrame::new(
                 &game,
+                &game_effects,
                 false,
                 None,
                 tick as i32 * 32,
@@ -239,18 +260,20 @@ fn carried_pole_matches_original_preparation_and_runup() {
     let art = art::Art::new_software();
     for tick in [0, 80, 120] {
         let mut game = Game::new(Event::PoleVault, 12345);
+        let mut game_effects = TimingEffect::default();
         for row in csv.lines().skip(1).take(tick + 1) {
             match row.split(',').nth(1).unwrap().parse::<i32>().unwrap() {
-                0 => game.input(Input::Left),
-                1 => game.input(Input::Right),
+                0 => gameplay::input(&mut game, &mut game_effects, Input::Left),
+                1 => gameplay::input(&mut game, &mut game_effects, Input::Right),
                 _ => {}
             }
-            game.step();
+            gameplay::step(&mut game, &mut game_effects);
         }
         world::draw(
             &art,
             &playman_rust::presentation::SceneFrame::new(
                 &game,
+                &game_effects,
                 false,
                 None,
                 tick as i32 * 32,
@@ -302,22 +325,24 @@ fn javelin_carried_and_flying_rendering_matches_reference() {
     let csv = std::fs::read_to_string(format!("{root}/tests/fixtures/javelin/valid.csv")).unwrap();
     for tick in [80, 280] {
         let mut game = Game::new(Event::Javelin, 12345);
+        let mut game_effects = TimingEffect::default();
         for row in csv.lines().skip(1).take(tick + 1) {
             let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
             match v[1] {
-                0 => game.input(Input::Left),
-                1 => game.input(Input::Right),
-                10 => game.input(Input::ActionDown),
-                11 => game.input(Input::ActionUp),
-                12 => game.input(Input::ActionDown),
+                0 => gameplay::input(&mut game, &mut game_effects, Input::Left),
+                1 => gameplay::input(&mut game, &mut game_effects, Input::Right),
+                10 => gameplay::input(&mut game, &mut game_effects, Input::ActionDown),
+                11 => gameplay::input(&mut game, &mut game_effects, Input::ActionUp),
+                12 => gameplay::input(&mut game, &mut game_effects, Input::ActionDown),
                 _ => {}
             }
-            game.step();
+            gameplay::step(&mut game, &mut game_effects);
         }
         world::draw(
             &art,
             &playman_rust::presentation::SceneFrame::new(
                 &game,
+                &game_effects,
                 false,
                 None,
                 tick as i32 * 32,

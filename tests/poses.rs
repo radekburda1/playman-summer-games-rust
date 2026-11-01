@@ -1,5 +1,5 @@
 use macroquad::prelude::{Image, ImageFormat};
-use playman_rust::artwork::{Artwork, Command};
+use playman_rust::assets::artwork::{Artwork, Command};
 #[test]
 fn scene_decoder_matches_original_rendered_poses() {
     let atlas = Image::from_file_with_format(

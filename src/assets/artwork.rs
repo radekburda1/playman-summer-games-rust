@@ -1,6 +1,6 @@
 //! Shared scene decoding for GPU rendering and reference-image regression tests.
-include!("../assets/rects.rs");
-include!("../assets/logical.rs");
+include!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/rects.rs"));
+include!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/logical.rs"));
 #[derive(Clone, Debug)]
 pub enum Command {
     Hook { bounds: [f32; 4] },
@@ -19,9 +19,12 @@ impl Artwork {
     pub fn new() -> Self {
         Self {
             scenes: [
-                include_bytes!("../assets/animation.bin").as_slice(),
-                include_bytes!("../assets/scene1.bin").as_slice(),
-                include_bytes!("../assets/scene2.bin").as_slice(),
+                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/animation.bin"))
+                    .as_slice(),
+                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/scene1.bin"))
+                    .as_slice(),
+                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/scene2.bin"))
+                    .as_slice(),
             ]
             .iter()
             .map(|bytes| {

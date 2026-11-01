@@ -1,4 +1,5 @@
-use playman_rust::{Event, Game, Input, presentation::Camera};
+use playman_rust::{application::gameplay, presentation::effects::TimingEffect};
+use playman_rust::{presentation::Camera, simulation::Event, simulation::Game, simulation::Input};
 #[test]
 fn vault_matches_original_integer_states() {
     for scenario in [
@@ -16,19 +17,20 @@ fn vault_matches_original_integer_states() {
         ))
         .unwrap();
         let mut game = Game::new(Event::PoleVault, 12345);
+        let mut game_effects = TimingEffect::default();
         for row in csv.lines().skip(1) {
             let v: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
             match v[1] {
-                0 => game.input(Input::Left),
-                1 => game.input(Input::Right),
-                10 => game.input(Input::ActionDown),
-                11 => game.input(Input::ActionUp),
+                0 => gameplay::input(&mut game, &mut game_effects, Input::Left),
+                1 => gameplay::input(&mut game, &mut game_effects, Input::Right),
+                10 => gameplay::input(&mut game, &mut game_effects, Input::ActionDown),
+                11 => gameplay::input(&mut game, &mut game_effects, Input::ActionUp),
                 _ => {}
             }
             if game.finished {
-                game.step_finish();
+                gameplay::step_finish(&mut game, &mut game_effects);
             } else {
-                game.step();
+                gameplay::step(&mut game, &mut game_effects);
             }
             let mut actual = vec![
                 game.vault_phase(),
@@ -39,12 +41,32 @@ fn vault_matches_original_integer_states() {
                 game.runner.vertical_velocity,
                 game.runner.expected_key as i32,
             ];
-            actual.extend(game.discipline().vault().pole.reference_values());
+            actual.extend(
+                game.discipline()
+                    .as_vault()
+                    .expect("reference scenario discipline")
+                    .pole
+                    .reference_values(),
+            );
             actual.extend([
-                game.discipline().vault().clearance,
-                game.discipline().vault().fall_height,
-                i32::from(game.discipline().vault().held),
-                game.discipline().vault().camera_offset,
+                game.discipline()
+                    .as_vault()
+                    .expect("reference scenario discipline")
+                    .clearance,
+                game.discipline()
+                    .as_vault()
+                    .expect("reference scenario discipline")
+                    .fall_height,
+                i32::from(
+                    game.discipline()
+                        .as_vault()
+                        .expect("reference scenario discipline")
+                        .held,
+                ),
+                game.discipline()
+                    .as_vault()
+                    .expect("reference scenario discipline")
+                    .camera_offset,
             ]);
             let camera = Camera::for_game(&game);
             actual.extend([camera.x, camera.y, camera.z, camera.angle]);
@@ -52,8 +74,20 @@ fn vault_matches_original_integer_states() {
                 assert!(game.finished);
                 assert_eq!(
                     game.result,
-                    if game.discipline().vault().clearance > 0 {
-                        Some(game.discipline().vault().clearance / 855)
+                    if game
+                        .discipline()
+                        .as_vault()
+                        .expect("reference scenario discipline")
+                        .clearance
+                        > 0
+                    {
+                        Some(
+                            game.discipline()
+                                .as_vault()
+                                .expect("reference scenario discipline")
+                                .clearance
+                                / 855,
+                        )
                     } else {
                         None
                     }
@@ -83,28 +117,26 @@ fn timing_glow_matches_original_particle_states() {
     let input =
         std::fs::read_to_string(format!("{root}/tests/fixtures/pole-vault/clean.csv")).unwrap();
     let mut game = Game::new(Event::PoleVault, 12345);
+    let mut game_effects = TimingEffect::default();
     for row in input.lines().skip(1) {
         let values: Vec<i32> = row.split(',').map(|s| s.parse().unwrap()).collect();
         match values[1] {
-            0 => game.input(Input::Left),
-            1 => game.input(Input::Right),
-            10 => game.input(Input::ActionDown),
-            11 => game.input(Input::ActionUp),
+            0 => gameplay::input(&mut game, &mut game_effects, Input::Left),
+            1 => gameplay::input(&mut game, &mut game_effects, Input::Right),
+            10 => gameplay::input(&mut game, &mut game_effects, Input::ActionDown),
+            11 => gameplay::input(&mut game, &mut game_effects, Input::ActionUp),
             _ => {}
         }
         if game.finished {
-            game.step_finish();
+            gameplay::step_finish(&mut game, &mut game_effects);
         } else {
-            game.step();
+            gameplay::step(&mut game, &mut game_effects);
         }
-        let actual: Vec<Vec<i32>> = game
-            .discipline()
-            .vault()
-            .timing
+        let actual: Vec<Vec<i32>> = game_effects
             .particles
             .iter()
             .map(|p| {
-                let e = &game.discipline().vault().timing;
+                let e = &game_effects;
                 vec![
                     e.progress,
                     e.anchor[0],

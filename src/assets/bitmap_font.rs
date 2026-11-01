@@ -11,7 +11,7 @@ pub struct BitmapFont {
     pub height: i16,
     pub glyphs: &'static [Glyph],
 }
-include!("../assets/fonts.rs");
+include!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/fonts.rs"));
 impl BitmapFont {
     pub fn get(id: usize) -> &'static Self {
         &FONTS[id.saturating_sub(3).min(3)]

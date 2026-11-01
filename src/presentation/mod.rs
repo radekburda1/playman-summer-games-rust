@@ -1,39 +1,10 @@
 //! Original fixed-point projection and distance-driven animation selection.
-use crate::{Event, Game, Phase, resources::animation};
-const fn sine_table() -> [i32; 512] {
-    let mut a = [0; 512];
-    let mut l = 0x40000000i64;
-    let mut r = 1073660973i64;
-    a[128] = (l >> 16) as i32;
-    a[129] = (r >> 16) as i32;
-    let mut n = 2;
-    while n < 128 {
-        let next = ((r * 2147321946) >> 30) - l;
-        a[(128 + n) & 511] = (next >> 16) as i32;
-        l = r;
-        r = next;
-        n += 1;
-    }
-    n = 128;
-    while n > 0 {
-        n -= 1;
-        a[(128 + 256 - n) & 511] = -a[(128 + n) & 511];
-    }
-    n = 255;
-    while n > 0 {
-        a[(128 + 256 + n) & 511] = -a[(128 + n) & 511];
-        n -= 1;
-    }
-    a
-}
-pub const SINE: [i32; 512] = sine_table();
-pub fn sin(a: i32) -> i32 {
-    let i = ((a >> 8) & 511) as usize;
-    SINE[i] + (((a & 255) * (SINE[(i + 1) & 511] - SINE[i])) >> 8)
-}
-pub fn cos(a: i32) -> i32 {
-    sin(a + 32768)
-}
+pub mod effects;
+pub mod javelin;
+pub mod prompts;
+pub mod vault_marker;
+use crate::simulation::math::{cos, sin};
+use crate::{assets::resources::animation, simulation::Event, simulation::Game, simulation::Phase};
 fn lerp(a: i32, b: i32, x: i32, d: i32) -> i32 {
     (a * (d - x) + b * x) / d
 }
@@ -565,6 +536,7 @@ impl Animation {
 /// Particle clocks are advanced by the fixed-step presentation update, not by drawing.
 pub struct SceneFrame<'a> {
     pub game: &'a Game,
+    pub effects: &'a effects::TimingEffect,
     pub camera: Camera,
     pub animation: Animation,
     pub waiting_highlight: bool,
@@ -575,6 +547,7 @@ pub struct SceneFrame<'a> {
 impl<'a> SceneFrame<'a> {
     pub fn new(
         game: &'a Game,
+        effects: &'a effects::TimingEffect,
         waiting_highlight: bool,
         countdown: Option<i32>,
         scenery_time: i32,
@@ -586,7 +559,7 @@ impl<'a> SceneFrame<'a> {
             && let Some(t) = countdown
         {
             let ease = |a, b, x: i32| {
-                let w = (crate::presentation::sin(x * 65536 / 400 - 32768) + 16384) >> 7;
+                let w = (crate::simulation::math::sin(x * 65536 / 400 - 32768) + 16384) >> 7;
                 (a * (256 - w) + b * w) / 256
             };
             c.x = if t < 100 {
@@ -603,6 +576,7 @@ impl<'a> SceneFrame<'a> {
         }
         Self {
             game,
+            effects,
             camera: c,
             animation: Animation::for_game(game),
             waiting_highlight,

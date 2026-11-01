@@ -1,5 +1,4 @@
 //! Shared drawing primitives: GPU in the game, software in the comparison runner.
-#![allow(dead_code)]
 use macroquad::prelude::*;
 use std::cell::RefCell;
 struct Surface {
@@ -12,7 +11,7 @@ pub fn begin_software() {
         *slot.borrow_mut() = Some(Surface {
             frame: Image::gen_image_color(240, 320, WHITE),
             atlas: Image::from_file_with_format(
-                include_bytes!("../assets/atlas.png"),
+                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/atlas.png")),
                 Some(ImageFormat::Png),
             )
             .expect("embedded atlas"),

@@ -1,7 +1,8 @@
 use playman_rust::{
-    Event, Game,
     application::{App, FrameInput, Screen},
-    audio::SoundCue,
+    simulation::Event,
+    simulation::Game,
+    simulation::audio::SoundCue,
 };
 fn confirm() -> FrameInput {
     FrameInput {

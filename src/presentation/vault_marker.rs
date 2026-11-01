@@ -1,9 +1,10 @@
 //! Pure pole timing geometry, evaluated during fixed-step effects updates.
 use crate::{
-    Game,
-    effects::Marker,
-    presentation::{Camera, SINE},
-    vault::{direction, length},
+    presentation::Camera,
+    presentation::effects::Marker,
+    simulation::Game,
+    simulation::events::vault::{direction, length},
+    simulation::math::SINE,
 };
 /// Original curved-rod marker placement, including integer interpolation and bQ.
 pub fn timing_marker(game: &Game) -> Option<Marker> {
@@ -30,7 +31,7 @@ pub fn timing_marker(game: &Game) -> Option<Marker> {
     let mut x = a.0 << 10;
     let mut y = a.1 << 10;
     let mut previous = [a.0, a.1];
-    let progress = game.discipline().vault().timing.progress;
+    let progress = game.discipline().vault().timing_progress;
     for i in 0..=16 {
         let offset = (bend * SINE[(256 * i / 16) as usize]) >> 14;
         let current = [(x + offset * vy) >> 10, (y - offset * vx) >> 10];
@@ -67,4 +68,19 @@ pub fn timing_marker(game: &Game) -> Option<Marker> {
         direction: 0,
         on_segment: false,
     })
+}
+
+/// Java d.j hook -> d.i direction approximation -> carried pole endpoints.
+pub fn carried_endpoints([x, y, dx, dy]: [f32; 4]) -> [(i32, i32); 2] {
+    let (dx, dy) = (dx as i32, -(dy as i32));
+    let angle = direction(dx, dy);
+    let start = (x as i32, (y as i32) - dy);
+    let sine = crate::simulation::math::SINE;
+    [
+        start,
+        (
+            start.0 + ((sine[(angle & 511) as usize] * 184) >> 14),
+            start.1 - ((sine[((128 + angle) & 511) as usize] * 184) >> 14),
+        ),
+    ]
 }
