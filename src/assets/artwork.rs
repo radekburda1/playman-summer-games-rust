@@ -1,6 +1,10 @@
 //! Shared scene decoding for GPU rendering and reference-image regression tests.
 include!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/rects.rs"));
 include!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/logical.rs"));
+pub fn original_sprite_rect(id: usize) -> Option<[f32; 4]> {
+    let physical = *LOGICAL.get(id)?;
+    Some(SPRITES[SPRITES.binary_search_by_key(&physical, |s| s.0).ok()?].1)
+}
 #[derive(Clone, Debug)]
 pub enum Command {
     Hook { bounds: [f32; 4] },
@@ -59,6 +63,25 @@ impl Artwork {
         y: f32,
         center: bool,
     ) -> Option<Command> {
+        if let Some(rect) = crate::assets::custom_character::rect(id, transform) {
+            let (dx, dy) = crate::assets::custom_character::anchor_offset(id, transform);
+            let (x, y) = (x + dx, y + dy);
+            return Some(Command::Image {
+                source: rect,
+                dest: [
+                    if center {
+                        x - (rect[2] as i32 / 2) as f32
+                    } else {
+                        x
+                    },
+                    if center {
+                        y - (rect[3] as i32 / 2) as f32
+                    } else {
+                        y
+                    },
+                ],
+            });
+        }
         let mut physical = *LOGICAL.get(id)?;
         if transform != 0 {
             physical = TRANSFORMS

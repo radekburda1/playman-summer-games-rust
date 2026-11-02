@@ -227,7 +227,7 @@ recovers seated. Replays are display-only and do not emit duplicate audio.
 ### Player faces
 
 Both modes open player setup before event selection. Select a player with
-Up/Down, then use Left/Right to cycle the 12 original faces. Type to edit the
+Up/Down, then use Left/Right to cycle the 12 original faces, the custom brother character, Kubak and Radek. Type to edit the
 name, Backspace to erase, and Enter to advance to Continue. Multiplayer also
 allows changing player count on the first row. Selected faces appear in menu
 portraits and animated athletes, including earlier runners in multiplayer races.
@@ -237,3 +237,17 @@ skin sprites and character proportions. Uniform colours remain fixed; independen
 body/outfit editing and country selection are not implemented. The default Playman
 keeps the established rendering scale. Appearance configuration supports future
 extensions without changing gameplay.
+
+The custom brother character is the second-to-last portrait (Left three times
+from default Playman). His selector uses the supplied reference face, gameplay uses generated
+cap-and-beard head views, and a rounded torso/broader limbs provide a fuller
+physique. This is cosmetic: movement, scores and equipment controls are unchanged.
+Edit the player name normally. Asset provenance and the generation prompt are in
+`assets/custom/README.md`.
+
+Kubak is the last portrait (Left three times from default Playman). His supplied face
+is used in the selector, with matching generated animated head views. He uses
+the standard male body and proportions, without the brother's fuller-body
+transform. Names remain independently editable in player setup.
+
+Radek is the final portrait (Left twice from default Playman), using a transparent neckless head and the standard male body. Player names remain independently editable.

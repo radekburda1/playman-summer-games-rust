@@ -331,7 +331,23 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             }
             small("Left/right: face. Type: name.", 20., 278., BLACK);
             small("Up/down: player. Enter: next.", 20., 294., BLACK);
-            footer("Next", "Back");
+            let character = app
+                .setup_selection
+                .checked_sub(1)
+                .filter(|index| *index < app.setup_player_count())
+                .map(|index| app.players[index].appearance.face);
+            footer(
+                if character.is_some_and(|face| face.is_radek()) {
+                    "Radek / Next"
+                } else if character.is_some_and(|face| face.is_kubak()) {
+                    "Kubak / Next"
+                } else if character.is_some_and(|face| face.is_brother()) {
+                    "Brother / Next"
+                } else {
+                    "Next"
+                },
+                "Back",
+            );
         }
         Screen::Standings => {
             header(art, "STANDINGS", None);

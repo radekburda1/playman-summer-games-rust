@@ -309,7 +309,7 @@ viewport visibility. These checks do not establish complete original-game parity
 ## Player appearance
 
 Player owns assets::character::Appearance separately from simulation state. Its
-bounded Face value cycles the 12 original character head sets; default is Playman
+bounded Face value cycles the 12 original character sets plus the custom brother and Kubak; default is Playman
 (index 1), preserving existing software/GPU fixtures. Original d.Y uses portrait
 sprites 41 + face (small) and 53 + face (selected). Original b0 character metadata
 at byte 646 contains five i32 values per face; the fourth value maps animation
@@ -350,3 +350,57 @@ running, showing matching dark skin and the female body bank, and in Pole Vault
 preparation with the pole attached to the selected character. All 12 characters'
 318 pose frames decode in automated checks; complete custom-body field attempts,
 multiplayer finish reactions and native custom bodies remain unverified live.
+
+## Custom brother character
+
+Face index 12 selects a custom male preset, with unchanged gameplay. Pure
+assets::custom_character defines virtual sprites 4096 onward: four generated
+head views, two supplied-reference portrait crops, 21 broader body parts and
+four round-belly uniform views. Rendering::atlas assembles these below the
+original atlas at startup for both GPU and software renderers, preserving every
+original atlas byte and coordinate. All eight original sprite transforms are
+provided; custom sprites retain original keyframes, anchors and equipment hooks.
+The fuller build affects sprite silhouettes only, never Game or collision state.
+
+The reference image is copied unchanged to assets/custom. Head views were made
+with built-in image_gen; the exact prompt is in assets/custom/README.md. Generated
+heads are alpha-bounded and sampled down to game sprite dimensions. The portrait
+uses the reference crop directly. No generated asset is referenced outside the
+checkout. Tests check selectable assets, transforms, fuller torso widths, custom
+head alpha and byte-for-byte preservation of the original atlas region.
+
+Browser checks verified selection/name editing, running, an 11.65s Dash finish and
+the carried-pole pose. Full customized field attempts, custom multiplayer replay
+and native live appearance remain unverified; existing rendering fixtures and
+all character pose decoding checks still pass.
+
+Kubak is face index 13. His six custom sprites follow the brother's existing
+virtual sprites, so all prior custom coordinates remain stable. Four generated
+head views and two crops of the supplied portrait use the same atlas compositor.
+His body, uniform and height use the standard Playman preset; the rounded torso
+warp is restricted to the brother's indices 27–30, never custom head sprites.
+Tests check the independent heads/portraits, all sprite transforms, custom alpha
+and byte-for-byte reuse of the standard body/uniform sprite mappings.
+
+Kubak verification: browser selector and Dash running animation inspected live;
+standard body mapping and all custom transforms checked by tests. Full suite,
+Clippy, web storage/bundle checks, and web/macOS builds pass. Native Kubak
+visuals and every event were not individually inspected in this pass.
+
+Brother head revision: all four views end at jaw/skull base without a neck. Both selector sizes sample the alpha-bounded frontal head, retaining transparent corners instead of the original opaque portrait crop. Rear head height is 28 pixels to preserve its compact silhouette.
+
+Kubak also uses neckless jaw/skull-base silhouettes in all four views; rear-view height is 28 pixels. Standard body and supplied selector portrait are preserved.
+
+Brother cartoon body: torso width envelope peaks at 2.6x, limb width is 1.45x. The lower torso is drawn as an outlined, shaded exposed belly beneath the jersey and above a dark waistband. Custom cells are now 96px; runtime rects and atlas composition share this constant. Body changes remain cosmetic.
+
+Cartoon body verification: standing and Dash running poses inspected live in browser. Full suite (73 tests), targeted atlas checks after the final curve refinement, Clippy, web storage/bundle checks and web/macOS builds pass. Other event poses were not individually inspected in this pass.
+
+Torso correction supersedes the procedural exposed belly above: brother sprites 27–30 now sample four alpha-bounded views from brother-torsos.png, at 48x40 / 48x36 / 52x34 / 52x34. Removed row-width warp and opaque lower-half fill, which caused the flat disconnected belly artifact. Original centers and all eight transforms are preserved.
+
+Replacement torso checked live in standing and Dash running poses. Full 73-test suite passed before final width adjustment; targeted custom-character tests passed afterward. Web/macOS builds and Clippy passed. Other event poses were not individually inspected.
+
+Torso alignment fix: generated torso gutters are located by transparent-column minima near quarter boundaries, then alpha-bounded independently. Exact quarter crops included neighboring-view strips and shifted the apparent center. Profile/three-quarter shoulder offsets (6,2)/(3,1) follow all eight sprite transforms. Tests detect disconnected neighboring strips and verify rotated/mirrored offsets. Standing and Dash motion inspected live.
+
+Radek is Face 14 (15 total choices); his six virtual sprites append at BASE+37. Four neckless head views and two transparent menu sizes share radek-heads.png. Body/uniform mapping remains standard male, independent of simulation. Generated heads are separated by transparent gutters to avoid neighboring strips.
+
+Radek verification: transparent menu preview and Dash running pose inspected live; all 76 tests, Clippy, formatting, web storage/bundle checks and web/macOS builds pass. Other events and native visuals were not individually inspected in this pass.

@@ -10,11 +10,7 @@ pub fn begin_software() {
     SOFTWARE.with(|slot| {
         *slot.borrow_mut() = Some(Surface {
             frame: Image::gen_image_color(240, 320, WHITE),
-            atlas: Image::from_file_with_format(
-                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/atlas.png")),
-                Some(ImageFormat::Png),
-            )
-            .expect("embedded atlas"),
+            atlas: crate::rendering::atlas::image(),
         })
     });
 }

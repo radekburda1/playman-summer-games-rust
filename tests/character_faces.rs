@@ -8,7 +8,7 @@ use playman_rust::{
     simulation::{Event, Game},
 };
 #[test]
-fn all_original_faces_cycle_and_have_portraits_and_animated_views() {
+fn all_character_choices_cycle_and_have_portraits_and_animated_views() {
     let art = Artwork::new();
     let default = Face::default();
     let mut face = default;

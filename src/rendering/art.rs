@@ -18,10 +18,7 @@ impl Default for Art {
 }
 impl Art {
     pub fn new() -> Self {
-        let atlas = Texture2D::from_file_with_format(
-            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/atlas.png")),
-            Some(ImageFormat::Png),
-        );
+        let atlas = Texture2D::from_image(&crate::rendering::atlas::image());
         atlas.set_filter(FilterMode::Nearest);
         Self {
             atlas: Some(atlas),
