@@ -626,7 +626,16 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
             strips.push(((-6 + n) * 333 + 12, 0xffffff));
             strips.push((
                 (-6 + n + 1) * 333 - 12,
-                if waiting_highlight && n == 3 { cj } else { ci },
+                if waiting_highlight
+                    && n == frame
+                        .race_athletes
+                        .last()
+                        .map_or(3, |a| (a.lane - 166) / 333 + 6)
+                {
+                    cj
+                } else {
+                    ci
+                },
             ));
         }
         strips.push((24, 0xffffff));
@@ -720,9 +729,17 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
                     }
                     let back = project(c, x, 0, (-6 + lane) * 333 + 12);
                     let front = project(c, x, 0, (-5 + lane) * 333 - 12);
-                    let fallen = lane == 3
-                        && g.runner.position > ((10 + index * 15) << 16) - 25600
-                        && g.discipline().hurdles().fallen & (1 << index) != 0;
+                    let fallen = if frame.race_athletes.is_empty() {
+                        lane == 3
+                            && g.runner.position > ((10 + index * 15) << 16) - 25600
+                            && g.discipline().hurdles().fallen & (1 << index) != 0
+                    } else {
+                        frame.race_athletes.iter().any(|a| {
+                            a.lane == (-6 + lane) * 333 + 166
+                                && a.position > ((10 + index * 15) << 16) - 25600
+                                && a.fallen & (1 << index) != 0
+                        })
+                    };
                     let frame = usize::from(fallen);
                     art.scene_tween(scene::HURDLE, frame, frame, 0, back.x, back.y);
                     if fallen {
@@ -1107,80 +1124,109 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
             vault_mat(art, c, g);
         }
     }
-    let lane = Camera::athlete_lane(g.event());
     let x = g.runner.position >> 8;
-    let ground = project(c, x, 0, lane);
-    let y = g.runner.height >> 8;
-    let mut p = project(c, x, y, lane);
-    if g.event() == Event::PoleVault
-        && g.phase() == Phase::VaultPlant
-        && g.discipline().vault().held
-    {
-        p.x -= 14.;
-        p.y -= 84.;
-    }
-    if p.x > -120. && p.x < 360. && p.y > -160. && p.y < 480. {
-        if g.event() == Event::PoleVault && x >= 200 {
-            if g.runner.height > 76800 {
-                let shadow = project(c, x, 250, 0);
-                art.sprite(
-                    518 + ((g.runner.position / 81920) & 3) as usize,
-                    shadow.x - 9.,
-                    shadow.y,
-                    true,
-                );
-            }
-        } else {
+    if !frame.race_athletes.is_empty() {
+        // Far lanes first, matching the original athlete/shadow draw order.
+        for athlete in &frame.race_athletes {
+            let p = project(c, athlete.position >> 8, 0, athlete.lane);
             art.sprite(
-                518 + ((g.runner.position / 81920) & 3) as usize,
-                ground.x - 9.,
-                ground.y,
+                518 + ((athlete.position / 81920) & 3) as usize,
+                p.x - 9.,
+                p.y,
                 true,
             );
         }
-        if g.event() == Event::PoleVault && countdown.is_some() {
-            art.animation_with_hook(
-                Animation::new(3050, 9, scenery_time, 120, true),
-                p.x,
-                p.y,
-                |bounds| {
-                    vault_pole(c, g, Some(bounds));
-                },
-            );
-        } else if let Some(t) = countdown.filter(|_| g.event().race()) {
-            if g.event() == Event::Hurdles && starter_time.is_none() {
-                art.animation(Animation::new(2378, 5, scenery_time, 200, true), p.x, p.y);
-            } else {
-                art.animation(Animation::ready(t), p.x, p.y)
+        for athlete in &frame.race_athletes {
+            let p = project(c, athlete.position >> 8, athlete.height >> 8, athlete.lane);
+            if p.x > -120. && p.x < 360. {
+                let animation = if let Some(t) = countdown {
+                    if g.event() == Event::Hurdles && starter_time.is_none() {
+                        Animation::new(2378, 5, scenery_time, 200, true)
+                    } else {
+                        Animation::ready(t)
+                    }
+                } else {
+                    athlete.animation
+                };
+                art.animation(animation, p.x, p.y);
             }
-        } else {
-            if (g.event() == Event::PoleVault && x > 200)
-                || (g.event() == Event::LongJump
-                    && matches!(
-                        g.phase(),
-                        Phase::Stretch | Phase::LandGood | Phase::LandBad | Phase::Done
-                    ))
-            {
-                art.animation_ground_clip(
-                    frame.animation,
+        }
+    } else {
+        let lane = Camera::athlete_lane(g.event());
+        let x = g.runner.position >> 8;
+        let ground = project(c, x, 0, lane);
+        let y = g.runner.height >> 8;
+        let mut p = project(c, x, y, lane);
+        if g.event() == Event::PoleVault
+            && g.phase() == Phase::VaultPlant
+            && g.discipline().vault().held
+        {
+            p.x -= 14.;
+            p.y -= 84.;
+        }
+        if p.x > -120. && p.x < 360. && p.y > -160. && p.y < 480. {
+            if g.event() == Event::PoleVault && x >= 200 {
+                if g.runner.height > 76800 {
+                    let shadow = project(c, x, 250, 0);
+                    art.sprite(
+                        518 + ((g.runner.position / 81920) & 3) as usize,
+                        shadow.x - 9.,
+                        shadow.y,
+                        true,
+                    );
+                }
+            } else {
+                art.sprite(
+                    518 + ((g.runner.position / 81920) & 3) as usize,
+                    ground.x - 9.,
+                    ground.y,
+                    true,
+                );
+            }
+            if g.event() == Event::PoleVault && countdown.is_some() {
+                art.animation_with_hook(
+                    Animation::new(3050, 9, scenery_time, 120, true),
                     p.x,
                     p.y,
-                    if g.event() == Event::PoleVault {
-                        project(c, x, 250, 0).y
-                    } else {
-                        p.y
+                    |bounds| {
+                        vault_pole(c, g, Some(bounds));
                     },
                 );
-            } else if g.event() == Event::PoleVault && g.vault_phase() < 2 {
-                art.animation_with_hook(frame.animation, p.x, p.y, |bounds| {
-                    vault_pole(c, g, Some(bounds));
-                });
-            } else if g.event() == Event::Javelin && g.javelin_phase() < 6 {
-                art.animation_with_hook(frame.animation, p.x, p.y, |[x, y, dx, dy]| {
-                    javelin_rod(g, vec2(x, y + dy - 1.), vec2(dx, -dy), None);
-                });
+            } else if let Some(t) = countdown.filter(|_| g.event().race()) {
+                if g.event() == Event::Hurdles && starter_time.is_none() {
+                    art.animation(Animation::new(2378, 5, scenery_time, 200, true), p.x, p.y);
+                } else {
+                    art.animation(Animation::ready(t), p.x, p.y)
+                }
             } else {
-                art.athlete(g, p.x, p.y)
+                if (g.event() == Event::PoleVault && x > 200)
+                    || (g.event() == Event::LongJump
+                        && matches!(
+                            g.phase(),
+                            Phase::Stretch | Phase::LandGood | Phase::LandBad | Phase::Done
+                        ))
+                {
+                    art.animation_ground_clip(
+                        frame.animation,
+                        p.x,
+                        p.y,
+                        if g.event() == Event::PoleVault {
+                            project(c, x, 250, 0).y
+                        } else {
+                            p.y
+                        },
+                    );
+                } else if g.event() == Event::PoleVault && g.vault_phase() < 2 {
+                    art.animation_with_hook(frame.animation, p.x, p.y, |bounds| {
+                        vault_pole(c, g, Some(bounds));
+                    });
+                } else if g.event() == Event::Javelin && g.javelin_phase() < 6 {
+                    art.animation_with_hook(frame.animation, p.x, p.y, |[x, y, dx, dy]| {
+                        javelin_rod(g, vec2(x, y + dy - 1.), vec2(dx, -dy), None);
+                    });
+                } else {
+                    art.athlete(g, p.x, p.y)
+                }
             }
         }
     }

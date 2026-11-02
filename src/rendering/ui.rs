@@ -207,7 +207,14 @@ pub fn game_hud(art: &Art, app: &App) {
         art.label(3, &g.feedback, 120., 53., 1)
     }
     if app.screen == Screen::Play && !app.paused {
-        for p in prompts::running(g) {
+        for p in prompts::running_in_lane(
+            g,
+            if app.multiplayer && g.event().race() {
+                app.race_lane(app.current_player)
+            } else {
+                Camera::athlete_lane(g.event())
+            },
+        ) {
             art.sprite(p.sprite, p.x as f32, p.y as f32, true)
         }
         let dive_zone = g.event().race()
@@ -252,7 +259,11 @@ pub fn game_hud(art: &Art, app: &App) {
             let (x, y) = Camera::for_game(g).project(
                 g.runner.position >> 8,
                 g.runner.height >> 8,
-                Camera::athlete_lane(g.event()),
+                if app.multiplayer && g.event().race() {
+                    app.race_lane(app.current_player)
+                } else {
+                    Camera::athlete_lane(g.event())
+                },
             );
             art.sprite(
                 if (g.phase() == Phase::Charge
@@ -379,7 +390,11 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             let (x, y) = camera.project(
                 app.game.runner.position >> 8,
                 app.game.runner.height >> 8,
-                Camera::athlete_lane(app.game.event()),
+                if app.multiplayer && app.game.event().race() {
+                    app.race_lane(app.current_player)
+                } else {
+                    Camera::athlete_lane(app.game.event())
+                },
             );
             if app.outgoing.is_none() && app.screen_age >= 0.4 && app.wait_time % 0.6 < 0.3 {
                 art.label(3, "Start", (x + 32) as f32, (y - 132) as f32, 1);

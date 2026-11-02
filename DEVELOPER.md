@@ -251,3 +251,57 @@ two-player Dash (ADA 9.15s, PLAYER 2 9.12s) with correctly ordered standings.
 Six-player gameplay, full field-event rotation and complete tournaments have
 application-test coverage but have not yet been played through live. The native
 app was rebuilt, not exercised live for multiplayer.
+
+## Multiplayer race replays
+
+Original d.aP/d.aW replay tick-stamped inputs for previously controlled runners;
+d.aQ/d.ba draw only CPU/prior/current runners in separate lanes. Original
+d.n(rank,result) selects place-dependent reactions; reaction 5 uses the 3472/3536
+seated recovery sequence. The high-score reaction override is not applied to
+multiplayer placement reactions, so two strong performances still show a winner
+and defeated runner. Singleplayer animation selection is unchanged.
+
+Rust records compact immutable RaceSample values after each 32ms mechanics tick,
+rather than re-simulating input logs. Position, animation (including dive), and
+fallen-hurdle masks replay on the active attempt's fixed-step clock. Countdown,
+pause, retry and next-event reset are independent of replay playback. Sampling
+stops once the recorded runner has stopped; later frames extrapolate reaction
+time, bounding memory even when a finish screen remains open indefinitely.
+Replays retain one mechanics snapshot at the finish crossing until rebuilding
+post-measurement motion, then release it. They own no effects, audio or storage
+callbacks. SceneFrame carries immutable race athlete descriptions; rendering
+cannot step the replay.
+
+Multiplayer uses the continuous athlete-follow camera through Play and Finish.
+The original d.b(c,target) coast/brake calculation now advances the active runner
+toward 29440 (+5120 for Hurdles) without teleporting. Prior runners' gameplay
+samples stay intact; their post-measurement run-out is rebuilt from a crossing
+snapshot toward 28672 + d.h(scene_seed + 813387 * player) % 1536 (+5120 for
+Hurdles), with the original wrapping hash. The Rust session seed supplies this
+scene seed; Java randomly initializes its seed, so exact stopping offsets across
+independent sessions need not match. Original lane drawing order is retained;
+these offsets reduce overlap but are not a general sprite collision solver.
+The singleplayer step_finish path and measured race arithmetic remain unchanged.
+The brief transition wash remains. Dash dive requests emit the action sound
+directly without the non-original DIVE! running text.
+
+`tests/race_replay.rs` checks both race recordings tick by tick, dive poses,
+fallen-hurdle masks, live-state/audio independence, pause, lane bounds, placement
+reactions and bounded idle sampling. These validate the Rust replay behavior;
+they are not new executed-Java multiplayer oracle fixtures.
+
+Live browser verification covered two-player Dash with both runners on NEXT UP
+and moving together, a Player 2 dive without DIVE! running text, and finish
+transitions with athletes retained through run-out and reactions. Runs covered
+both a winning first player and a winning second player. The final separate-stop
+check showed Player 2 (8.34s) celebrating in front and Player 1 (9.12s) recovering
+seated behind at a distinct position. The transition wash remains visible.
+Screenshots were saved in the desktop chat outputs directory. Verification runs
+improved the shared Dash record to 8.34s; records were not reset.
+
+Hurdles replay/collisions, dive-adjusted braking, frozen measurements and six-player
+lane bounds have automated coverage. Native multiplayer, full six-player finish
+layouts, synchronized Java replay comparisons and a frame-by-frame browser video
+audit remain unverified. The fixed-tick finish regression checks both races
+through crossing and 100 subsequent ticks for continuous physical positions and
+viewport visibility. These checks do not establish complete original-game parity.

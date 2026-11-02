@@ -42,25 +42,24 @@ pub fn config() -> Conf {
 }
 fn draw_game(art: &Art, app: &App, time: f32) {
     let g = &app.game;
-    world::draw(
-        art,
-        &crate::presentation::SceneFrame::new(
-            g,
-            &app.effects,
-            app.screen == Screen::AwaitStart && app.wait_time % 0.6 < 0.3,
-            if matches!(app.screen, Screen::AwaitStart | Screen::Ready) {
-                Some((app.ready * 1000.) as i32)
-            } else {
-                None
-            },
-            (time * 1000.) as i32,
-            match app.screen {
-                Screen::AwaitStart => None,
-                Screen::Ready => Some((app.ready * 1000.) as i32),
-                _ => Some(5000 + app.game.elapsed_ms),
-            },
-        ),
+    let mut frame = crate::presentation::SceneFrame::new(
+        g,
+        &app.effects,
+        app.screen == Screen::AwaitStart && app.wait_time % 0.6 < 0.3,
+        if matches!(app.screen, Screen::AwaitStart | Screen::Ready) {
+            Some((app.ready * 1000.) as i32)
+        } else {
+            None
+        },
+        (time * 1000.) as i32,
+        match app.screen {
+            Screen::AwaitStart => None,
+            Screen::Ready => Some((app.ready * 1000.) as i32),
+            _ => Some(5000 + app.game.elapsed_ms),
+        },
     );
+    frame.race_athletes = app.race_athletes();
+    world::draw(art, &frame);
     ui::game_hud(art, app);
 }
 

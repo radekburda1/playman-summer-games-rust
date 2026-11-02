@@ -7,6 +7,9 @@ pub struct Prompt {
     pub y: i32,
 }
 pub fn running(g: &Game) -> Vec<Prompt> {
+    running_in_lane(g, Camera::athlete_lane(g.event()))
+}
+pub fn running_in_lane(g: &Game, lane: i32) -> Vec<Prompt> {
     if g.finished
         || (g.event() == Event::PoleVault && g.phase() == Phase::Prepare)
         || !matches!(g.phase(), Phase::Run | Phase::Prepare)
@@ -28,11 +31,7 @@ pub fn running(g: &Game) -> Vec<Prompt> {
     } else {
         Camera::for_game(g)
     };
-    let (mut x, y) = camera.project(
-        g.runner.position >> 8,
-        g.runner.height >> 8,
-        Camera::athlete_lane(g.event()),
-    );
+    let (mut x, y) = camera.project(g.runner.position >> 8, g.runner.height >> 8, lane);
     if g.event() == Event::PoleVault {
         x += 15;
     }

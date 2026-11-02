@@ -1,4 +1,5 @@
 pub mod gameplay;
+pub mod race_replay;
 pub mod records;
 // Application flow. Simulation and record decisions require no window or filesystem.
 use crate::simulation::audio::SoundCue;
@@ -64,6 +65,10 @@ pub struct App {
     pub outgoing: Option<(Screen, f32)>,
     pub advance_after_transition: bool,
     finish_audio_started: bool,
+    race_recording: race_replay::RaceReplay,
+    race_replays: [race_replay::RaceReplay; 6],
+    race_tick: usize,
+    race_scene_seed: u64,
 }
 impl App {
     pub fn new(records: [Option<i32>; 5]) -> Self {
@@ -95,6 +100,10 @@ impl App {
             outgoing: None,
             advance_after_transition: false,
             finish_audio_started: false,
+            race_recording: Default::default(),
+            race_replays: Default::default(),
+            race_tick: 0,
+            race_scene_seed: 25,
         }
     }
     /// Background music belongs to menus/results, never to an active attempt.
@@ -134,9 +143,99 @@ impl App {
         });
         order
     }
+    /// Original d.aQ/d.aY places the active runner in lane four until all
+    /// six lanes are needed, and draws earlier runners behind them.
+    pub fn race_lane(&self, player: usize) -> i32 {
+        let offset = 4usize.saturating_sub(self.current_player + 1);
+        (-6 + player as i32 + offset as i32) * 333 + 166
+    }
+    fn record_race_tick(&mut self) {
+        if !self.multiplayer || !self.game.event().race() {
+            return;
+        }
+        self.race_tick += 1;
+        // Once stopped, only the reaction clock changes. Extrapolate it without
+        // retaining an unbounded recording while a result screen is left open.
+        if !self
+            .race_recording
+            .samples
+            .last()
+            .is_some_and(|s| s.stopped)
+        {
+            self.race_recording
+                .samples
+                .push(race_replay::RaceSample::capture(&self.game));
+        }
+    }
+    pub fn race_athletes(&self) -> Vec<crate::presentation::RaceAthlete> {
+        use crate::presentation::{Animation, RaceAthlete};
+        if !self.multiplayer || !self.game.event().race() {
+            return Vec::new();
+        }
+        let value = |index: usize| {
+            if index == self.current_player {
+                self.game.result
+            } else {
+                self.race_replays[index].result
+            }
+        };
+        let rank = |index: usize| {
+            (0..=self.current_player)
+                .filter(|&other| match (value(other), value(index)) {
+                    (Some(a), Some(b)) => a < b || a == b && other < index,
+                    (Some(_), None) => true,
+                    _ => false,
+                })
+                .count()
+        };
+        let mut athletes = Vec::new();
+        for index in 0..=self.current_player {
+            let sample = if index == self.current_player {
+                (race_replay::RaceSample::capture(&self.game), 0)
+            } else if let Some((sample, extra)) = self.race_replays[index].sample(self.race_tick) {
+                (sample.clone(), extra)
+            } else {
+                continue;
+            };
+            let (sample, extra) = sample;
+            let animation = if sample.stopped {
+                Animation::race_reaction(
+                    if value(index).is_none() {
+                        self.player_count - 1
+                    } else {
+                        rank(index)
+                    },
+                    self.player_count,
+                    sample.reaction_ms + extra,
+                )
+            } else {
+                sample.animation
+            };
+            athletes.push(RaceAthlete {
+                position: sample.position,
+                height: sample.height,
+                lane: self.race_lane(index),
+                animation,
+                fallen: sample.fallen,
+            });
+        }
+        athletes
+    }
     pub fn start(&mut self) {
         self.seed = self.seed.wrapping_add(1009);
         self.game = Game::new(Event::ALL[self.selected], self.seed);
+        if self.multiplayer && self.game.event().race() {
+            if self.current_player == 0 {
+                self.race_replays = Default::default();
+                self.race_scene_seed = self.seed;
+            }
+            self.best = None;
+            self.race_tick = 0;
+            self.race_recording = Default::default();
+            self.race_recording
+                .samples
+                .push(race_replay::RaceSample::capture(&self.game));
+        }
         self.effects = Default::default();
         self.game.record_distance = self.records[self.selected];
         self.outgoing = None;
@@ -159,11 +258,24 @@ impl App {
             self.records[self.selected] = result;
             self.records_dirty = true;
         }
+        if self.multiplayer && e.race() {
+            self.race_recording.crossing = Some((self.race_tick, self.game.clone()));
+        }
         self.screen = Screen::Finish;
         self.clock = 0.;
     }
     pub fn advance(&mut self) {
         if self.multiplayer {
+            if self.game.event().race() {
+                self.race_recording.result = self.game.result;
+                self.race_recording.finish_at(race_replay::stop_target(
+                    self.race_scene_seed,
+                    self.current_player,
+                    false,
+                    self.game.event() == Event::Hurdles,
+                ));
+                self.race_replays[self.current_player] = std::mem::take(&mut self.race_recording);
+            }
             self.players[self.current_player].results[self.selected] = self.best;
             if self.current_player + 1 < self.player_count {
                 self.current_player += 1;
@@ -454,6 +566,7 @@ impl App {
                     while self.clock >= TICK {
                         self.clock -= TICK;
                         gameplay::step(&mut self.game, &mut self.effects);
+                        self.record_race_tick();
                         if self.game.finished {
                             self.finish();
                             break;
@@ -465,7 +578,17 @@ impl App {
                 self.clock += dt;
                 while self.clock >= TICK {
                     self.clock -= TICK;
-                    gameplay::step_finish(&mut self.game, &mut self.effects);
+                    if self.multiplayer && self.game.event().race() {
+                        self.game.step_race_finish_to(race_replay::stop_target(
+                            self.race_scene_seed,
+                            self.current_player,
+                            true,
+                            self.game.event() == Event::Hurdles,
+                        ));
+                    } else {
+                        gameplay::step_finish(&mut self.game, &mut self.effects);
+                    }
+                    self.record_race_tick();
                 }
                 if confirm && (!self.game.event().race() || self.game.runner.speed < 4000) {
                     self.advance_after_transition = !self.game.event().race();
@@ -474,6 +597,13 @@ impl App {
             }
             Screen::Results => {
                 self.game.phase_elapsed_ms += (dt * 1000.) as i32;
+                if self.multiplayer && self.game.event().race() {
+                    self.clock += dt;
+                    while self.clock >= TICK {
+                        self.clock -= TICK;
+                        self.race_tick += 1;
+                    }
+                }
                 if input.retry {
                     self.start();
                 } else if confirm {
@@ -526,9 +656,8 @@ impl App {
             .append(&mut self.game.sound_events);
         if self.game.event().race() && self.game.feedback_time > old_feedback {
             let cue = match self.game.feedback.as_str() {
-                "WRONG BUTTON" => Some(SoundCue::WrongInput),
                 "OUCH!" | "TOO EARLY!" => Some(SoundCue::Failure),
-                "STRETCH!" | "DIVE!" | "RELEASE!" => Some(SoundCue::Action),
+                "STRETCH!" | "RELEASE!" => Some(SoundCue::Action),
                 "CLEAR!" | "PLANT!" => Some(SoundCue::Takeoff),
                 _ => None,
             };

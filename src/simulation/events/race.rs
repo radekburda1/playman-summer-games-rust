@@ -64,11 +64,7 @@ impl Game {
         };
         if self.runner.position >= min && self.runner.dive.is_none() {
             self.runner.dive = Some(self.runner.position);
-            if self.event() == Event::Hurdles {
-                self.sound_events.push(SoundCue::Action);
-            } else {
-                self.message("DIVE!");
-            }
+            self.sound_events.push(SoundCue::Action);
         }
     }
 }

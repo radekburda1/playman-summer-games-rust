@@ -239,6 +239,33 @@ impl Animation {
         self.loop_start = start;
         self
     }
+    /// Original d.n(rank, result) and reaction animation sequence, without the
+    /// separate high-score override. Multiplayer outcomes depend on placement.
+    pub fn race_reaction(rank: usize, players: usize, time: i32) -> Self {
+        if rank == 0 {
+            if time < 160 {
+                Self::new(animation::CELEBRATION_START, 3, time, 80, false)
+            } else if time < 2080 {
+                Self::new(animation::CELEBRATION_JUMP, 13, time - 160, 80, true)
+            } else if time < 2920 {
+                Self::new(animation::CELEBRATION_END, 8, time - 2080, 120, false)
+            } else {
+                Self::new(animation::CELEBRATION_IDLE, 5, time - 2920, 120, true)
+            }
+        } else if rank + 1 == players {
+            if time < 3720 {
+                Self::new(animation::FOUL_REACTION, 32, time, 120, false)
+            } else {
+                Self::new(animation::FOUL_IDLE, 5, time - 3720, 120, true)
+            }
+        } else if rank < 3 {
+            Self::new(animation::SATISFIED, 5, time, 120, true)
+        } else if time < 1560 {
+            Self::new(animation::DISAPPOINTED, 14, time, 120, false)
+        } else {
+            Self::new(animation::DISAPPOINTED_IDLE, 5, time - 1560, 120, true)
+        }
+    }
     pub fn for_game(g: &Game) -> Self {
         let r = &g.runner;
         let p = r.position >> 8;
@@ -532,8 +559,17 @@ impl Animation {
     }
 }
 
-/// Immutable, borrowed scene description. Creating or drawing it never advances simulation.
-/// Particle clocks are advanced by the fixed-step presentation update, not by drawing.
+/// Immutable pose and lane description for one active or replayed runner.
+#[derive(Clone, Debug)]
+pub struct RaceAthlete {
+    pub position: i32,
+    pub height: i32,
+    pub lane: i32,
+    pub animation: Animation,
+    pub fallen: u32,
+}
+/// Immutable, borrowed scene description. Drawing never advances simulation.
+/// Particle clocks advance in the fixed-step presentation update.
 pub struct SceneFrame<'a> {
     pub game: &'a Game,
     pub effects: &'a effects::TimingEffect,
@@ -543,6 +579,7 @@ pub struct SceneFrame<'a> {
     pub countdown: Option<i32>,
     pub scenery_time: i32,
     pub starter_time: Option<i32>,
+    pub race_athletes: Vec<RaceAthlete>,
 }
 impl<'a> SceneFrame<'a> {
     pub fn new(
@@ -583,6 +620,7 @@ impl<'a> SceneFrame<'a> {
             countdown,
             scenery_time,
             starter_time,
+            race_athletes: Vec::new(),
         }
     }
 }

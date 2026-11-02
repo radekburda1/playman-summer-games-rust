@@ -77,3 +77,41 @@ fn sprint_prompt_anchor_does_not_follow_early_camera_offset() {
         assert_eq!(prompts::running(&game)[0].x, initial, "position {position}");
     }
 }
+
+#[test]
+fn correct_dash_input_uses_button_feedback_without_result_text() {
+    let mut game = Game::new(Event::Dash, 1);
+    game.input(Input::Left);
+    assert!(game.run_feedback.unwrap().correct);
+    assert!(game.feedback.is_empty());
+    assert_eq!(game.feedback_time, 0);
+    assert!(prompts::running(&game).iter().any(|p| p.sprite == 474));
+    // NICE! remains a valid original finish-result message.
+    assert_eq!(Event::Dash.finish_message(Some(1120)), "NICE!");
+}
+
+#[test]
+fn wrong_dash_input_uses_x_and_sound_without_running_text() {
+    let mut game = Game::new(Event::Dash, 1);
+    game.input(Input::Right);
+    assert!(!game.run_feedback.unwrap().correct);
+    assert!(game.feedback.is_empty());
+    assert!(prompts::running(&game).iter().any(|p| p.sprite == 477));
+    assert_eq!(
+        game.sound_events,
+        vec![playman_rust::simulation::audio::SoundCue::WrongInput]
+    );
+}
+
+#[test]
+fn dash_dive_uses_animation_and_sound_without_running_text() {
+    let mut game = Game::new(Event::Dash, 1);
+    game.runner.position = 0x500000;
+    game.input(Input::ActionDown);
+    assert_eq!(game.runner.dive, Some(0x500000));
+    assert!(game.feedback.is_empty());
+    assert_eq!(
+        game.sound_events,
+        vec![playman_rust::simulation::audio::SoundCue::Action]
+    );
+}

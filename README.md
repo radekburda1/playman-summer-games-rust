@@ -218,3 +218,9 @@ selection returns to mode selection. Records remain shared across both modes.
 This first multiplayer version has human players only and the existing athlete
 appearance. CPU opponents, country/appearance selection, online play and saved
 multiplayer sessions are not included.
+
+In multiplayer Dash and Hurdles, earlier players reappear in adjacent lanes on
+the NEXT UP screen and replay their recorded race during later turns. Recordings
+include dives and lane-specific fallen hurdles. Finish reactions follow event
+placement: in a two-player race the winner celebrates and the other player
+recovers seated. Replays are display-only and do not emit duplicate audio.

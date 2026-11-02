@@ -136,20 +136,10 @@ impl Game {
                             slot,
                         });
                     }
-                    if matches!(
-                        self.event(),
-                        Event::LongJump | Event::Hurdles | Event::PoleVault | Event::Javelin
-                    ) {
-                        if !good
-                            && matches!(
-                                self.event(),
-                                Event::LongJump | Event::PoleVault | Event::Javelin
-                            )
-                        {
-                            self.sound_events.push(SoundCue::WrongInput);
-                        }
-                    } else {
-                        self.message(if good { "NICE!" } else { "WRONG BUTTON" });
+                    // The original uses button flashes/X feedback during running,
+                    // not finish-result text. Hurdles emits its own collision cues.
+                    if !good && self.event() != Event::Hurdles {
+                        self.sound_events.push(SoundCue::WrongInput);
                     }
                 }
             }
@@ -221,6 +211,43 @@ impl Game {
         }
         if self.event() == Event::Hurdles && self.runner.position > 0x870000 {
             self.runner.position = 0x870000;
+            self.runner.speed = -1;
+        }
+    }
+    /// Original d.b(c,target) race run-out. Measurement is already frozen.
+    /// Multiplayer uses separate active/replay targets; legacy singleplayer
+    /// step_finish remains unchanged for its existing preservation fixtures.
+    pub fn step_race_finish_to(&mut self, target: i32) {
+        assert!(self.event().race());
+        if !self.finished {
+            return;
+        }
+        self.runner.tick += 1;
+        if self.runner.speed < 0 {
+            self.phase_elapsed_ms += 32;
+            return;
+        }
+        let adjustment = self.runner.dive.map_or(0, |start| {
+            if self.runner.position - start < 409600 {
+                3900
+            } else {
+                -3900
+            }
+        });
+        let ticks = (self.runner.speed - 4000 + adjustment) / 630;
+        let distance = ticks * (self.runner.speed + adjustment) - ticks * ticks * 630 / 2;
+        if target > self.runner.position + distance {
+            self.runner.position += self.runner.speed + adjustment;
+        } else {
+            self.runner.speed -= 630;
+            if self.runner.speed < 4000 {
+                self.runner.speed = -1;
+            } else {
+                self.runner.position += self.runner.speed + adjustment;
+            }
+        }
+        if self.runner.position > target {
+            self.runner.position = target;
             self.runner.speed = -1;
         }
     }
