@@ -290,3 +290,13 @@ fn custom_head_turns_keep_faces_visible_through_all_animation_poses() {
     }
     assert_eq!(Face::default().head_sprite(797), 797);
 }
+
+#[test]
+fn brother_shorts_keep_original_width_in_bent_leg_poses() {
+    for slot in [16, 23, 24, 25, 26] {
+        let [_, _, w, h] = original_sprite_rect(custom::original_sprite(slot)).unwrap();
+        assert_eq!(custom::dimensions(slot), (w as usize, h as usize));
+    }
+    let [_, _, arm_width, _] = original_sprite_rect(custom::original_sprite(8)).unwrap();
+    assert!(custom::dimensions(8).0 as f32 > arm_width);
+}

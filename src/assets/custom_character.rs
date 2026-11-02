@@ -32,7 +32,14 @@ pub fn dimensions(index: usize) -> (usize, usize) {
             let [_, _, w, h] =
                 super::artwork::original_sprite_rect(sprite).expect("custom body source");
             (
-                (w * if (27..31).contains(&index) { 2.6 } else { 1.45 }).ceil() as usize,
+                // Hip/upper-leg pieces contain shorts. Widening these creates a
+                // protruding black wedge during the celebration jump.
+                (w * if index == 16 || (23..27).contains(&index) {
+                    1.0
+                } else {
+                    1.45
+                })
+                .ceil() as usize,
                 h as usize,
             )
         }
