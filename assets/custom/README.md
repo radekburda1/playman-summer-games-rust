@@ -1,5 +1,17 @@
 # Brother character assets
 
+## Head-turn and shorts integration — 2026-11-03
+
+Brother, Kubak and Radek now use their existing three-quarter head whenever the
+original animation requests a rear view. Both head-remapping entry points share
+this rule, so starts and celebrations keep recognizable faces visible. Rear
+source views and atlas cells are preserved; no new image generation this pass.
+
+Brother's hip and shorts-bearing upper-leg pieces (virtual slots 16,23–26) now use
+original widths. The former 1.45x scaling made the black shorts project into a
+point during the celebration jump. Other limb widths, belly artwork and joint
+positions are unchanged. This is atlas integration of the existing artwork.
+
 ## Current shoulder correction — 2026-11-03
 
 Runtime uses `brother-torsos-shoulders.png`. Built-in image_gen edited the upper

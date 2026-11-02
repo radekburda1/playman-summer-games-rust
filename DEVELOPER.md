@@ -401,7 +401,9 @@ fixed by the two joints. No opaque belly fill is applied. A regression bounds
 the hem within 15% of the shoulder-to-hip length beyond the hip, preventing the
 previous 70% source anchor from extending the belly toward the knees. Sprites
 use 96x96 transparent cells before all eight transforms, with no post-placement
-offsets. Limbs retain 1.45x width. Original pixels and mechanics remain unchanged.
+offsets. Arms/lower limb pieces retain 1.45x width; hip and shorts-bearing upper-leg
+pieces (custom slots 16,23–26) keep original widths to avoid an exaggerated
+black wedge during celebration jumps. Original pixels and mechanics remain unchanged.
 The open shoulder socket replaces a tall closed loop, with a transparent arm-joint
 regression alongside the hem-to-leg regression. Previous generated sheets remain in the checkout. Prompts/provenance are in
 assets/custom/README.md.
@@ -409,3 +411,11 @@ assets/custom/README.md.
 Radek is Face 14 (15 total choices); his six virtual sprites append at BASE+37. Four neckless head views and two transparent menu sizes share radek-heads.png. Body/uniform mapping remains standard male, independent of simulation. Generated heads are separated by transparent gutters to avoid neighboring strips.
 
 Radek verification: transparent menu preview and Dash running pose inspected live; all 76 tests, Clippy, formatting, web storage/bundle checks and web/macOS builds pass. Other events and native visuals were not individually inspected in this pass.
+
+Custom head turns: Brother, Kubak and Radek map requested rear head view 3 to
+existing three-quarter view 1 through one shared Face helper. Both head_sprite
+and sprite_for_scene use it, so prepared animation frames and direct head draws
+agree. Rear artwork remains stored for provenance; original 12 characters retain
+original view mappings. The all 318-pose regression checks every custom face for
+absence of the rear atlas rectangle, including its transforms. This is cosmetic
+and does not alter pose clocks, equipment hooks, replay or mechanics.

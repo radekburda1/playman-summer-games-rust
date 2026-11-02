@@ -17,8 +17,10 @@ Rust/Macroquad reconstruction of Playman Summer Games 3. Browser game `http://12
 
 Workspace root `/Users/Radek.Burda/Documents/Codex/2026-10-25/you-are-an-expert-systems-engineer`. Current chat artifact folder `/Users/Radek.Burda/Documents/Codex/2026-11-01/new-chat/outputs`.
 
-HEAD at this pass: `a22fe71 Add custom character implementation and rendering support`.
-Earlier commits: `ec8f51d` race replay/finish fixes, `1acdf96` local multiplayer, `ce51845` audio fixes. Custom brother/Kubak/Radek implementation was committed before this pass. The checkout was clean on initialization.
+HEAD at final review: `0722e26 fix previous build` (user commit during verification; initial HEAD was `6242884 Poladit Misu spekouna`).
+Earlier commits: `ec8f51d` race replay/finish fixes, `1acdf96` local multiplayer, `ce51845` audio fixes. Earlier custom artwork and the head-turn implementation were committed by the user before this continuation. The checkout was clean on initialization. The user also committed code changes while this
+verification was running; only agent-authored documentation remained modified
+at the final review.
 
 This pass modifies brother torso atlas composition, dimensions, regression tests, documentation and the staged web content hash. Runtime uses new assets/custom/brother-torsos-shoulders.png; the previous sheets are retained. No commits or staging performed.
 
@@ -40,7 +42,7 @@ Original metadata maps sex/body bank, skin and head resources. All custom faces 
 
 Virtual indices relative to BASE:
 - 0..3 brother head profile / three-quarter / front / rear; 4/5 transparent small/large portrait.
-- 6..26 brother limbs from original male bank (1.45x width).
+- 6..26 brother limbs from original male bank: arms/lower limb pieces1.45x; hip/shorts-bearing slots 16,23–26 use original widths.
 - 27..30 brother torso lean-pose slots, sampling the original generated profile with shoulder/hip registration. Each96x96 including transparent padding. Map original uniform612..615.
 - 31..34 Kubak heads; 35/36 transparent menu previews using the same neckless FRONT head (not opaque reference portrait).
 - 37..40 Radek heads; 41/42 transparent menu previews using the same neckless FRONT head.
@@ -55,6 +57,30 @@ body length. The previous 70% anchor caused the belly to cover the legs and is r
 before all eight transforms.
 
 Current brother heads: bald under black BACKWARD cap, full brown beard. All heads end at jaw/skull base with NO NECK. Rear cap brim remains backward. Kubak: swept light-brown hair, blue eyes, short beard. Radek: bald, blue eyes, light stubble, smiling.
+
+## Head turns and celebration shorts — latest pass
+
+Finished validation/documentation of the previously interrupted head-turn change.
+All custom faces (Brother/Kubak/Radek) replace original requested rear head view 3
+with existing three-quarter view 1, via shared Face::custom_head used by direct
+head draws and scene remapping. Original 12 mappings remain unchanged. Rear source
+artwork is retained, but no prepared custom pose should draw its atlas cells.
+Automated coverage checks all 318 poses ×3 custom faces and all rear transforms.
+
+User's pointed black shape was traced in software celebration frames to widened
+hip/upper-leg shorts parts, not the torso. Slots16 and 23–26 now retain original
+widths. Arms/other limb pieces stay1.45x; torso and joint positions are unchanged.
+A 40-frame software celebration contact sheet was inspected before/after; original
+shorts silhouette remains, without the exaggerated horizontal stretch.
+
+Live browser Dash checks: Brother8.34s and Radek8.21s, run-out and celebration.
+Radek triggered HIGH SCORE and saved 8.21s; records were not reset. The high-score
+overlay obscures part of his celebration sprite, so detailed pose inspection also
+used the software renderer. Screenshots:
+`brother-face-visible-celebration.png` and `radek-face-visible-celebration.png` in
+`/Users/Radek.Burda/.codex/visualizations/2026/11/02/01a19e70-a6c1-72f3-87ff-0d545c49e17f/`.
+Kubak head turns are covered by pose checks, not an additional live run. Native
+visuals and all event-specific head turns remain unverified live.
 
 ## Brother shoulder correction — current pass
 
@@ -99,14 +125,14 @@ make mac-app
 ```
 Ignored .make.local sets existing wasm toolchain/cache (Cargo1.90); preserve it. Native app output dist/Playman Rust.app. Avoid direct agent launch of native executable (OpenGL environment failures); use LaunchServices if needed. Do not discard native records.
 
-Current logs: /tmp/shoulder-tests.log, /tmp/shoulder-custom.log,
-/tmp/shoulder-clippy.log, /tmp/shoulder-web.log, /tmp/shoulder-native.log.
-All 79 tests passed, including arm-socket clearance, joint fit, hem-to-leg,
-transformed clipping and original-pixel preservation checks. Clippy, formatting,
-diff checks, web bundle/storage and web/macOS release builds passed. Standing
-and running were observed in the browser. Native visuals were not rechecked.
+Current logs: /tmp/headturn-tests.log, /tmp/headturn-custom.log,
+/tmp/headturn-clippy.log, /tmp/headturn-web.log, /tmp/headturn-native.log.
+All 81 tests passed, including all 318 poses for each custom head, original-width
+shorts, joint/hem/clipping and original pixel fixtures. Clippy, formatting/diff,
+web bundle/storage checks and web/macOS builds passed. Native visuals were not
+rechecked.
 
-Prior live verification: Radek transparent selector and Dash run with standard body. Screenshots outputs/radek-selection.jpg and outputs/radek-running.jpg. Original12 + all custom all318pose/resource checks automated; not all15 characters ×5 events visually inspected. Native custom-character visuals were not individually checked. Audio was user-confirmed earlier, not re-verified for custom faces. Browser settings/appearances reset on reload.
+Prior live verification: Radek transparent selector and Dash run with standard body. Screenshots outputs/radek-selection.jpg and outputs/radek-running.jpg. Original 12 + all custom all 318pose/resource checks automated; not all15 characters ×5 events visually inspected. Native custom-character visuals were not individually checked. Audio was user-confirmed earlier, not re-verified for custom faces. Browser settings/appearances reset on reload.
 
 ## Browser workflow
 
