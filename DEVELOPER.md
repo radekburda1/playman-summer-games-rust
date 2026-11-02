@@ -25,7 +25,7 @@ src/
     vault_marker.rs         Pole timing and carried-equipment geometry
     javelin.rs              Pose-hook markers, particle triggers and ground clipping
   rendering/                Artwork drawing, software/GPU primitives, world and UI
-  platform/                 Window/input adapter, audio playback and record-file I/O
+  platform/                 Window/input adapter, audio playback and record storage
   assets/                   Pure artwork/font decoding and named resource mappings
   bin/compare.rs            Development-only software replay exporter
 ```
@@ -56,8 +56,11 @@ infallible accessors are crate-private and follow explicit event dispatch.
 `application::App` owns the game and a separate visual-effects timeline. Keyboard
 aliases are sampled once into `FrameInput` by the platform. `App::update` owns the
 32 ms accumulator and returns audio requests without polling devices or writing
-files. Record comparison/encoding is pure; executable-adjacent I/O is private to
-the platform. Browser save-failure behavior remains unchanged.
+files. Record comparison/encoding is pure; executable-adjacent native file I/O and
+browser localStorage imports are private to the platform. The browser bridge in
+`web/records.js` stores the same five-line format under `playman-records-v1`.
+R on the main menu opens a reset confirmation; Escape cancels without changing
+records. Storage failures remain visible rather than silently reporting success.
 
 For complete replay/presentation behavior, use `application::gameplay::input`,
 `step` and `step_finish`, passing both the game and its effects timeline. These
@@ -85,7 +88,13 @@ would be a separate change with additional rendering risk.
 
 `assets::resources` names original animation offsets, scenes and equipment sprites.
 `simulation::audio::SoundCue` describes logical requests; platform audio performs
-playback and music scheduling. Application cues still precede the music update and
+playback and music scheduling. `App::background_music()` gates background playback:
+menus and confirmed results allow it; AwaitStart/countdown/play/pause/finish do not.
+The platform stops the menu/intro track at attempt entry, without disabling sampled
+effects or explicit record jingles. Result/celebration/record requests share an
+ordered platform queue with original resource-table delays. Music decoding runs
+in a coroutine so WebAudio readiness cannot suspend drawing. Application cues
+precede the music update;
 simulation cues follow it. The existing offline MIDI renders and mixing settings
 are unchanged. Pole/projectile `reference_values()` methods retain only the oracle
 CSV order. Java names, equations and trace provenance remain in reference notes.
@@ -162,12 +171,38 @@ This removes the native rendering/input/music blocker; it is not a complete
 five-event visual or sound-trigger parity claim. ScreenCaptureKit screenshots
 occasionally fail with capture error -3811, independently of the running game.
 
-Browser automation remains a separate client limitation: inventory and fresh-tab
-creation report `The browser access host is unavailable`, including after the user
-opened/attached the tab and the computer-use connection was reset and rebound by URL. Building and serving the
-WASM version does not repair that host service. The existing server at `http://127.0.0.1:8767/` was reachable after granting the
-agent network permission; its HTML, WASM and JS matched the current staged build
-byte for byte. Browser input and audio have not been checked live in this session. No browser access-policy bypass was attempted.
+Live browser verification (2026-11-01/02) covered representative states in all five
+events, using the existing Rust server at 8767. The Java viewer at 8765 was reachable,
+but live visual states were not synchronized for comparison.
+
+- Dash: selection/help/start/countdown, correct/wrong input feedback, action near
+  the finish, run-out and results; a 12.53s record survived a full reload.
+- Long Jump: start/run-up, foul recovery, attempt 2/3, valid takeoff/stretch,
+  4.46m landing, recovery and record badge.
+- Hurdles: countdown, three-slot prompts, collision/recovery and a 15.50s finish.
+- Pole Vault: carried/running pole, hold/release, airborne/fall/landing and foul
+  finish. Successful clearance remains unverified live.
+- Javelin: carried rod/run-up, hold/release, flight, flight skip, valid 26.30m
+  result and next-attempt scene.
+
+Pause/resume, pause-menu Retry/Sound/Main Menu and M sound-state changes were
+observed. Browser music and effects were confirmed audible by the user; exact
+mixing, instruments and output timing remain unverified. Selected executed Java
+cue probes and the background-music policy are documented in
+[the audio audit](analysis/AUDIO-PARITY.md).
+
+Record reset/cancel/reload was checked with a disposable storage key seeded with
+10.00s, preserving the real record key. `node tests/web_records.cjs` additionally
+covers all slots, malformed values and blocked writes. After `make web-build`, run
+`node tests/web_bundle.cjs` to check the staged JavaScript. Staging applies the
+pinned quad_net strict-mode fix and versions WASM/JavaScript URLs by content hash;
+unchanged assets retain their URLs. Native and WASM release builds, the Rust suite,
+strict Clippy and formatting checks passed during this verification.
+
+Remaining live coverage includes successful vault clearance, complete three-attempt
+and tournament flows, R retry from detailed race results, sustained frame pacing,
+synchronized Java visuals and detailed audible parity. Deterministic fixtures and
+successful builds do not establish these behaviors.
 
 ## Adding or changing a discipline
 

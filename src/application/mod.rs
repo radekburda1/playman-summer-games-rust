@@ -39,6 +39,7 @@ pub struct App {
     pub screen_age: f32,
     pub outgoing: Option<(Screen, f32)>,
     pub advance_after_transition: bool,
+    finish_audio_started: bool,
 }
 impl App {
     pub fn new(records: [Option<i32>; 5]) -> Self {
@@ -63,6 +64,19 @@ impl App {
             screen_age: 0.,
             outgoing: None,
             advance_after_transition: false,
+            finish_audio_started: false,
+        }
+    }
+    /// Background music belongs to menus/results, never to an active attempt.
+    /// Explicit one-shot jingles remain separate from this background policy.
+    pub fn background_music(&self) -> Option<usize> {
+        match self.screen {
+            Screen::Menu
+            | Screen::ResetRecords
+            | Screen::Help
+            | Screen::Results
+            | Screen::Complete => Some(1 + (self.seed as usize / 1009) % 3),
+            Screen::AwaitStart | Screen::Ready | Screen::Play | Screen::Finish => None,
         }
     }
     pub fn start(&mut self) {
@@ -78,6 +92,7 @@ impl App {
         self.paused = false;
     }
     pub fn finish(&mut self) {
+        self.finish_audio_started = false;
         let e = self.game.event();
         let result = self.game.result;
         self.game.finish_record = better(e, result, self.records[self.selected]);
@@ -330,14 +345,23 @@ impl App {
             && old_screen == Screen::Play
         {
             effects.sounds.push(if self.game.result.is_some() {
-                SoundCue::Landing
+                SoundCue::RaceFinish
             } else {
                 SoundCue::Failure
             })
         }
-        if self.screen == Screen::Finish && old_screen != Screen::Finish && self.game.finish_record
+        if self.screen == Screen::Finish
+            && !self.finish_audio_started
+            && (!self.game.event().race() || self.game.runner.speed < 4000)
         {
-            effects.sounds.push(SoundCue::Record);
+            self.finish_audio_started = true;
+            effects.sounds.push(SoundCue::ResultIntro);
+            if self.game.finish_good {
+                effects.sounds.push(SoundCue::Celebration);
+            }
+            if self.game.finish_record {
+                effects.sounds.push(SoundCue::Record);
+            }
         }
         effects
             .sounds_after_music

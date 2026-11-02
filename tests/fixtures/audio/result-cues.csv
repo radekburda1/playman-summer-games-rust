@@ -1,0 +1,7 @@
+scenario,tick,resource
+result-good,0,12
+result-good,12,14
+result-poor,0,12
+result-good-record,0,12
+result-good-record,12,14
+result-good-record,27,8

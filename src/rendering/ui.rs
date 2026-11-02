@@ -154,8 +154,10 @@ fn menu(art: &Art, app: &App) {
         art.label(3, "ALL FIVE EVENTS", 120., 189., 1);
         art.label(3, "ONE TOURNAMENT", 120., 223., 1);
     }
-    art.label(3, "4 / 6 TO CHANGE", 120., 272., 1);
-    small("R: Reset records", 75., 299., RED);
+    art.label(3, "4 / 6 TO CHANGE", 120., 265., 1);
+    let reset = "R: Reset records";
+    let reset_width = measure_text(reset, None, 14, 1.).width;
+    small(reset, (240. - reset_width) / 2., 299., RED);
     if app.save_error.is_some() {
         art.label(0, "Record could not be saved", 120., 179., 1);
     }

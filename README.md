@@ -2,7 +2,7 @@
 
 A native Rust/Macroquad reconstruction made from the supplied `playmansum_2jvrll9n.jar` (Java ME, version 1.0.21).
 
-**Status: playable implementation of five events, not a complete parity port.** The running model, dive boost, long-jump equations, javelin flight equations and event scoring were translated from the decompiled code. Pole Vault now uses the recovered integer spring/end-point model; see `analysis/POLE-VAULT.md` for verification and remaining visual differences. Original graphics, sampled effects, and offline renders of all twelve MIDI resources are embedded. Long Jump now includes preparation, source-matched flight/landing traces, recovery, pit/ruler/official layers and event sound triggers; see `analysis/LONG-JUMP-UPDATE.md` for evidence and remaining gaps. CPU opponents, original challenge progression, Survival and Minimode are not implemented. Live verification of the latest Hurdles graphics and music is pending.
+**Status: playable implementation of five events, not a complete parity port.** The running model, dive boost, long-jump equations, javelin flight equations and event scoring were translated from the decompiled code. Pole Vault now uses the recovered integer spring/end-point model; see `analysis/POLE-VAULT.md` for verification and remaining visual differences. Original graphics, sampled effects, and offline renders of all twelve MIDI resources are embedded. Long Jump now includes preparation, source-matched flight/landing traces, recovery, pit/ruler/official layers and event sound triggers; see `analysis/LONG-JUMP-UPDATE.md` for evidence and remaining gaps. CPU opponents, original challenge progression, Survival and Minimode are not implemented. Desktop browser checks cover Hurdles collision/recovery/finish and representative states in all five events. The user confirmed audible browser music and effects; full visual/audio parity remains unverified.
 
 ## Build and run
 
@@ -40,7 +40,7 @@ On Linux, install the native window/audio development dependencies required by M
 
 ## Browser version
 
-The browser build runs the same Rust simulation and renderer and is useful for comparing with the original Java viewer:
+The browser build runs the same Rust simulation and renderer and is useful for comparing with the original Java viewer. Staged WASM and JavaScript assets get content-based URL versions to avoid stale cached game code:
 
 ```sh
 make web-setup
@@ -60,12 +60,12 @@ Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes th
 | Left prompt / right prompt | Left / Right, A / D, 4 / 6, or keypad 4 / 6 |
 | Jump, dive, charge, pole action | Space, 5, or keypad 5 |
 | Pause / resume | P |
-| Mute sampled sounds | M |
-| Retry from result screen | R |
+| Toggle music and sound effects | M |
+| Retry from result screen / reset records from main menu | R |
 | Next attempt / event | Enter |
 | Return to menu | Escape |
 
-Each attempt opens on a stationary **NEXT UP / Start** scene. Press **5 / Space** (or Enter) to begin the countdown; waiting on this screen does not advance the attempt. The dash start includes the original starting blocks and yellow equipment boxes in all six lanes.
+Each attempt opens on a stationary **NEXT UP / Start** scene. Press **5 / Space** (or Enter) to begin the countdown; waiting on this screen does not advance the attempt. The dash start includes the original starting blocks and yellow equipment boxes in all six lanes. Background music stops on entering the start scene and stays off through play, pause and the finish screen. It can resume after finish confirmation; effects and explicit record jingles remain separate.
 
 Running follows the displayed **sequence**, which can repeat a side. Button presses are edge triggered: holding a direction does not repeatedly run. Correct 4/6 inputs produce the original three-frame white pulse (200 ms), with a short bounce on the next prompt; wrong inputs show a red X (300 ms). Hurdles highlight the consumed sequence slot.
 
@@ -79,9 +79,9 @@ Menus use the extracted original bitmap fonts and sport icons on white backgroun
 
 Long Jump plays its preparation animation after confirmation (without the race countdown). A first 4/6 input can skip preparation. Landing includes the original slide/recovery stage; confirmation on its finish scene advances directly to the next attempt.
 
-After a race, the athlete takes slowing steps before reacting in the stadium. Original score bands select the message and reaction: at least 750 points celebrates, 450–749 uses a neutral pose, and lower scores use disappointment. The personal-record badge is independent. The finish screen holds until confirmation, then opens the detailed results.
+After a race, the athlete takes slowing steps before reacting in the stadium. Original score bands select the message and reaction: at least 750 points celebrates, 450–749 uses a neutral pose, and lower scores use disappointment. Good results also request the original celebration sound after run-out; the personal-record badge is independent. The finish screen holds until confirmation, then opens the detailed results.
 
-Field events have three attempts. A tournament plays the five events in the original order and adds the best attempt's score. This is a single-player tournament without the original CPU standings or unlock system. High scores are saved as `playman-records.txt` beside the executable. If that directory is read-only, play continues and the result screen reports the save failure.
+Field events have three attempts. A tournament plays the five events in the original order and adds the best attempt's score. This is a single-player tournament without the original CPU standings or unlock system. Native high scores are saved as `playman-records.txt` beside the executable; browser scores use localStorage for the current origin. If storage is unavailable, play continues and reports the save failure.
 
 ## Project structure
 
@@ -144,9 +144,16 @@ The tests cover Hurdles numerical replays and world-render fixtures in addition 
 
 The asset extraction validated all 18 bank end offsets. Original athlete poses were also composed and visually inspected offline to check the logical image mapping and transforms.
 
-Native GPU execution remains unverified in the authoring environment: after the
-Cocoa null-name fix, graphics-context creation still fails. The software-render
-fixtures do not verify live frame pacing or audible output. `--smoke-test` exercises
+Native GPU rendering works when launched as a macOS app; direct launch from the
+agent process still fails during graphics-context creation. Browser verification
+observed Dash (12.53s), Hurdles (15.50s), a valid Long Jump stretch/landing (4.46m),
+Pole Vault hold/release and foul recovery, and Javelin flight/landing (26.30m).
+Pause/resume, mute state and record persistence were checked live. Reset/cancel
+and reload were exercised with an isolated disposable record key. The user
+confirmed audible browser music and effects. Successful vault clearance, complete
+tournaments, synchronized Java comparisons, sustained frame pacing and detailed
+audio parity remain unchecked. See DEVELOPER.md for the precise coverage. The software-render
+fixtures do not independently verify live frame pacing or audible output. `--smoke-test` exercises
 all event renderers on a desktop, exits after 40 frames and writes `smoke-test.png`.
 
 ## Parity limits
@@ -155,8 +162,8 @@ all event renderers on a desktop, exits after 40 frames and writes `smoke-test.p
 - Original phone startup/menu transitions, CPU AI, replays, multiplayer, character/country selection, challenge unlocks, medals/mascots, Survival, Minimode, online scores and vibration are absent.
 - Some field-event staging, vault rendering and HUD placement still differ. The projection math and sine table now match the original; full scene parity is not claimed.
 - The original integer sine-table recurrence and interpolation are now reproduced exactly.
-- Music uses offline MIDI renders with a General MIDI sound bank; instrument matching and audible cue timing remain unverified. Sampled effects are connected to a subset of game events.
-- The original progression/RMS save format is replaced by a simple local high-score file.
+- Music uses offline MIDI renders with a General MIDI sound bank; instrument matching and exact audible cue timing remain unverified despite confirmed playback. Sampled effects are connected to a subset of game events.
+- The original progression/RMS save format is replaced by a native high-score file or browser localStorage.
 - A 60-second event timeout prevents a stalled attempt from trapping the user; this is an added behavior.
 
 These limits are deliberate disclosures of unfinished parity work, not a claim that the original game behaves identically.
@@ -181,7 +188,9 @@ for the source map, fixture generation and verification limits.
 
 Music uses offline General MIDI renders; the game needs no runtime synthesizer.
 See [audio regeneration](tools/audio/README.md) for commands and sound-bank/loop
-limitations. Original WAV effects are unchanged.
+limitations. Original WAV effects are unchanged. The [audio parity audit](analysis/AUDIO-PARITY.md)
+compares selected executed Java cue traces, corrects the Dash finish cue and
+measures offline music tails; speaker-output parity remains unverified.
 
 The local [Miniquad patch](vendor/miniquad/PATCHES.md) fixes a nil Cocoa application
 name crash. It does not resolve host graphics-access failures.

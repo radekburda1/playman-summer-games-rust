@@ -1,0 +1,11 @@
+{
+  "authority": "Player.start callbacks from original JAR in isolated FreeJ2ME; not recordings of rendered audio",
+  "jar_sha256": "abeba23badbf5e937b806c7e24165420c7dde08301c694f798b2d3c12f16962b",
+  "oracle_sha256": "2d64587ea8ed6a5785a2217dc32ae59564502e3860f003dceb763776769c6b0a",
+  "fixture_sha256": "0a3e3547826d7ff7a019a4b5cacc412fc367c4e8af34d37fc7f317df102aa1b1",
+  "tick_ms": 32,
+  "initial_states": "Dash original aK/aO countdown; finish at 0x640000-1000 speed 16000. Long Jump phase3, position -65536 (foul:1), speed28000; valid stretch vertical<=650; early tick3. Player-controlled input/update; automatic result transitions suppressed.",
+  "scope": "Dash countdown/finish; Long Jump valid/early/foul; base-mode good/poor/record result queues. Other original mode variants and live waveform output are not inferred.",
+  "result_fixture_sha256": "fa54c33bff10d059dfd30b16ae392f3fb76e6c31f71a1b2d7b13d0253718ddbe",
+  "result_initial_states": "Original a(boolean) result queue, aM=0, bc=5, aI=0, aJ=0, aZ=0, bd=0, ba=12, v=32; best result965 (good) or1282 (poor); E true only for record scenario; F false. Player.start log; queue advanced by original L()."
+}

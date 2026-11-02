@@ -115,3 +115,42 @@ fn reset_records_requires_confirmation_and_cancel_preserves_records() {
     assert_eq!(app.records, [None; 5]);
     assert!(app.records_dirty);
 }
+
+#[test]
+fn background_music_stops_before_attempt_and_resumes_after_finish_confirmation() {
+    for selected in 0..5 {
+        let mut app = App::new([Some(0); 5]);
+        app.selected = selected;
+        assert!(app.background_music().is_some());
+        app.update(0., confirm());
+        assert!(app.screen == Screen::Help);
+        assert!(app.background_music().is_some());
+        app.update(0., confirm());
+        assert!(app.screen == Screen::AwaitStart);
+        assert!(app.background_music().is_none());
+        for screen in [Screen::Ready, Screen::Play, Screen::Finish] {
+            app.screen = screen;
+            assert!(app.background_music().is_none());
+        }
+        app.screen = Screen::Play;
+        app.update(
+            0.,
+            FrameInput {
+                pause: true,
+                ..Default::default()
+            },
+        );
+        assert!(app.paused);
+        assert!(app.background_music().is_none());
+        app.paused = false;
+        app.game.result = Some(1200);
+        app.game.runner.speed = -1;
+        app.attempt = 2; // Last field attempt returns to the menu after confirmation.
+        app.finish();
+        assert!(app.background_music().is_none());
+        app.update(0., confirm());
+        assert!(app.background_music().is_none()); // Finish slide has not completed.
+        app.update(0.4, FrameInput::default());
+        assert!(app.background_music().is_some());
+    }
+}

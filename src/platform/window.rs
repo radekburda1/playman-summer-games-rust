@@ -69,7 +69,11 @@ pub async fn run() {
         if is_key_pressed(KeyCode::M) {
             sounds.muted = !sounds.muted;
         }
+        let previous_seed = app.seed;
         let effects = app.update(dt, frame_input());
+        if app.seed != previous_seed {
+            sounds.begin_attempt();
+        }
         if effects.toggle_mute {
             sounds.muted = !sounds.muted;
         }
@@ -80,9 +84,7 @@ pub async fn run() {
             app.save_error = save_records(&app.records).err().map(|e| e.to_string());
             app.records_dirty = false;
         }
-        sounds
-            .update_music(1 + (app.seed as usize / 1009) % 3)
-            .await;
+        sounds.update_music(app.background_music());
         for cue in effects.sounds_after_music {
             sounds.play(cue);
         }

@@ -3,7 +3,9 @@
 #[repr(usize)]
 pub enum SoundCue {
     Record = 8,
+    ResultIntro = 12,
     RaceFinish = 13,
+    Celebration = 14,
     Takeoff = 18,
     WrongInput = 19,
     Action = 20,

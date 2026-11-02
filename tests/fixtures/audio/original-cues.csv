@@ -1,0 +1,12 @@
+scenario,tick,resource
+dash-countdown,0,23
+dash-countdown,94,24
+dash-countdown,157,25
+dash-finish,0,13
+jump-valid,0,18
+jump-valid,19,20
+jump-valid,52,26
+jump-early,0,18
+jump-early,3,22
+jump-early,37,22
+jump-foul,0,22
