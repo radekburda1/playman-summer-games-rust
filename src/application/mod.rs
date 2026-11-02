@@ -25,6 +25,7 @@ pub enum Screen {
 #[derive(Clone)]
 pub struct Player {
     pub name: String,
+    pub appearance: crate::assets::character::Appearance,
     pub results: [Option<i32>; 5],
     pub total: i32,
 }
@@ -32,6 +33,7 @@ impl Player {
     fn new(index: usize) -> Self {
         Self {
             name: format!("PLAYER {}", index + 1),
+            appearance: Default::default(),
             results: [None; 5],
             total: 0,
         }
@@ -119,6 +121,13 @@ impl App {
             | Screen::Results
             | Screen::Complete => Some(1 + (self.seed as usize / 1009) % 3),
             Screen::AwaitStart | Screen::Ready | Screen::Play | Screen::Finish => None,
+        }
+    }
+    pub fn setup_player_count(&self) -> usize {
+        if self.multiplayer {
+            self.player_count
+        } else {
+            1
         }
     }
     pub fn player_name(&self) -> &str {
@@ -212,6 +221,7 @@ impl App {
                 sample.animation
             };
             athletes.push(RaceAthlete {
+                appearance: self.players[index].appearance,
                 position: sample.position,
                 height: sample.height,
                 lane: self.race_lane(index),
@@ -405,11 +415,8 @@ impl App {
                 if confirm && !esc {
                     self.multiplayer = self.mode_selection == 1;
                     self.current_player = 0;
-                    self.screen = if self.multiplayer {
-                        Screen::PlayerSetup
-                    } else {
-                        Screen::Menu
-                    };
+                    self.setup_selection = 0;
+                    self.screen = Screen::PlayerSetup;
                 }
             }
             Screen::PlayerSetup => {
@@ -417,25 +424,33 @@ impl App {
                     self.setup_selection = self.setup_selection.saturating_sub(1);
                 }
                 if input.down {
-                    self.setup_selection = (self.setup_selection + 1).min(self.player_count + 1);
+                    self.setup_selection =
+                        (self.setup_selection + 1).min(self.setup_player_count() + 1);
                 }
                 if self.setup_selection == 0 {
-                    if input.left {
+                    if input.left && self.multiplayer {
                         self.player_count = if self.player_count == 2 {
                             6
                         } else {
                             self.player_count - 1
                         };
                     }
-                    if input.right {
+                    if input.right && self.multiplayer {
                         self.player_count = if self.player_count == 6 {
                             2
                         } else {
                             self.player_count + 1
                         };
                     }
-                } else if self.setup_selection <= self.player_count {
-                    let name = &mut self.players[self.setup_selection - 1].name;
+                } else if self.setup_selection <= self.setup_player_count() {
+                    let player = &mut self.players[self.setup_selection - 1];
+                    if input.left {
+                        player.appearance.face = player.appearance.face.previous();
+                    }
+                    if input.right {
+                        player.appearance.face = player.appearance.face.next();
+                    }
+                    let name = &mut player.name;
                     if input.backspace {
                         name.pop();
                     }
@@ -447,7 +462,7 @@ impl App {
                     }
                 }
                 if confirm && !esc {
-                    if self.setup_selection == self.player_count + 1 {
+                    if self.setup_selection == self.setup_player_count() + 1 {
                         for (i, player) in self.players.iter_mut().enumerate() {
                             if player.name.trim().is_empty() {
                                 player.name = format!("PLAYER {}", i + 1);

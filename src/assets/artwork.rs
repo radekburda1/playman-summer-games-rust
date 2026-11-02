@@ -7,8 +7,9 @@ pub enum Command {
     Image { source: [f32; 4], dest: [f32; 2] },
     Rect { bounds: [f32; 4], rgb: u32 },
 }
+#[derive(Clone)]
 pub struct Artwork {
-    scenes: Vec<Vec<i16>>,
+    scenes: std::sync::Arc<Vec<Vec<i16>>>,
 }
 impl Default for Artwork {
     fn default() -> Self {
@@ -18,24 +19,26 @@ impl Default for Artwork {
 impl Artwork {
     pub fn new() -> Self {
         Self {
-            scenes: [
-                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/animation.bin"))
-                    .as_slice(),
-                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/scene1.bin"))
-                    .as_slice(),
-                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/scene2.bin"))
-                    .as_slice(),
-            ]
-            .iter()
-            .map(|bytes| {
-                bytes
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .map(|b| i16::from_be_bytes([b[0], b[1]]))
-                    .collect()
-            })
-            .collect(),
+            scenes: std::sync::Arc::new(
+                [
+                    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/animation.bin"))
+                        .as_slice(),
+                    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/scene1.bin"))
+                        .as_slice(),
+                    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/scene2.bin"))
+                        .as_slice(),
+                ]
+                .iter()
+                .map(|bytes| {
+                    bytes
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .map(|b| i16::from_be_bytes([b[0], b[1]]))
+                        .collect()
+                })
+                .collect(),
+            ),
         }
     }
     pub fn width(&self, id: usize) -> i32 {
@@ -82,7 +85,23 @@ impl Artwork {
     }
     pub fn frame(&self, id: usize, a: usize, b: usize, f: i32, x: f32, y: f32) -> Vec<Command> {
         let mut commands = Vec::new();
-        self.decode(id, a, b, f, x, y, 0, &mut commands);
+        self.decode(id, a, b, f, x, y, 0, None, &mut commands);
+        commands
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn frame_with_face(
+        &self,
+        id: usize,
+        a: usize,
+        b: usize,
+        f: i32,
+        x: f32,
+        y: f32,
+        face: crate::assets::character::Face,
+    ) -> Vec<Command> {
+        let mut commands = Vec::new();
+        let id = if id <= 1 { face.scene() } else { id };
+        self.decode(id, a, b, f, x, y, 0, Some(face), &mut commands);
         commands
     }
     #[allow(clippy::too_many_arguments)]
@@ -95,6 +114,7 @@ impl Artwork {
         x: f32,
         y: f32,
         depth: usize,
+        face: Option<crate::assets::character::Face>,
         out: &mut Vec<Command>,
     ) {
         if depth > 4 {
@@ -157,12 +177,28 @@ impl Artwork {
                 continue;
             }
             let px = x + (v[0] - ox) as f32;
+            if id <= 1
+                && let Some(face) = face
+            {
+                let anchor = if (cmd & 0x3fff) >> 8 == 3 {
+                    oy - v[count - 1]
+                } else {
+                    oy
+                };
+                v[1] = anchor + (v[1] - anchor) * face.height_percent() / 100;
+            }
             let py = y + (v[1] - oy) as f32;
             match (cmd & 0x3fff) >> 8 {
                 0 => {
                     if nearest[2] >= 0
                         && let Some(c) = self.sprite(
-                            (nearest[2] >> 3) as usize,
+                            if id <= 1 {
+                                face.map_or((nearest[2] >> 3) as usize, |face| {
+                                    face.sprite_for_scene(id, (nearest[2] >> 3) as usize)
+                                })
+                            } else {
+                                (nearest[2] >> 3) as usize
+                            },
                             (nearest[2] & 7) as u8,
                             px,
                             py,
@@ -191,7 +227,13 @@ impl Artwork {
                             source: [sx, sy, w, h],
                             ..
                         }) = self.sprite(
-                            (nearest[2] >> 3) as usize,
+                            if id <= 1 {
+                                face.map_or((nearest[2] >> 3) as usize, |face| {
+                                    face.sprite_for_scene(id, (nearest[2] >> 3) as usize)
+                                })
+                            } else {
+                                (nearest[2] >> 3) as usize
+                            },
                             (nearest[2] & 7) as u8,
                             0.,
                             0.,
@@ -239,6 +281,7 @@ impl Artwork {
                             px + d[p + 1] as f32,
                             py + d[p + 2] as f32,
                             depth + 1,
+                            face,
                             out,
                         )
                     }

@@ -1148,7 +1148,8 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
                 } else {
                     athlete.animation
                 };
-                art.animation(animation, p.x, p.y);
+                art.with_appearance(athlete.appearance)
+                    .animation(animation, p.x, p.y);
             }
         }
     } else {

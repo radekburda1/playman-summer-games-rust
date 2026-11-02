@@ -59,7 +59,10 @@ fn draw_game(art: &Art, app: &App, time: f32) {
         },
     );
     frame.race_athletes = app.race_athletes();
-    world::draw(art, &frame);
+    world::draw(
+        &art.with_appearance(app.players[app.current_player].appearance),
+        &frame,
+    );
     ui::game_hud(art, app);
 }
 

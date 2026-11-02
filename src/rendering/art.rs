@@ -5,7 +5,9 @@ use crate::{
     simulation::Game,
 };
 use macroquad::prelude::*;
+#[derive(Clone)]
 pub struct Art {
+    appearance: crate::assets::character::Appearance,
     atlas: Option<Texture2D>,
     artwork: Artwork,
 }
@@ -24,6 +26,7 @@ impl Art {
         Self {
             atlas: Some(atlas),
             artwork: Artwork::new(),
+            appearance: Default::default(),
         }
     }
     pub fn new_software() -> Self {
@@ -31,6 +34,7 @@ impl Art {
         Self {
             atlas: None,
             artwork: Artwork::new(),
+            appearance: Default::default(),
         }
     }
     fn draw(&self, command: Command) {
@@ -218,6 +222,13 @@ impl Art {
             x += g.advance as f32;
         }
     }
+    /// A cheap scoped view: textures and decoded scene banks remain shared.
+    pub fn with_appearance(&self, appearance: crate::assets::character::Appearance) -> Self {
+        Self {
+            appearance,
+            ..self.clone()
+        }
+    }
     pub fn athlete(&self, g: &Game, x: f32, y: f32) {
         self.animation(Animation::for_game(g), x, y);
     }
@@ -226,7 +237,10 @@ impl Art {
             env!("CARGO_MANIFEST_DIR"),
             "/assets/tables.bin"
         )));
-        for c in self.artwork.frame(0, a, b, f, x, y) {
+        for c in self
+            .artwork
+            .frame_with_face(0, a, b, f, x, y, self.appearance.face)
+        {
             self.draw(c)
         }
     }
@@ -242,7 +256,10 @@ impl Art {
             env!("CARGO_MANIFEST_DIR"),
             "/assets/tables.bin"
         )));
-        for command in self.artwork.frame(0, a, b, f, x, y) {
+        for command in self
+            .artwork
+            .frame_with_face(0, a, b, f, x, y, self.appearance.face)
+        {
             if let Command::Hook { bounds } = command {
                 hook(bounds);
             } else {
@@ -255,7 +272,10 @@ impl Art {
             env!("CARGO_MANIFEST_DIR"),
             "/assets/tables.bin"
         )));
-        for mut command in self.artwork.frame(0, a, b, f, x, y) {
+        for mut command in self
+            .artwork
+            .frame_with_face(0, a, b, f, x, y, self.appearance.face)
+        {
             match &mut command {
                 Command::Image { source, dest } => {
                     source[3] = source[3].min(ground - dest[1]);

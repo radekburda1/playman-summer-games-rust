@@ -228,7 +228,7 @@ created automatically.
 
 ## Local multiplayer flow
 
-ModeSelect precedes the event menu; PlayerSetup supports 2–6 human players.
+ModeSelect precedes the event menu; PlayerSetup supports one singleplayer athlete or 2–6 multiplayer athletes.
 App owns the roster, active player, round and per-player event bests/totals.
 No multiplayer state enters simulation or changes the 32ms mechanics.
 The active best is saved only when confirming a completed turn. Field events
@@ -242,7 +242,7 @@ for all five events, best preservation through fouls, stable ties, retry and
 complete tournament totals. These are application flow checks, not additional
 Java physics parity fixtures. Source inspection of original d.s(int), d.aG(),
 d.ap() and d.aq() established roster bounds, round rotation and score ordering.
-CPU opponents and character/country setup are deferred.
+CPU opponents and body/outfit/country setup are deferred.
 
 Live browser verification of the initial multiplayer implementation covered mode
 selection, the six-player setup layout, reducing back to two players, typing ADA
@@ -305,3 +305,48 @@ layouts, synchronized Java replay comparisons and a frame-by-frame browser video
 audit remain unverified. The fixed-tick finish regression checks both races
 through crossing and 100 subsequent ticks for continuous physical positions and
 viewport visibility. These checks do not establish complete original-game parity.
+
+## Player appearance
+
+Player owns assets::character::Appearance separately from simulation state. Its
+bounded Face value cycles the 12 original character head sets; default is Playman
+(index 1), preserving existing software/GPU fixtures. Original d.Y uses portrait
+sprites 41 + face (small) and 53 + face (selected). Original b0 character metadata
+at byte 646 contains five i32 values per face; the fourth value maps animation
+slots 21–24 to four head views. The existing decoded athlete scenes already use
+resolved default sprites. frame_with_face chooses the original male/female pose
+bank and reverses its default body/head sprites into mapping slots. It substitutes
+the selected character's body/skin table (b0 offsets 262/346/430/514) and head views,
+retaining transforms, layer order and equipment hooks. No new raster assets or
+physics changes are needed.
+
+Art::with_appearance creates a scoped renderer sharing textures and Arc-backed
+immutable scene banks. It applies the active athlete's complete appearance through all five events
+and each RaceAthlete's own appearance during multiplayer replay rendering.
+Appearance never enters Game, RNG, scoring or record storage. Singleplayer also
+opens setup; player count stays fixed at one. Setup uses arrows for faces and
+plain text for names. Choices stay in memory, matching current name persistence.
+
+Portrait selection now includes its matching body bank, skin and original
+vertical anchor scaling. The default Playman retains 100% scale for compatibility
+with existing pixel fixtures (original metadata specifies 95%); other characters
+use their recovered height percentage. Country uniform colours remain fixed at
+the existing default. Independent body/outfit edits remain future work.
+`tests/character_faces.rs` covers portrait/head/body resources, all 318 poses for
+all 12 characters, default frame compatibility, equipment hook presence,
+singleplayer setup and independent appearances in active/replayed athletes.
+Existing pixel/state fixtures remain unchanged.
+
+Live browser face verification selected distinct original portraits for two
+players, completed Player 1's Dash with the matching animated head, checked both
+heads on Player 2's NEXT UP/replay scene, and completed Player 2's Dash with both
+custom faces retained in the final reactions. All 12 face resources and prepared
+poses in all five disciplines have automated coverage. Native custom faces and
+complete customized field-event attempts have not been checked live. The browser
+verification improved the shared Dash record to 8.31s without resetting records.
+
+The matching-body correction was verified live with Vera in Dash preparation and
+running, showing matching dark skin and the female body bank, and in Pole Vault
+preparation with the pole attached to the selected character. All 12 characters'
+318 pose frames decode in automated checks; complete custom-body field attempts,
+multiplayer finish reactions and native custom bodies remain unverified live.

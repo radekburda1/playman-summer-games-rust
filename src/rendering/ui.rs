@@ -301,21 +301,36 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
         }
         Screen::PlayerSetup => {
             header(art, "PLAYERS", None);
-            for i in 0..=app.player_count + 1 {
+            for i in 0..=app.setup_player_count() + 1 {
                 let y = 47. + i as f32 * 29.;
                 if i == app.setup_selection {
                     band(y - 2., 27.);
                 }
                 let label = if i == 0 {
-                    format!("< PLAYERS: {} >", app.player_count)
-                } else if i == app.player_count + 1 {
+                    format!("< PLAYERS: {} >", app.setup_player_count())
+                } else if i == app.setup_player_count() + 1 {
                     "CONTINUE".into()
                 } else {
                     format!("{}: {}", i, app.players[i - 1].name)
                 };
-                art.label(3, &label, 120., y, 1);
+                if i > 0 && i <= app.setup_player_count() {
+                    let face = app.players[i - 1].appearance.face;
+                    art.scaled_sprite(
+                        face.portrait(i == app.setup_selection),
+                        27.,
+                        y + 11.,
+                        if i == app.setup_selection { 0.65 } else { 0.8 },
+                    );
+                    art.label(3, &app.players[i - 1].name, 58., y, 0);
+                    if i == app.setup_selection {
+                        small("< >", 209., y + 15., BLACK);
+                    }
+                } else {
+                    art.label(3, &label, 120., y, 1);
+                }
             }
-            small("Up/down: select. Type to edit name.", 13., 292., BLACK);
+            small("Left/right: face. Type: name.", 20., 278., BLACK);
+            small("Up/down: player. Enter: next.", 20., 294., BLACK);
             footer("Next", "Back");
         }
         Screen::Standings => {

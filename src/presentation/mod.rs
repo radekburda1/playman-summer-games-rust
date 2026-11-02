@@ -562,6 +562,7 @@ impl Animation {
 /// Immutable pose and lane description for one active or replayed runner.
 #[derive(Clone, Debug)]
 pub struct RaceAthlete {
+    pub appearance: crate::assets::character::Appearance,
     pub position: i32,
     pub height: i32,
     pub lane: i32,
