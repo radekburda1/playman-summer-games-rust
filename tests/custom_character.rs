@@ -19,11 +19,31 @@ fn brother_is_selectable_and_has_fuller_body_sprites() {
         }
         assert!(art.sprite(id, 0, 0., 0., true).is_some());
     }
+    let image = atlas::image();
     for source in 612..616 {
         let mapped = brother.sprite_for_scene(0, source);
-        let [_, _, old_width, _] = original_sprite_rect(source).unwrap();
-        let [_, _, width, _] = custom::rect(mapped, 0).unwrap();
-        assert!(width > old_width * 1.2 && width <= old_width * 2.0);
+        let (shoulder, hip) = custom::torso_joints(source - 612);
+        let (dx, dy) = (hip.0 - shoulder.0, hip.1 - shoulder.1);
+        let thickness = |[x, y, w, h]: [f32; 4]| {
+            let (mut low, mut high) = (f32::INFINITY, f32::NEG_INFINITY);
+            for yy in 0..h as usize {
+                for xx in 0..w as usize {
+                    let p = ((y as usize + yy) * image.width as usize + x as usize + xx) * 4;
+                    if image.bytes[p + 3] > 32 {
+                        let across = xx as f32 * dy - yy as f32 * dx;
+                        low = low.min(across);
+                        high = high.max(across);
+                    }
+                }
+            }
+            high - low
+        };
+        let old = thickness(original_sprite_rect(source).unwrap());
+        let new = thickness(custom::rect(mapped, 0).unwrap());
+        assert!(
+            new > old * 1.2 && new <= old * 3.2,
+            "torso {source}: thickness {new}, original {old}"
+        );
     }
     assert_eq!(brother.scene(), Face::default().scene());
 }
@@ -76,7 +96,10 @@ fn kubak_uses_standard_body_and_distinct_custom_portrait_and_heads() {
         assert_eq!(kubak.sprite_for_scene(0, sprite), sprite);
     }
     for view in 0..4 {
-        assert_eq!(kubak.head_sprite(794 + view), custom::KUBAK + view);
+        assert_eq!(
+            kubak.head_sprite(794 + view),
+            custom::KUBAK + [0, 1, 2, 1][view]
+        );
     }
     assert_eq!(kubak.height_percent(), 100);
 }
@@ -85,6 +108,22 @@ fn kubak_uses_standard_body_and_distinct_custom_portrait_and_heads() {
 fn torso_views_have_no_neighbor_strips_separated_by_empty_columns() {
     let image = atlas::image();
     for index in 27..31 {
+        for transform in 0..8 {
+            let [x, y, w, h] = custom::rect(custom::BASE + index, transform).unwrap();
+            for row in 0..h as usize {
+                for column in 0..w as usize {
+                    if row == 0 || column == 0 || row + 1 == h as usize || column + 1 == w as usize
+                    {
+                        let p =
+                            ((y as usize + row) * image.width as usize + x as usize + column) * 4;
+                        assert!(
+                            image.bytes[p + 3] <= 32,
+                            "torso {index}/{transform} clips its cell"
+                        );
+                    }
+                }
+            }
+        }
         let [x, y, w, h] = custom::rect(custom::BASE + index, 0).unwrap();
         let occupied: Vec<bool> = (0..w as usize)
             .map(|column| {
@@ -105,12 +144,23 @@ fn torso_views_have_no_neighbor_strips_separated_by_empty_columns() {
 }
 
 #[test]
-fn torso_anchor_offsets_follow_rotation_and_mirroring() {
-    let id = custom::BASE + 27;
-    assert_eq!(custom::anchor_offset(id, 0), (6., 2.));
-    assert_eq!(custom::anchor_offset(id, 4), (-6., 2.));
-    assert_eq!(custom::anchor_offset(id, 1), (-2., 6.));
-    assert_eq!(custom::anchor_offset(custom::KUBAK, 0), (0., 0.));
+fn torso_registration_preserves_both_attachment_points() {
+    for slot in 0..4 {
+        let (shoulder, hip) = custom::torso_joints(slot);
+        let (w, h) = (400., 560.);
+        let actual_shoulder = custom::torso_sample(slot, shoulder.0, shoulder.1, w, h);
+        let actual_hip = custom::torso_sample(slot, hip.0, hip.1, w, h);
+        assert!((actual_shoulder.0 - w * 0.18).abs() < 0.001);
+        assert!((actual_shoulder.1 - h * 0.17).abs() < 0.001);
+        assert!((actual_hip.0 - w * 0.47).abs() < 0.001);
+        assert!((actual_hip.1 - h * 0.94).abs() < 0.001);
+        for transform in 0..8 {
+            assert_eq!(
+                custom::anchor_offset(custom::BASE + 27 + slot, transform),
+                (0., 0.)
+            );
+        }
+    }
 }
 
 #[test]
@@ -129,7 +179,114 @@ fn radek_cycles_with_independent_heads_and_standard_body() {
         assert_eq!(face.sprite_for_scene(0, sprite), sprite);
     }
     for view in 0..4 {
-        assert_eq!(face.head_sprite(794 + view), custom::RADEK + view);
+        assert_eq!(
+            face.head_sprite(794 + view),
+            custom::RADEK + [0, 1, 2, 1][view]
+        );
     }
     assert_eq!(face.height_percent(), 100);
+}
+
+#[test]
+fn bent_torso_slots_rotate_the_waist_toward_the_hips() {
+    let image = atlas::image();
+    // Original 612..615 are successive lean angles, not front/rear views.
+    // A front/rear replacement leaves the dark waistband below the shoulders
+    // even in the nearly horizontal start/dive slot.
+    for (index, horizontal) in [(27, false), (30, true)] {
+        let [x, y, w, h] = custom::rect(custom::BASE + index, 0).unwrap();
+        let (mut count, mut sum_x, mut sum_y) = (0., 0., 0.);
+        for yy in 0..h as usize {
+            for xx in 0..w as usize {
+                let p = ((y as usize + yy) * image.width as usize + x as usize + xx) * 4;
+                let [r, g, b, a]: [u8; 4] = image.bytes[p..p + 4].try_into().unwrap();
+                if a > 128 && (25..90).contains(&r) && r.abs_diff(g) < 8 && g.abs_diff(b) < 8 {
+                    count += 1.;
+                    sum_x += xx as f32;
+                    sum_y += yy as f32;
+                }
+            }
+        }
+        // A thin hem can reduce to only a few gray pixels at these lean angles.
+        assert!(count > 0., "missing waistband in slot {index}");
+        if horizontal {
+            assert!(
+                sum_x / count < w * 0.5 - 8.,
+                "waist must face left in bent torso"
+            );
+        } else {
+            assert!(
+                sum_y / count > h * 0.5 + 10.,
+                "waist must face down in upright torso"
+            );
+        }
+    }
+}
+
+#[test]
+fn torso_hem_ends_at_the_leg_attachment_in_each_lean_pose() {
+    let image = atlas::image();
+    for slot in 0..4 {
+        let (shoulder, hip) = custom::torso_joints(slot);
+        let (dx, dy) = (hip.0 - shoulder.0, hip.1 - shoulder.1);
+        let length_squared = dx * dx + dy * dy;
+        let [x, y, w, h] = custom::rect(custom::BASE + 27 + slot, 0).unwrap();
+        for row in 0..h as usize {
+            for column in 0..w as usize {
+                let p = ((y as usize + row) * image.width as usize + x as usize + column) * 4;
+                if image.bytes[p + 3] > 32 {
+                    let px = column as f32 + 0.5 - w / 2. - shoulder.0;
+                    let py = row as f32 + 0.5 - h / 2. - shoulder.1;
+                    let along = (px * dx + py * dy) / length_squared;
+                    assert!(
+                        along <= 1.15,
+                        "torso {slot} hangs below the hip toward the knees: {along}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn torso_shoulder_socket_leaves_room_for_the_arm_joint() {
+    let image = atlas::image();
+    for slot in 0..4 {
+        let (shoulder, _) = custom::torso_joints(slot);
+        let [x, y, w, h] = custom::rect(custom::BASE + 27 + slot, 0).unwrap();
+        let px = (x + w / 2. + shoulder.0) as usize;
+        let py = (y + h / 2. + shoulder.1) as usize;
+        assert!(
+            image.bytes[(py * image.width as usize + px) * 4 + 3] <= 32,
+            "torso {slot} puts fabric across the arm socket center"
+        );
+    }
+}
+
+#[test]
+fn custom_head_turns_keep_faces_visible_through_all_animation_poses() {
+    let art = Artwork::new();
+    for (face, base) in [
+        (Face::BROTHER, custom::BASE),
+        (Face::KUBAK, custom::KUBAK),
+        (Face::RADEK, custom::RADEK),
+    ] {
+        assert_eq!(face.head_sprite(797), base + 1);
+        assert_eq!(face.sprite_for_scene(0, 797), base + 1);
+        assert_eq!(face.sprite_for_scene(1, 793), base + 1);
+        for pose in 0..318 {
+            for command in art.frame_with_face(0, pose, pose, 0, 120., 230., face) {
+                if let playman_rust::assets::artwork::Command::Image { source, .. } = command {
+                    for transform in 0..8 {
+                        assert_ne!(
+                            Some(source),
+                            custom::rect(base + 3, transform),
+                            "rear head in {face:?} pose {pose}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(Face::default().head_sprite(797), 797);
 }

@@ -63,7 +63,7 @@ pub fn image() -> Image {
     )));
     let torsos = decode(include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/assets/custom/brother-torsos.png"
+        "/assets/custom/brother-torsos-shoulders.png"
     )));
     let kubak_heads = decode(include_bytes!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -90,7 +90,7 @@ pub fn image() -> Image {
         } else if index < 6 {
             bounds(&heads, 2)
         } else if (27..31).contains(&index) {
-            torso_bounds(&torsos, index - 27)
+            torso_bounds(&torsos, 0)
         } else if (31..35).contains(&index) {
             bounds(&kubak_heads, index - 31)
         } else if (35..37).contains(&index) {
@@ -116,9 +116,24 @@ pub fn image() -> Image {
         };
         for y in 0..h {
             for x in 0..w {
-                let sx = source.0 + x * source.2 / w;
-                let sy = source.1 + y * source.3 / h;
-                let pixel = rgba(input, sx, sy);
+                let pixel = if (27..31).contains(&index) {
+                    let (sx, sy) = custom::torso_sample(
+                        index - 27,
+                        x as f32 + 0.5 - (w / 2) as f32,
+                        y as f32 + 0.5 - (h / 2) as f32,
+                        source.2 as f32,
+                        source.3 as f32,
+                    );
+                    if sx >= 0. && sy >= 0. && sx < source.2 as f32 && sy < source.3 as f32 {
+                        rgba(input, source.0 + sx as usize, source.1 + sy as usize)
+                    } else {
+                        [0; 4]
+                    }
+                } else {
+                    let sx = source.0 + x * source.2 / w;
+                    let sy = source.1 + y * source.3 / h;
+                    rgba(input, sx, sy)
+                };
                 for transform in 0..8u8 {
                     let (tx, ty) = match transform {
                         0 => (x, y),

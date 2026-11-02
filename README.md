@@ -238,14 +238,14 @@ body/outfit editing and country selection are not implemented. The default Playm
 keeps the established rendering scale. Appearance configuration supports future
 extensions without changing gameplay.
 
-The custom brother character is the second-to-last portrait (Left three times
-from default Playman). His selector uses the supplied reference face, gameplay uses generated
-cap-and-beard head views, and a rounded torso/broader limbs provide a fuller
-physique. This is cosmetic: movement, scores and equipment controls are unchanged.
+The custom brother character is selected with Left four times from default
+Playman. His selector uses a transparent head preview, gameplay uses generated
+cap-and-beard head views, and a rounded pot belly/broader limbs provide a fuller
+physique. The torso follows the original lean angles through running and crouching. This is cosmetic: movement, scores and equipment controls are unchanged.
 Edit the player name normally. Asset provenance and the generation prompt are in
 `assets/custom/README.md`.
 
-Kubak is the last portrait (Left three times from default Playman). His supplied face
+Kubak is selected with Left three times from default Playman. His transparent head
 is used in the selector, with matching generated animated head views. He uses
 the standard male body and proportions, without the brother's fuller-body
 transform. Names remain independently editable in player setup.

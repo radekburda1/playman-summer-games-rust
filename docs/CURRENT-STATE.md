@@ -1,6 +1,6 @@
-# Playman Rust desktop handoff — 2026-11-02
+# Playman Rust desktop handoff — 2026-11-03
 
-This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. The latest user feature request (add Radek) is complete. Await the user's next task after initialization; do not invent cleanup work or commit.
+This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. Latest work corrects the brother torso artwork and lean-angle mapping. Await the user's next task after initialization; do not invent cleanup work or commit.
 
 ## Start here
 
@@ -17,11 +17,10 @@ Rust/Macroquad reconstruction of Playman Summer Games 3. Browser game `http://12
 
 Workspace root `/Users/Radek.Burda/Documents/Codex/2026-10-25/you-are-an-expert-systems-engineer`. Current chat artifact folder `/Users/Radek.Burda/Documents/Codex/2026-11-01/new-chat/outputs`.
 
-HEAD: `be538be Add original character selection with matching bodies`.
-Earlier commits: `ec8f51d` race replay/finish fixes, `1acdf96` local multiplayer, `ce51845` audio fixes. Everything concerning custom brother/Kubak/Radek is UNCOMMITTED.
+HEAD at this pass: `a22fe71 Add custom character implementation and rendering support`.
+Earlier commits: `ec8f51d` race replay/finish fixes, `1acdf96` local multiplayer, `ce51845` audio fixes. Custom brother/Kubak/Radek implementation was committed before this pass. The checkout was clean on initialization.
 
-Modified tracked files: DEVELOPER.md, README.md, src/assets/{artwork.rs,character.rs,mod.rs}, src/rendering/{art.rs,backend.rs,mod.rs,ui.rs}, tests/character_faces.rs, web/index.html.
-Untracked: assets/custom/, src/assets/custom_character.rs, src/rendering/atlas.rs, tests/custom_character.rs. These are essential implementation files, not disposable temporary files.
+This pass modifies brother torso atlas composition, dimensions, regression tests, documentation and the staged web content hash. Runtime uses new assets/custom/brother-torsos-shoulders.png; the previous sheets are retained. No commits or staging performed.
 
 ## Architecture to preserve
 
@@ -42,25 +41,42 @@ Original metadata maps sex/body bank, skin and head resources. All custom faces 
 Virtual indices relative to BASE:
 - 0..3 brother head profile / three-quarter / front / rear; 4/5 transparent small/large portrait.
 - 6..26 brother limbs from original male bank (1.45x width).
-- 27..30 brother purpose-drawn torso profile / three-quarter / front / rear. Sizes48x40,48x36,52x34,52x34. Map original uniform612..615.
+- 27..30 brother torso lean-pose slots, sampling the original generated profile with shoulder/hip registration. Each96x96 including transparent padding. Map original uniform612..615.
 - 31..34 Kubak heads; 35/36 transparent menu previews using the same neckless FRONT head (not opaque reference portrait).
 - 37..40 Radek heads; 41/42 transparent menu previews using the same neckless FRONT head.
 
 `src/rendering/atlas.rs` embeds assets and resizes alpha-bounded views with nearest-neighbor. Original bytes copied unchanged. Brother/Kubak head sheets use quarter-cell bounds. Torso and Radek views use transparent gutters near quarter boundaries before alpha bounding. This is crucial: generated torsos were unevenly spaced, and exact quarter cuts previously picked up neighboring strips and shifted visible centers.
 
-`custom_character::anchor_offset` aligns generated torso shoulder/waist landmarks to animation: profile(6,2), three-quarter(3,1), front/rear zero. Offset transforms with all8 mirrors/rotations and is applied in Artwork::sprite. No offsets for heads/standard bodies.
+`custom_character::torso_sample` maps unchanged calibrated shoulder/hip joints
+into source landmarks (18%,17%)/(47%,94%). The bottom waistband attaches to the
+shorts/leg joint. Front width scales 1.5x across the body axis, without extending
+body length. The previous 70% anchor caused the belly to cover the legs and is removed.
+`anchor_offset` returns zero; registration is baked into the padded sprites
+before all eight transforms.
 
 Current brother heads: bald under black BACKWARD cap, full brown beard. All heads end at jaw/skull base with NO NECK. Rear cap brim remains backward. Kubak: swept light-brown hair, blue eyes, short beard. Radek: bald, blue eyes, light stubble, smiling.
 
-## Body iterations / avoid regressions
+## Brother shoulder correction — current pass
 
-User wants Brother comically round. Initial runtime warping and lower-half opaque skin fill produced an awful flat bowl-shaped detached belly. That code was removed. Current `brother-torsos.png` is purpose-drawn red singlet covering a continuous round belly, black waistband, four views. Do not restore procedural belly fill or stretch source 2.6x.
+User accepted the leg fit but reported the upper torso not fitting shoulders.
+Measured the old enclosed armhole center at 25.5%/17.35% in alpha-bounded space;
+previous guessed registration was 28%/22%. The tall enclosed shoulder loop also
+protruded. Built-in image_gen edited only the upper torso using the second sheet
+(brother-torsos-v2.png) as an open-shoulder reference, retaining low-belly artwork.
+Runtime source is brother-torsos-shoulders.png, with the shallow open socket at
+18%/17% and unchanged bottom waistband at47%/94%. Front width 1.5x; no leg extension.
+All old generated sheets remain. Exact prompt/provenance in assets/custom/README.md.
 
-A later strip/placement bug was fixed by transparent-gutter segmentation plus transformed anchor offsets. Last standing/running previews: `outputs/brother-aligned-standing.jpg`, `outputs/brother-aligned-running.jpg` in current chat artifact folder. The generated source sheet itself looked good before integration; always verify integration visually, do not equate valid alpha/tests with good positioning.
+Browser standing and running inspected. Screenshots in
+`/Users/Radek.Burda/.codex/visualizations/2026/11/02/01a19e70-a6c1-72f3-87ff-0d545c49e17f/`:
+`brother-shoulder-standing.png`, `brother-shoulder-running.png`.
+New test checks transparent room at all four arm joints; hem-to-leg regression
+and transformed clipping checks remain. Native visuals and complete field-event
+sequences were not rechecked.
 
 ## Assets / generation
 
-Runtime files in repo assets/custom/: brother-heads.png, brother-torsos.png, brother-reference.png, kubak-heads.png, kubak-reference.png, radek-heads.png and README.md. Reference images retained for provenance; selectors now use generated transparent FRONT head for all custom people.
+Runtime files in repo assets/custom/: brother-heads.png, brother-torsos-shoulders.png, brother-reference.png (previous torso sheets retained), kubak-heads.png, kubak-reference.png, radek-heads.png and README.md. Reference images retained for provenance; selectors now use generated transparent FRONT head for all custom people.
 
 Built-in image_gen was used, transparent_background=true; no API key or fallback CLI. Skill `/Users/Radek.Burda/.codex/skills/.system/imagegen/SKILL.md`. Use that skill for further raster generation/edits. Inspect local images before editing. Runtime assets copied into repo, never reference only CODEX_HOME generated files. Exact prompts/provenance in assets/custom/README.md and current chat outputs/*-notes.md. Preserve bald/backward-cap corrections and NO NECK requirements.
 
@@ -68,7 +84,7 @@ Latest Radek generated source `/Users/Radek.Burda/.codex/generated_images/01a199
 
 ## Verification / commands
 
-Latest Radek pass: all76 tests passed, Clippy with warnings denied, formatting and diff checks, web bundle/storage checks, web and macOS release builds passed. Tests cover all faces/poses/resource transforms, unchanged original pixels, standard body mapping for Kubak/Radek, independent appearance, menu transparency, torso strip regression and transformed anchors.
+Prior Radek pass: all76 tests passed, Clippy with warnings denied, formatting and diff checks, web bundle/storage checks, web and macOS release builds passed. Tests cover all faces/poses/resource transforms, unchanged original pixels, standard body mapping for Kubak/Radek, independent appearance, menu transparency, torso strip regression and transformed anchors.
 
 Commands from repo:
 ```
@@ -83,9 +99,14 @@ make mac-app
 ```
 Ignored .make.local sets existing wasm toolchain/cache (Cargo1.90); preserve it. Native app output dist/Playman Rust.app. Avoid direct agent launch of native executable (OpenGL environment failures); use LaunchServices if needed. Do not discard native records.
 
-Latest logs /tmp/radek-tests.log, /tmp/radek-web.log, /tmp/radek-native.log. Do not claim logs still current after edits.
+Current logs: /tmp/shoulder-tests.log, /tmp/shoulder-custom.log,
+/tmp/shoulder-clippy.log, /tmp/shoulder-web.log, /tmp/shoulder-native.log.
+All 79 tests passed, including arm-socket clearance, joint fit, hem-to-leg,
+transformed clipping and original-pixel preservation checks. Clippy, formatting,
+diff checks, web bundle/storage and web/macOS release builds passed. Standing
+and running were observed in the browser. Native visuals were not rechecked.
 
-Latest live verification: Radek transparent selector and Dash run with standard body. Screenshots outputs/radek-selection.jpg and outputs/radek-running.jpg. Original12 + all custom all318pose/resource checks automated; not all15 characters ×5 events visually inspected. Native custom-character visuals were not individually checked. Audio was user-confirmed earlier, not re-verified for custom faces. Browser settings/appearances reset on reload.
+Prior live verification: Radek transparent selector and Dash run with standard body. Screenshots outputs/radek-selection.jpg and outputs/radek-running.jpg. Original12 + all custom all318pose/resource checks automated; not all15 characters ×5 events visually inspected. Native custom-character visuals were not individually checked. Audio was user-confirmed earlier, not re-verified for custom faces. Browser settings/appearances reset on reload.
 
 ## Browser workflow
 

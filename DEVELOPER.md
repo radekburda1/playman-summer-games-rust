@@ -391,15 +391,20 @@ Brother head revision: all four views end at jaw/skull base without a neck. Both
 
 Kubak also uses neckless jaw/skull-base silhouettes in all four views; rear-view height is 28 pixels. Standard body and supplied selector portrait are preserved.
 
-Brother cartoon body: torso width envelope peaks at 2.6x, limb width is 1.45x. The lower torso is drawn as an outlined, shaded exposed belly beneath the jersey and above a dark waistband. Custom cells are now 96px; runtime rects and atlas composition share this constant. Body changes remain cosmetic.
-
-Cartoon body verification: standing and Dash running poses inspected live in browser. Full suite (73 tests), targeted atlas checks after the final curve refinement, Clippy, web storage/bundle checks and web/macOS builds pass. Other event poses were not individually inspected in this pass.
-
-Torso correction supersedes the procedural exposed belly above: brother sprites 27–30 now sample four alpha-bounded views from brother-torsos.png, at 48x40 / 48x36 / 52x34 / 52x34. Removed row-width warp and opaque lower-half fill, which caused the flat disconnected belly artifact. Original centers and all eight transforms are preserved.
-
-Replacement torso checked live in standing and Dash running poses. Full 73-test suite passed before final width adjustment; targeted custom-character tests passed afterward. Web/macOS builds and Clippy passed. Other event poses were not individually inspected.
-
-Torso alignment fix: generated torso gutters are located by transparent-column minima near quarter boundaries, then alpha-bounded independently. Exact quarter crops included neighboring-view strips and shifted the apparent center. Profile/three-quarter shoulder offsets (6,2)/(3,1) follow all eight sprite transforms. Tests detect disconnected neighboring strips and verify rotated/mirrored offsets. Standing and Dash motion inspected live.
+Brother torso slots 612–615 represent successive lean poses, not camera views.
+Runtime samples the profile of `brother-torsos-shoulders.png`, drawn with a compact
+chest and large low abdomen. Pure asset metadata records calibrated shoulder/hip
+landmarks for each original pose. `torso_sample` inversely maps the shoulder to
+(18%,17%) and bottom waistband to (47%,94%) in the source, attaching the hem
+to the shorts/leg joint. Front width scales 1.5x across the torso axis; length is
+fixed by the two joints. No opaque belly fill is applied. A regression bounds
+the hem within 15% of the shoulder-to-hip length beyond the hip, preventing the
+previous 70% source anchor from extending the belly toward the knees. Sprites
+use 96x96 transparent cells before all eight transforms, with no post-placement
+offsets. Limbs retain 1.45x width. Original pixels and mechanics remain unchanged.
+The open shoulder socket replaces a tall closed loop, with a transparent arm-joint
+regression alongside the hem-to-leg regression. Previous generated sheets remain in the checkout. Prompts/provenance are in
+assets/custom/README.md.
 
 Radek is Face 14 (15 total choices); his six virtual sprites append at BASE+37. Four neckless head views and two transparent menu sizes share radek-heads.png. Body/uniform mapping remains standard male, independent of simulation. Generated heads are separated by transparent gutters to avoid neighboring strips.
 

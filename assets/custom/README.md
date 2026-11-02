@@ -1,12 +1,67 @@
 # Brother character assets
 
+## Current shoulder correction — 2026-11-03
+
+Runtime uses `brother-torsos-shoulders.png`. Built-in image_gen edited the upper
+third of `brother-torsos-low-belly.png`, using `brother-torsos-v2.png` as a compact
+open-shoulder reference. Transparent_background=true. Four views remain; runtime
+samples the profile and supplies all four lean poses and eight transforms. The
+low round belly and bottom waistband remain; the enclosed tall shoulder loop is
+replaced by a shallow open arm socket. No original game artwork is overwritten.
+
+The old enclosed hole was measured at 25.5% width/17.35% height within its alpha
+bounds, rather than the original guessed 28%/22%. The edited open socket is fitted
+at 18%/17%; bottom waistband remains 47%/94%. Front width is 1.5x. Rig joints, body
+length, leg attachment and 96x96 transparent cells are preserved. Tests check the
+arm socket is transparent at each arm joint and the hem stays near each hip.
+Thin downsampled waistband shading may occupy only a few gray pixels.
+
+Generated source: `/Users/Radek.Burda/.codex/generated_images/01a19e70-a6c1-72f3-87ff-0d545c49e17f/exec-d1f7480b-a9cb-490d-ad4c-79e4a7d034e3.png`.
+Exact built-in edit prompt:
+
+> Precise pixel-art asset edit. IMAGE 1 is edit target. IMAGE 2 is reference ONLY for its compact open shoulder/arm socket. Edit ONLY UPPER THIRD of the four torsos in image 1. Keep its low round fat belly, lower two thirds silhouette, red/white colors, black bottom waistband, all four views and overall bounds unchanged. Replace the tall closed circular shoulder hoop on profile and three-quarter views with the short OPEN shoulder shape like image 2: shoulder strap close to body, shallow side arm socket opening to LEFT edge in right-facing profile, NO enclosed round hole, NO upward/backward loop or spike. A compact neckline connecting to the near shoulder like original mobile athletics game singlet. No extra fabric tab behind shoulder. Keep chest small, belly very round and low, existing waist width and bottom baseline unchanged. Four isolated headless neckless armless legless torso views in one horizontal row: right profile, three-quarter right, front, rear. Chunky outlined pixel art, no neck head arms hands legs skin shadows text labels. True transparent background.
+
+## Previous low-belly source — retained for provenance
+
+`brother-torsos-low-belly.png` was the edit target above. Its source and prompt:
+
+Source: `/Users/Radek.Burda/.codex/generated_images/01a19e70-a6c1-72f3-87ff-0d545c49e17f/exec-fa78a601-cf7e-4184-b521-e0d24bc7c97b.png`.
+Edit target: `brother-torsos.png`. Exact prompt:
+
+> Edit this pixel-art torso sprite sheet. Keep exactly four views in one horizontal row, side profile RIGHT, 3/4 right, front, rear, same red singlet white side stripe black waistband, headless armless legless. Main change: make the man VERY FAT WITH A LOW SAGGING POT BELLY, NOT a muscular big chest. Upper chest must be small and almost flat, narrow shoulders; upper third compact. Enormous soft round abdomen in the LOWER TWO THIRDS, maximum forward projection near 75 percent of torso height. Round hanging belly over a low narrow black waistband. Clear pear-shaped silhouette: thin top, huge round bottom, rounded bottom edge, absolutely no pointed or cone shape. Side profile: nearly vertical chest then curve OUT far to RIGHT and DOWN into a large rounded drooping belly. Keep shoulder socket center around x28%,y22% and waistband center around x47%,y94% of profile silhouette bounds, so existing limb attachment points still fit. Four separated transparent cells, whole torsos visible. Simple chunky low resolution mobile-game pixel art with three-tone shading and dark outlines, no muscle shading, no pecs, no abs. No neck head arms hands legs feet shadows text labels. Truly transparent background.
+
+The bottom waistband at 94% is the current hip attachment. The previous 70%
+experiment is removed: it stretched the belly down over the legs. A hem-position
+regression now checks every lean pose in addition to joint fit and cell clipping.
+
+## Superseded torso rig correction — 2026-11-02
+
+The prior iteration used `brother-torsos-v2.png`, made with the built-in image_gen edit tool
+and `transparent_background=true`. The original `brother-torsos.png` is retained.
+The revised profile has a rounded covered pot belly, narrow waistband and open
+shoulder socket instead of a large enclosed black hole. Only the first profile
+cell is consumed: original uniform slots 612–615 are successive lean angles,
+not profile/three-quarter/front/rear views. The atlas compositor rotates this
+profile by -15, 15, 45 and 75 degrees, nearest-neighbor samples into 52x40,
+52x36, 56x34 and 56x32 sprites, then provides all eight original transforms.
+Existing transformed anchor offsets and 1.45x limbs remain. The other generated
+views are retained as source material, not incorrectly inserted into bent poses.
+
+Source: `/Users/Radek.Burda/.codex/generated_images/01a19e70-a6c1-72f3-87ff-0d545c49e17f/exec-8e215fc7-d336-4b0b-a850-7815891c95f6.png`.
+Edit target: existing `brother-torsos.png`. Exact prompt:
+
+> Use case: precise-object-edit. Edit target: attached four torso sheet. Create improved replacement game torso sprite sheet, exactly FOUR isolated headless armless torsos in one horizontal row, views right-facing profile, three-quarter right, front, rear. Same red singlet white side stripe and black shorts waistband. Funny fat adult male athlete, big round low pot belly, compact chest and shoulders, NARROW waist attachment at bottom for short stocky legs. Important: belly projects FORWARD (RIGHT) in profile, back contour nearly straight. Keep roundness but remove inflated beach-ball / sack shape. Remove the huge black outlined circular shoulder hole: use a SMALL shallow arm socket at upper back left in profile, no enclosed black circle, no skin or limbs. Compact shoulders at top taper through broad round belly to narrow bottom waistband. Front and rear broadly rounded but narrow waistband, no deep neckline. No head, neck, arms, hands, legs, feet. Match actual low resolution 2008 mobile pixel sprites, deliberate chunky pixels, simple 3 tone shading, dark 1-2 pixel outlines at intended 40px height, NO gradients. Four well separated consistent scale views with generous transparent gutters, equal cells. Transparent background, no labels shadows or extra items.
+
+The sections below record previous generation iterations; the first section describes
+the current torso integration.
+
 ## Radek
 
 `radek-heads.png` was generated with built-in image_gen, transparent_background=true, using the supplied Radek portrait as identity reference. Four neckless views supply gameplay; the same frontal head supplies both transparent menu sizes. Standard body and uniform. Prompt:
 
 Generate a production pixel-art HEAD sprite sheet based on this man, Radek. Preserve his recognizable bald shaved head (NO hair, NO cap), bright blue eyes, warm light skin, light short brown stubble beard, dark eyebrows and broad friendly toothy smile. Exactly FOUR isolated HEAD ONLY views in ONE horizontal row: strict right-facing profile, three-quarter right, full front, full rear. NO NECK in any view: silhouette ends at chin/jaw, rear ends at skull base just below ears. No neck stubs, no shoulders, no shirt, no body. Compact rounded heads like 2008 Playman mobile athletics game. Chunky low-resolution pixel outlines, simple 3-tone shading suitable for nearest neighbor reduction to about 30x35 pixels. Consistent identity and scale across all four views. Four evenly spaced cells with generous fully transparent gutters and padding. Actual transparent background; no reference UI, frame, labels or text. Frontal view must work as transparent head-selection portrait.
 
-Current torso correction replaces the procedural belly described below. `brother-torsos.png` contains four purpose-drawn transparent views, generated with built-in image_gen. The red singlet covers a continuous round belly. Native sizes are 48x40, 48x36, 52x34 and 52x34; original animation centers are preserved. The former exposed-midriff pixel fill is removed.
+Earlier torso correction replaced the procedural belly described below. `brother-torsos.png` contains four purpose-drawn transparent views, generated with built-in image_gen. The red singlet covers a continuous round belly. Native sizes are 48x40, 48x36, 52x34 and 52x34; original animation centers are preserved. The former exposed-midriff pixel fill is removed.
 
 Torso generation prompt:
 
@@ -93,6 +148,6 @@ Create a production transparent pixel-art HEAD sprite sheet for a 2008 mobile at
 
 ## Cartoon body revision
 
-The code-generated brother torso now has a 2.6x maximum belly width, a short jersey over a shaded exposed midriff and waistband. Limbs use 1.45x width. Custom atlas cells are 96 pixels to contain the broader silhouettes. Original joint hooks and simulation remain unchanged. The supplied cartoon example guides proportions only.
+The superseded code-generated brother torso had a 2.6x maximum belly width, a short jersey over a shaded exposed midriff and waistband. Limbs use 1.45x width. Custom atlas cells are 96 pixels to contain the broader silhouettes. Original joint hooks and simulation remain unchanged. The supplied cartoon example guides proportions only.
 
 Kubak menu correction: both preview sizes now sample the transparent neckless frontal head, not the supplied opaque portrait crop. Reference image is retained for provenance only.

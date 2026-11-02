@@ -74,32 +74,32 @@ impl Face {
         }
         let default_head = if scene == 0 { 794 } else { 790 };
         if (default_head..default_head + 4).contains(&sprite) {
-            return if self.is_brother() {
-                super::custom_character::BASE + sprite - default_head
-            } else if self.is_radek() {
-                super::custom_character::RADEK + sprite - default_head
-            } else if self.is_kubak() {
-                super::custom_character::KUBAK + sprite - default_head
-            } else {
-                self.table_value(3) as usize + sprite - default_head
-            };
+            return self
+                .custom_head(sprite - default_head)
+                .unwrap_or_else(|| self.table_value(3) as usize + sprite - default_head);
         }
         if self.is_brother() && (612..616).contains(&sprite) {
             return super::custom_character::BASE + 27 + sprite - 612;
         }
         sprite
     }
+    // Keep custom faces visible during the original rear-facing head turns.
+    fn custom_head(self, view: usize) -> Option<usize> {
+        let base = if self.is_brother() {
+            super::custom_character::BASE
+        } else if self.is_kubak() {
+            super::custom_character::KUBAK
+        } else if self.is_radek() {
+            super::custom_character::RADEK
+        } else {
+            return None;
+        };
+        Some(base + if view == 3 { 1 } else { view })
+    }
     pub fn head_sprite(self, sprite: usize) -> usize {
         if (794..798).contains(&sprite) {
-            if self.is_brother() {
-                super::custom_character::BASE + sprite - 794
-            } else if self.is_radek() {
-                super::custom_character::RADEK + sprite - 794
-            } else if self.is_kubak() {
-                super::custom_character::KUBAK + sprite - 794
-            } else {
-                self.table_value(3) as usize + sprite - 794
-            }
+            self.custom_head(sprite - 794)
+                .unwrap_or_else(|| self.table_value(3) as usize + sprite - 794)
         } else {
             sprite
         }
