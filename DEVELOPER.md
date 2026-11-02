@@ -225,3 +225,29 @@ paths, (2) independent simulation/presentation clocks and application orchestrat
 (3) visibility, architectural checks and replay migrations, (4) documentation.
 The second step needs its replay-test changes in the same commit. No commits are
 created automatically.
+
+## Local multiplayer flow
+
+ModeSelect precedes the event menu; PlayerSetup supports 2–6 human players.
+App owns the roster, active player, round and per-player event bests/totals.
+No multiplayer state enters simulation or changes the 32ms mechanics.
+The active best is saved only when confirming a completed turn. Field events
+rotate players before advancing the round. Standings gates the next tournament
+event; points are awarded once after the final turn. Setup names are ASCII,
+limited to 10 characters and kept in memory. The platform suppresses gameplay
+letter aliases, Space confirmation and M mute while editing names.
+
+`tests/multiplayer_flow.rs` covers mode/setup boundaries, two/six-player rotation
+for all five events, best preservation through fouls, stable ties, retry and
+complete tournament totals. These are application flow checks, not additional
+Java physics parity fixtures. Source inspection of original d.s(int), d.aG(),
+d.ap() and d.aq() established roster bounds, round rotation and score ordering.
+CPU opponents and character/country setup are deferred.
+
+Live browser verification of the initial multiplayer implementation covered mode
+selection, the six-player setup layout, reducing back to two players, typing ADA
+without triggering A/D navigation, named NEXT UP/finish screens, and a complete
+two-player Dash (ADA 9.15s, PLAYER 2 9.12s) with correctly ordered standings.
+Six-player gameplay, full field-event rotation and complete tournaments have
+application-test coverage but have not yet been played through live. The native
+app was rebuilt, not exercised live for multiplayer.

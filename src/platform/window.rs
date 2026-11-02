@@ -7,10 +7,10 @@ use crate::{
 };
 use crate::{rendering::art::Art, rendering::ui, rendering::world};
 use macroquad::prelude::*;
-fn frame_input() -> FrameInput {
+fn frame_input(editing_players: bool) -> FrameInput {
     let pressed = |keys: &[KeyCode]| keys.iter().any(|key| is_key_pressed(*key));
     let action_keys = [KeyCode::Space, KeyCode::Key5, KeyCode::Kp5];
-    FrameInput {
+    let mut input = FrameInput {
         enter: pressed(&[KeyCode::Enter]),
         action: pressed(&action_keys),
         action_released: action_keys.iter().any(|key| is_key_released(*key)),
@@ -21,7 +21,15 @@ fn frame_input() -> FrameInput {
         escape: pressed(&[KeyCode::Escape]),
         pause: pressed(&[KeyCode::P]),
         retry: pressed(&[KeyCode::R]),
+        text: get_char_pressed(),
+        backspace: pressed(&[KeyCode::Backspace]),
+    };
+    if editing_players {
+        input.action = false;
+        input.left = pressed(&[KeyCode::Left]);
+        input.right = pressed(&[KeyCode::Right]);
     }
+    input
 }
 pub fn config() -> Conf {
     Conf {
@@ -66,11 +74,11 @@ pub async fn run() {
     let mut frames = 0;
     loop {
         let dt = get_frame_time().min(0.125);
-        if is_key_pressed(KeyCode::M) {
+        if app.screen != Screen::PlayerSetup && is_key_pressed(KeyCode::M) {
             sounds.muted = !sounds.muted;
         }
         let previous_seed = app.seed;
-        let effects = app.update(dt, frame_input());
+        let effects = app.update(dt, frame_input(app.screen == Screen::PlayerSetup));
         if app.seed != previous_seed {
             sounds.begin_attempt();
         }

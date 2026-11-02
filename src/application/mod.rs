@@ -8,6 +8,9 @@ use crate::{
 };
 #[derive(Clone, Copy, PartialEq)]
 pub enum Screen {
+    ModeSelect,
+    PlayerSetup,
+    Standings,
     Menu,
     ResetRecords,
     Help,
@@ -18,7 +21,28 @@ pub enum Screen {
     Results,
     Complete,
 }
+#[derive(Clone)]
+pub struct Player {
+    pub name: String,
+    pub results: [Option<i32>; 5],
+    pub total: i32,
+}
+impl Player {
+    fn new(index: usize) -> Self {
+        Self {
+            name: format!("PLAYER {}", index + 1),
+            results: [None; 5],
+            total: 0,
+        }
+    }
+}
 pub struct App {
+    pub multiplayer: bool,
+    pub mode_selection: usize,
+    pub player_count: usize,
+    pub setup_selection: usize,
+    pub players: Vec<Player>,
+    pub current_player: usize,
     pub screen: Screen,
     pub selected: usize,
     pub game: Game,
@@ -44,7 +68,13 @@ pub struct App {
 impl App {
     pub fn new(records: [Option<i32>; 5]) -> Self {
         Self {
-            screen: Screen::Menu,
+            screen: Screen::ModeSelect,
+            multiplayer: false,
+            mode_selection: 0,
+            player_count: 2,
+            setup_selection: 0,
+            players: (0..6).map(Player::new).collect(),
+            current_player: 0,
             selected: 0,
             game: Game::new(Event::Dash, 25),
             effects: Default::default(),
@@ -71,13 +101,38 @@ impl App {
     /// Explicit one-shot jingles remain separate from this background policy.
     pub fn background_music(&self) -> Option<usize> {
         match self.screen {
-            Screen::Menu
+            Screen::ModeSelect
+            | Screen::PlayerSetup
+            | Screen::Standings
+            | Screen::Menu
             | Screen::ResetRecords
             | Screen::Help
             | Screen::Results
             | Screen::Complete => Some(1 + (self.seed as usize / 1009) % 3),
             Screen::AwaitStart | Screen::Ready | Screen::Play | Screen::Finish => None,
         }
+    }
+    pub fn player_name(&self) -> &str {
+        &self.players[self.current_player].name
+    }
+    pub fn standings(&self) -> Vec<usize> {
+        let mut order: Vec<_> = (0..self.player_count).collect();
+        order.sort_by(|&a, &b| {
+            if self.tournament {
+                self.players[b].total.cmp(&self.players[a].total)
+            } else {
+                let a = self.players[a].results[self.selected];
+                let b = self.players[b].results[self.selected];
+                match (a, b) {
+                    (Some(a), Some(b)) if self.game.event().race() => a.cmp(&b),
+                    (Some(a), Some(b)) => b.cmp(&a),
+                    (Some(_), None) => std::cmp::Ordering::Less,
+                    (None, Some(_)) => std::cmp::Ordering::Greater,
+                    _ => std::cmp::Ordering::Equal,
+                }
+            }
+        });
+        order
     }
     pub fn start(&mut self) {
         self.seed = self.seed.wrapping_add(1009);
@@ -108,6 +163,24 @@ impl App {
         self.clock = 0.;
     }
     pub fn advance(&mut self) {
+        if self.multiplayer {
+            self.players[self.current_player].results[self.selected] = self.best;
+            if self.current_player + 1 < self.player_count {
+                self.current_player += 1;
+            } else if !self.game.event().race() && self.attempt < 2 {
+                self.current_player = 0;
+                self.attempt += 1;
+            } else {
+                for player in self.players.iter_mut().take(self.player_count) {
+                    player.total += self.game.event().score(player.results[self.selected]);
+                }
+                self.screen = Screen::Standings;
+                return;
+            }
+            self.best = self.players[self.current_player].results[self.selected];
+            self.start();
+            return;
+        }
         if !self.game.event().race() && self.attempt < 2 {
             self.attempt += 1;
             self.start();
@@ -163,6 +236,8 @@ pub struct FrameInput {
     pub escape: bool,
     pub pause: bool,
     pub retry: bool,
+    pub text: Option<char>,
+    pub backspace: bool,
 }
 #[derive(Default)]
 pub struct FrameEffects {
@@ -202,11 +277,89 @@ impl App {
         if esc {
             self.outgoing = None;
             self.advance_after_transition = false;
-            self.screen = Screen::Menu;
+            self.screen = match self.screen {
+                Screen::Menu | Screen::PlayerSetup => Screen::ModeSelect,
+                Screen::ModeSelect => Screen::ModeSelect,
+                _ => Screen::Menu,
+            };
             self.paused = false;
             self.clock = 0.;
         }
         match self.screen {
+            Screen::ModeSelect => {
+                if previous || next {
+                    self.mode_selection ^= 1;
+                }
+                if confirm && !esc {
+                    self.multiplayer = self.mode_selection == 1;
+                    self.current_player = 0;
+                    self.screen = if self.multiplayer {
+                        Screen::PlayerSetup
+                    } else {
+                        Screen::Menu
+                    };
+                }
+            }
+            Screen::PlayerSetup => {
+                if input.up {
+                    self.setup_selection = self.setup_selection.saturating_sub(1);
+                }
+                if input.down {
+                    self.setup_selection = (self.setup_selection + 1).min(self.player_count + 1);
+                }
+                if self.setup_selection == 0 {
+                    if input.left {
+                        self.player_count = if self.player_count == 2 {
+                            6
+                        } else {
+                            self.player_count - 1
+                        };
+                    }
+                    if input.right {
+                        self.player_count = if self.player_count == 6 {
+                            2
+                        } else {
+                            self.player_count + 1
+                        };
+                    }
+                } else if self.setup_selection <= self.player_count {
+                    let name = &mut self.players[self.setup_selection - 1].name;
+                    if input.backspace {
+                        name.pop();
+                    }
+                    if let Some(c) = input
+                        .text
+                        .filter(|c| name.len() < 10 && (c.is_ascii_alphanumeric() || *c == ' '))
+                    {
+                        name.push(c.to_ascii_uppercase());
+                    }
+                }
+                if confirm && !esc {
+                    if self.setup_selection == self.player_count + 1 {
+                        for (i, player) in self.players.iter_mut().enumerate() {
+                            if player.name.trim().is_empty() {
+                                player.name = format!("PLAYER {}", i + 1);
+                            }
+                        }
+                        self.screen = Screen::Menu;
+                    } else {
+                        self.setup_selection += 1;
+                    }
+                }
+            }
+            Screen::Standings => {
+                if confirm && !esc {
+                    if self.tournament && self.selected < 4 {
+                        self.selected += 1;
+                        self.current_player = 0;
+                        self.attempt = 0;
+                        self.best = None;
+                        self.screen = Screen::Help;
+                    } else {
+                        self.screen = Screen::Menu;
+                    }
+                }
+            }
             Screen::Menu => {
                 if input.retry && !esc {
                     self.screen = Screen::ResetRecords;
@@ -220,6 +373,11 @@ impl App {
                 if confirm {
                     self.tournament = self.selected == 5;
                     self.selected = if self.tournament { 0 } else { self.selected };
+                    self.current_player = 0;
+                    for player in &mut self.players {
+                        player.results = [None; 5];
+                        player.total = 0;
+                    }
                     self.total = 0;
                     self.attempt = 0;
                     self.best = None;

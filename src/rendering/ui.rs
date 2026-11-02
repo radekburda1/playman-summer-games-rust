@@ -196,7 +196,7 @@ pub fn game_hud(art: &Art, app: &App) {
     draw_rectangle(0., 0., 240., 36., WHITE);
     draw_line(0., 36., 240., 36., 1., RED);
     art.scaled_sprite(25 + event_index(g.event()), 21., 20., 0.72);
-    art.label(3, "PLAYER 1", 42., 5., 0);
+    art.label(3, app.player_name(), 42., 5., 0);
     if g.event().race() {
         let n = g.elapsed_ms * 100 / 1024;
         art.label(5, &format!("{}.{:02}", n / 100, n % 100), 235., 9., 2)
@@ -276,6 +276,78 @@ pub fn game_hud(art: &Art, app: &App) {
 }
 pub fn draw(art: &Art, app: &App, muted: bool) {
     match app.screen {
+        Screen::ModeSelect => {
+            header(art, "GAME MODE", None);
+            for (i, title) in ["SINGLEPLAYER", "MULTIPLAYER"].iter().enumerate() {
+                let y = 105. + i as f32 * 50.;
+                if i == app.mode_selection {
+                    band(y - 4., 29.);
+                }
+                art.label(3, title, 120., y, 1);
+            }
+            small("Multiplayer: share this device", 27., 235., BLACK);
+            footer("Select", "");
+        }
+        Screen::PlayerSetup => {
+            header(art, "PLAYERS", None);
+            for i in 0..=app.player_count + 1 {
+                let y = 47. + i as f32 * 29.;
+                if i == app.setup_selection {
+                    band(y - 2., 27.);
+                }
+                let label = if i == 0 {
+                    format!("< PLAYERS: {} >", app.player_count)
+                } else if i == app.player_count + 1 {
+                    "CONTINUE".into()
+                } else {
+                    format!("{}: {}", i, app.players[i - 1].name)
+                };
+                art.label(3, &label, 120., y, 1);
+            }
+            small("Up/down: select. Type to edit name.", 13., 292., BLACK);
+            footer("Next", "Back");
+        }
+        Screen::Standings => {
+            header(art, "STANDINGS", None);
+            small(
+                if app.tournament {
+                    "TOURNAMENT POINTS"
+                } else {
+                    "EVENT RESULTS"
+                },
+                50.,
+                65.,
+                BLACK,
+            );
+            for (rank, index) in app.standings().into_iter().enumerate() {
+                let player = &app.players[index];
+                let y = 90. + rank as f32 * 32.;
+                if rank == 0 {
+                    band(y - 2., 30.);
+                }
+                small(
+                    &format!("{}. {}", rank + 1, player.name),
+                    15.,
+                    y + 12.,
+                    BLACK,
+                );
+                let value = if app.tournament {
+                    player.total.to_string()
+                } else {
+                    result(app.game.event(), player.results[app.selected])
+                };
+                let width = measure_text(&value, None, 14, 1.).width;
+                small(&value, 230. - width, y + 12., BLACK);
+            }
+            footer(
+                if app.tournament && app.selected < 4 {
+                    "Next event"
+                } else {
+                    "Menu"
+                },
+                "Menu",
+            );
+        }
         Screen::Menu => menu(art, app),
         Screen::ResetRecords => {
             header(art, "RESET RECORDS", None);
@@ -299,7 +371,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             event_header(art, app, "NEXT UP");
             let offset = slide(app);
             draw_rectangle(-offset, 54., 240., 27., Color::new(0.08, 0.13, 0.2, 0.75));
-            art.label(3, "PLAYER 1", 120. - offset, 57., 1);
+            art.label(3, app.player_name(), 120. - offset, 57., 1);
             let mut camera = Camera::for_game(&app.game);
             if app.game.event().race() {
                 camera.x = 0;
@@ -347,7 +419,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             );
             let offset = slide(app);
             draw_rectangle(-offset, 54., 240., 27., Color::new(0.08, 0.13, 0.2, 0.75));
-            art.label(3, "PLAYER 1", 120. - offset, 57., 1);
+            art.label(3, app.player_name(), 120. - offset, 57., 1);
             let time = result(app.game.event(), app.game.result);
             let font = if app.game.result.is_some() { 6 } else { 3 };
             let width = BitmapFont::get(font).width(&time) as f32;

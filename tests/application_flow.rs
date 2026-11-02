@@ -96,6 +96,7 @@ fn reset_records_requires_confirmation_and_cancel_preserves_records() {
         retry: true,
         ..Default::default()
     };
+    app.screen = Screen::Menu;
     app.update(0.016, reset);
     assert!(app.screen == Screen::ResetRecords);
     assert_eq!(app.records, records);
@@ -121,6 +122,7 @@ fn background_music_stops_before_attempt_and_resumes_after_finish_confirmation()
     for selected in 0..5 {
         let mut app = App::new([Some(0); 5]);
         app.selected = selected;
+        app.screen = Screen::Menu;
         assert!(app.background_music().is_some());
         app.update(0., confirm());
         assert!(app.screen == Screen::Help);
