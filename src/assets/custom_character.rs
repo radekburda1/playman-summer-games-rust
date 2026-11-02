@@ -1,13 +1,20 @@
 //! Virtual sprites appended to the immutable original atlas at load time.
 pub const BASE: usize = 4096;
-pub const COUNT: usize = 43;
+pub const COUNT: usize = 49;
 pub const KUBAK: usize = BASE + 31;
 pub const RADEK: usize = BASE + 37;
+pub const BURDAS: usize = BASE + 43;
 pub const CELL: usize = 96;
 pub const ATLAS_WIDTH: usize = 2048;
 pub const ORIGINAL_HEIGHT: usize = 1249;
 pub fn dimensions(index: usize) -> (usize, usize) {
     match index {
+        43 => (34, 35),
+        44 => (31, 36),
+        45 => (29, 36),
+        46 => (28, 31),
+        47 => (25, 25),
+        48 => (50, 50),
         0 => (38, 36),
         1 => (34, 38),
         2 => (30, 38),

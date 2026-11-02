@@ -309,7 +309,7 @@ viewport visibility. These checks do not establish complete original-game parity
 ## Player appearance
 
 Player owns assets::character::Appearance separately from simulation state. Its
-bounded Face value cycles the 12 original character sets plus the custom brother and Kubak; default is Playman
+bounded Face value cycles the 12 original character sets plus the custom brother, Kubak, Radek and Burdas; default is Playman
 (index 1), preserving existing software/GPU fixtures. Original d.Y uses portrait
 sprites 41 + face (small) and 53 + face (selected). Original b0 character metadata
 at byte 646 contains five i32 values per face; the fourth value maps animation
@@ -408,14 +408,24 @@ The open shoulder socket replaces a tall closed loop, with a transparent arm-joi
 regression alongside the hem-to-leg regression. Previous generated sheets remain in the checkout. Prompts/provenance are in
 assets/custom/README.md.
 
-Radek is Face 14 (15 total choices); his six virtual sprites append at BASE+37. Four neckless head views and two transparent menu sizes share radek-heads.png. Body/uniform mapping remains standard male, independent of simulation. Generated heads are separated by transparent gutters to avoid neighboring strips.
+Radek is Face 14 (16 total choices including Burdas); his six virtual sprites append at BASE+37. Four neckless head views and two transparent menu sizes share radek-heads.png. Body/uniform mapping remains standard male, independent of simulation. Generated heads are separated by transparent gutters to avoid neighboring strips.
 
 Radek verification: transparent menu preview and Dash running pose inspected live; all 76 tests, Clippy, formatting, web storage/bundle checks and web/macOS builds pass. Other events and native visuals were not individually inspected in this pass.
 
-Custom head turns: Brother, Kubak and Radek map requested rear head view 3 to
+Custom head turns: Brother, Kubak, Radek and Burdas map requested rear head view 3 to
 existing three-quarter view 1 through one shared Face helper. Both head_sprite
 and sprite_for_scene use it, so prepared animation frames and direct head draws
 agree. Rear artwork remains stored for provenance; original 12 characters retain
 original view mappings. The all 318-pose regression checks every custom face for
 absence of the rear atlas rectangle, including its transforms. This is cosmetic
 and does not alter pose clocks, equipment hooks, replay or mechanics.
+
+Burdas is Face15, appending six sprites at BASE+43 (COUNT49): four neckless heads
+and two transparent menu previews sampling the frontal head. Source is
+assets/custom/burdas-heads.png, alpha-bounded through transparent gutters before
+nearest-neighbor resizing. Existing virtual IDs are unchanged. Standard male
+body/uniform/height mapping; no mechanics or original-pixel changes. Setup footer
+shows Burdas; user-entered names remain independent. All16 faces ×318 poses are
+covered by decoding/equipment checks; Burdas selection and Dash were inspected
+live. Exact generation prompt and identity/style reference provenance are in
+assets/custom/README.md.

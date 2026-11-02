@@ -7,10 +7,14 @@ impl Default for Face {
     }
 }
 impl Face {
-    pub const COUNT: usize = 15;
+    pub const COUNT: usize = 16;
     pub const BROTHER: Self = Self(12);
     pub const KUBAK: Self = Self(13);
     pub const RADEK: Self = Self(14);
+    pub const BURDAS: Self = Self(15);
+    pub fn is_burdas(self) -> bool {
+        self == Self::BURDAS
+    }
     pub fn is_radek(self) -> bool {
         self == Self::RADEK
     }
@@ -30,7 +34,9 @@ impl Face {
         Self((self.0 + Self::COUNT as u8 - 1) % Self::COUNT as u8)
     }
     pub fn portrait(self, large: bool) -> usize {
-        if self.is_radek() {
+        if self.is_burdas() {
+            super::custom_character::BURDAS + if large { 5 } else { 4 }
+        } else if self.is_radek() {
             super::custom_character::RADEK + if large { 5 } else { 4 }
         } else if self.is_brother() {
             super::custom_character::BASE + if large { 5 } else { 4 }
@@ -91,6 +97,8 @@ impl Face {
             super::custom_character::KUBAK
         } else if self.is_radek() {
             super::custom_character::RADEK
+        } else if self.is_burdas() {
+            super::custom_character::BURDAS
         } else {
             return None;
         };

@@ -337,7 +337,9 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 .filter(|index| *index < app.setup_player_count())
                 .map(|index| app.players[index].appearance.face);
             footer(
-                if character.is_some_and(|face| face.is_radek()) {
+                if character.is_some_and(|face| face.is_burdas()) {
+                    "Burdas / Next"
+                } else if character.is_some_and(|face| face.is_radek()) {
                     "Radek / Next"
                 } else if character.is_some_and(|face| face.is_kubak()) {
                     "Kubak / Next"

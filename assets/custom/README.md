@@ -1,5 +1,21 @@
 # Brother character assets
 
+## Burdas — 2026-11-03
+
+Runtime `burdas-heads.png` was generated with built-in image_gen,
+transparent_background=true. `burdas-reference.png` is the user's identity photo;
+`burdas-style-reference.png` is the user's original-character lineup reference,
+both copied unchanged. Four neckless views: right profile, three-quarter right,
+front, rear. Runtime sizes34x35,31x36,29x36,28x31. Both transparent menu sizes
+(25x25/50x50) use the frontal head. Rear-turn animations use the three-quarter
+view, as for the other custom characters. Standard male body/uniform/height.
+All six sprites append at BASE+43, preserving previous atlas coordinates.
+
+Generated source: `/Users/Radek.Burda/.codex/generated_images/01a19e70-a6c1-72f3-87ff-0d545c49e17f/exec-308d79fe-4799-401d-96f9-12bb37aafd93.png`.
+Exact prompt:
+
+> Create a production transparent pixel-art HEAD sprite sheet for Burdas, the man in IMAGE 1. IMAGE 1 is identity reference; IMAGE 2 is visual style reference of the game's original character lineup ONLY. Preserve recognizable short dark-brown slightly spiky hair, high/receding hairline and broad forehead, gray-blue eyes, brown eyebrows, prominent straight nose, thin light-brown mustache and very light jaw stubble (NOT a full beard), fair warm skin, small confident friendly smile. Match the charming outlined, bold-shaded pixel-art heads in image 2, a 2008 mobile athletics game, simple 3-tone shading and deliberate chunky pixels suitable for nearest-neighbor reduction to roughly32x35 pixels. Exactly FOUR isolated HEAD ONLY views in ONE horizontal row, evenly spaced equal cells: strict RIGHT-facing profile, three-quarter RIGHT, full FRONT, full REAR. Consistent head size/identity across views. Absolutely NO NECK in any view: ends at chin/jaw, rear at skull base just under ears. No neck stub, shoulders, collar, clothes, body, hat or accessories. Generous transparent margins and gutters, no touching/clipping. Actual transparent background, not a checkerboard. No background, text, labels, flags, UI or frame. Front head will also be the transparent selection portrait.
+
 ## Head-turn and shorts integration — 2026-11-03
 
 Brother, Kubak and Radek now use their existing three-quarter head whenever the

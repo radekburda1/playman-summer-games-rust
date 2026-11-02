@@ -1,6 +1,6 @@
 # Playman Rust desktop handoff — 2026-11-03
 
-This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. Latest work corrects the brother torso artwork and lean-angle mapping. Await the user's next task after initialization; do not invent cleanup work or commit.
+This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. Latest work adds Burdas as the fourth custom character. Await the user's next task after initialization; do not invent cleanup work or commit.
 
 ## Start here
 
@@ -17,12 +17,9 @@ Rust/Macroquad reconstruction of Playman Summer Games 3. Browser game `http://12
 
 Workspace root `/Users/Radek.Burda/Documents/Codex/2026-10-25/you-are-an-expert-systems-engineer`. Current chat artifact folder `/Users/Radek.Burda/Documents/Codex/2026-11-01/new-chat/outputs`.
 
-HEAD at final review: `0722e26 fix previous build` (user commit during verification; initial HEAD was `6242884 Poladit Misu spekouna`).
-Earlier commits: `ec8f51d` race replay/finish fixes, `1acdf96` local multiplayer, `ce51845` audio fixes. Earlier custom artwork and the head-turn implementation were committed by the user before this continuation. The checkout was clean on initialization. The user also committed code changes while this
-verification was running; only agent-authored documentation remained modified
-at the final review.
-
-This pass modifies brother torso atlas composition, dimensions, regression tests, documentation and the staged web content hash. Runtime uses new assets/custom/brother-torsos-shoulders.png; the previous sheets are retained. No commits or staging performed.
+HEAD at start of Burdas pass: `efa2666 Enhance character head-turn mechanics and shorts integration for Brother, Kubak, and Radek; maintain original artwork dimensions and mappings.`
+The checkout was clean on initialization. New work adds Burdas assets, face/atlas
+mapping, selector label, tests and documentation. No staging/commits performed.
 
 ## Architecture to preserve
 
@@ -34,11 +31,11 @@ Singleplayer and local turn-based multiplayer (2–6 players) use setup; arrows 
 
 ## Current character implementation
 
-`Face::COUNT=15`: original 12 at 0..11, default Playman index1; BROTHER=12, KUBAK=13, RADEK=14. Names editable independently; custom identity shown in setup footer. From default Playman: Left twice Radek, three times Kubak, four times Brother.
+`Face::COUNT=16`: original 12 at 0..11, default Playman index1; BROTHER=12, KUBAK=13, RADEK=14, BURDAS=15. Names editable independently; custom identity shown in setup footer. From default Playman: Left twice Burdas, three times Radek, four times Kubak, five times Brother.
 
-Original metadata maps sex/body bank, skin and head resources. All custom faces use standard male metadata; Brother uniquely substitutes wider limbs and torso. Kubak and Radek use original standard male limbs/uniform. Default original assets remain pixel-identical.
+Original metadata maps sex/body bank, skin and head resources. All custom faces use standard male metadata; Brother uniquely substitutes wider limbs and torso. Kubak, Radek and Burdas use original standard male limbs/uniform. Default original assets remain pixel-identical.
 
-`src/assets/custom_character.rs`: virtual IDs BASE4096, COUNT43, CELL96, ATLAS_WIDTH2048, ORIGINAL_HEIGHT1249. Existing original atlas never rewritten. Runtime composite appends all custom sprites in all 8 transforms. GPU and software renderer share it.
+`src/assets/custom_character.rs`: virtual IDs BASE4096, COUNT49, CELL96, ATLAS_WIDTH2048, ORIGINAL_HEIGHT1249. Existing original atlas never rewritten. Runtime composite appends all custom sprites in all 8 transforms. GPU and software renderer share it.
 
 Virtual indices relative to BASE:
 - 0..3 brother head profile / three-quarter / front / rear; 4/5 transparent small/large portrait.
@@ -46,6 +43,7 @@ Virtual indices relative to BASE:
 - 27..30 brother torso lean-pose slots, sampling the original generated profile with shoulder/hip registration. Each96x96 including transparent padding. Map original uniform612..615.
 - 31..34 Kubak heads; 35/36 transparent menu previews using the same neckless FRONT head (not opaque reference portrait).
 - 37..40 Radek heads; 41/42 transparent menu previews using the same neckless FRONT head.
+- 43..46 Burdas heads; 47/48 transparent menu previews from the frontal head.
 
 `src/rendering/atlas.rs` embeds assets and resizes alpha-bounded views with nearest-neighbor. Original bytes copied unchanged. Brother/Kubak head sheets use quarter-cell bounds. Torso and Radek views use transparent gutters near quarter boundaries before alpha bounding. This is crucial: generated torsos were unevenly spaced, and exact quarter cuts previously picked up neighboring strips and shifted visible centers.
 
@@ -58,14 +56,30 @@ before all eight transforms.
 
 Current brother heads: bald under black BACKWARD cap, full brown beard. All heads end at jaw/skull base with NO NECK. Rear cap brim remains backward. Kubak: swept light-brown hair, blue eyes, short beard. Radek: bald, blue eyes, light stubble, smiling.
 
-## Head turns and celebration shorts — latest pass
+## Burdas — latest pass
+
+Added Face15 (16 choices), six sprites at BASE+43, with standard male body and
+unchanged mechanics. Generated burdas-heads.png from supplied identity photo and
+original-character lineup style reference, both retained in assets/custom.
+All four views are neckless; selector uses the transparent frontal head. The
+existing rear-turn-to-three-quarter rule also applies to Burdas. New atlas views
+use transparent-gutter segmentation; existing resource coordinates remain intact.
+Exact prompt/provenance in assets/custom/README.md.
+
+Live browser: selected Burdas (Left twice from default), edited name to BURDAS,
+inspected transparent menu portrait and Dash running head/body fit. Screenshots:
+`burdas-selection.png`, `burdas-running.png` under
+`/Users/Radek.Burda/.codex/visualizations/2026/11/02/01a19e70-a6c1-72f3-87ff-0d545c49e17f/`.
+Native visuals and every Burdas event were not individually checked live.
+
+## Head turns and celebration shorts — prior pass
 
 Finished validation/documentation of the previously interrupted head-turn change.
-All custom faces (Brother/Kubak/Radek) replace original requested rear head view 3
+All custom faces (Brother/Kubak/Radek/Burdas) replace original requested rear head view 3
 with existing three-quarter view 1, via shared Face::custom_head used by direct
 head draws and scene remapping. Original 12 mappings remain unchanged. Rear source
 artwork is retained, but no prepared custom pose should draw its atlas cells.
-Automated coverage checks all 318 poses ×3 custom faces and all rear transforms.
+Automated coverage checks all 318 poses ×4 custom faces and all rear transforms.
 
 User's pointed black shape was traced in software celebration frames to widened
 hip/upper-leg shorts parts, not the torso. Slots16 and 23–26 now retain original
@@ -102,7 +116,7 @@ sequences were not rechecked.
 
 ## Assets / generation
 
-Runtime files in repo assets/custom/: brother-heads.png, brother-torsos-shoulders.png, brother-reference.png (previous torso sheets retained), kubak-heads.png, kubak-reference.png, radek-heads.png and README.md. Reference images retained for provenance; selectors now use generated transparent FRONT head for all custom people.
+Runtime files in repo assets/custom/: brother-heads.png, brother-torsos-shoulders.png, brother-reference.png (previous torso sheets retained), kubak-heads.png, kubak-reference.png, radek-heads.png, burdas-heads.png, burdas-reference.png, burdas-style-reference.png and README.md. Reference images retained for provenance; selectors now use generated transparent FRONT head for all custom people.
 
 Built-in image_gen was used, transparent_background=true; no API key or fallback CLI. Skill `/Users/Radek.Burda/.codex/skills/.system/imagegen/SKILL.md`. Use that skill for further raster generation/edits. Inspect local images before editing. Runtime assets copied into repo, never reference only CODEX_HOME generated files. Exact prompts/provenance in assets/custom/README.md and current chat outputs/*-notes.md. Preserve bald/backward-cap corrections and NO NECK requirements.
 
@@ -125,12 +139,12 @@ make mac-app
 ```
 Ignored .make.local sets existing wasm toolchain/cache (Cargo1.90); preserve it. Native app output dist/Playman Rust.app. Avoid direct agent launch of native executable (OpenGL environment failures); use LaunchServices if needed. Do not discard native records.
 
-Current logs: /tmp/headturn-tests.log, /tmp/headturn-custom.log,
-/tmp/headturn-clippy.log, /tmp/headturn-web.log, /tmp/headturn-native.log.
-All 81 tests passed, including all 318 poses for each custom head, original-width
-shorts, joint/hem/clipping and original pixel fixtures. Clippy, formatting/diff,
-web bundle/storage checks and web/macOS builds passed. Native visuals were not
-rechecked.
+Current logs: /tmp/burdas-tests.log, /tmp/burdas-custom.log,
+/tmp/burdas-clippy.log, /tmp/burdas-web.log, /tmp/burdas-native.log.
+All 82 tests passed, including all 16 character pose/resource checks, Burdas
+standard-body mapping, transparent portraits and custom rear-turn suppression.
+Clippy, formatting/diff, web bundle/storage checks and web/macOS release builds
+passed. Native visuals were not rechecked.
 
 Prior live verification: Radek transparent selector and Dash run with standard body. Screenshots outputs/radek-selection.jpg and outputs/radek-running.jpg. Original 12 + all custom all 318pose/resource checks automated; not all15 characters ×5 events visually inspected. Native custom-character visuals were not individually checked. Audio was user-confirmed earlier, not re-verified for custom faces. Browser settings/appearances reset on reload.
 
@@ -154,4 +168,4 @@ First screenshot after12 is running. For completion use roughly120 inputs; tool 
 
 ## Next model behavior
 
-Read current code, docs and diff first. Report initialization briefly and wait for next requested change. No outstanding required Radek feature work. If user requests commit prep, review all custom-character uncommitted work together, preserve assets and provenance, validate proportionately, provide commit message; don't commit unless explicitly asked. Older appended DEVELOPER/asset notes contain superseded iterations; current code plus latest sections are authoritative.
+Read current code, docs and diff first. Report initialization briefly and wait for next requested change. Burdas is the latest requested feature. If user requests commit prep, review all custom-character uncommitted work together, preserve assets and provenance, validate proportionately, provide commit message; don't commit unless explicitly asked. Older appended DEVELOPER/asset notes contain superseded iterations; current code plus latest sections are authoritative.

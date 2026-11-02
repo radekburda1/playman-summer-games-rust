@@ -62,6 +62,7 @@ fn composed_atlas_preserves_original_pixels_and_custom_transparency() {
     for id in (custom::BASE..custom::BASE + 6)
         .chain(custom::KUBAK..custom::KUBAK + 6)
         .chain(custom::RADEK..custom::RADEK + 6)
+        .chain(custom::BURDAS..custom::BURDAS + 6)
     {
         let [x, y, w, h] = custom::rect(id, 0).unwrap();
         let mut opaque = 0;
@@ -166,7 +167,7 @@ fn torso_registration_preserves_both_attachment_points() {
 #[test]
 fn radek_cycles_with_independent_heads_and_standard_body() {
     let face = Face::RADEK;
-    assert_eq!(face.next().index(), 0);
+    assert_eq!(face.next(), Face::BURDAS);
     assert_eq!(face.previous(), Face::KUBAK);
     assert_ne!(face.portrait(true), Face::KUBAK.portrait(true));
     for sprite in 612..616 {
@@ -270,6 +271,7 @@ fn custom_head_turns_keep_faces_visible_through_all_animation_poses() {
         (Face::BROTHER, custom::BASE),
         (Face::KUBAK, custom::KUBAK),
         (Face::RADEK, custom::RADEK),
+        (Face::BURDAS, custom::BURDAS),
     ] {
         assert_eq!(face.head_sprite(797), base + 1);
         assert_eq!(face.sprite_for_scene(0, 797), base + 1);
@@ -299,4 +301,26 @@ fn brother_shorts_keep_original_width_in_bent_leg_poses() {
     }
     let [_, _, arm_width, _] = original_sprite_rect(custom::original_sprite(8)).unwrap();
     assert!(custom::dimensions(8).0 as f32 > arm_width);
+}
+
+#[test]
+fn burdas_cycles_with_transparent_portraits_and_standard_body() {
+    let face = Face::BURDAS;
+    assert!(face.is_burdas());
+    assert_eq!(face.previous(), Face::RADEK);
+    assert_eq!(face.next().index(), 0);
+    assert_eq!(face.portrait(false), custom::BURDAS + 4);
+    assert_eq!(face.portrait(true), custom::BURDAS + 5);
+    assert_ne!(face.portrait(true), Face::RADEK.portrait(true));
+    for sprite in 612..616 {
+        assert_eq!(face.sprite_for_scene(0, sprite), sprite);
+    }
+    for slot in 6..27 {
+        let original = custom::original_sprite(slot);
+        assert_eq!(face.sprite_for_scene(0, original), original);
+    }
+    for (view, mapped) in [0, 1, 2, 1].into_iter().enumerate() {
+        assert_eq!(face.head_sprite(794 + view), custom::BURDAS + mapped);
+    }
+    assert_eq!(face.height_percent(), 100);
 }
