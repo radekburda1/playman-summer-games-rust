@@ -1,14 +1,21 @@
 //! Virtual sprites appended to the immutable original atlas at load time.
 pub const BASE: usize = 4096;
-pub const COUNT: usize = 49;
+pub const COUNT: usize = 55;
 pub const KUBAK: usize = BASE + 31;
 pub const RADEK: usize = BASE + 37;
 pub const BURDAS: usize = BASE + 43;
+pub const TEREZA: usize = BASE + 49;
 pub const CELL: usize = 96;
 pub const ATLAS_WIDTH: usize = 2048;
 pub const ORIGINAL_HEIGHT: usize = 1249;
 pub fn dimensions(index: usize) -> (usize, usize) {
     match index {
+        49 => (39, 34),
+        50 => (37, 36),
+        51 => (33, 36),
+        52 => (36, 32),
+        53 => (25, 25),
+        54 => (50, 50),
         43 => (34, 35),
         44 => (31, 36),
         45 => (29, 36),
@@ -76,9 +83,22 @@ pub fn rect(id: usize, transform: u8) -> Option<[f32; 4]> {
     ])
 }
 
-/// Torso registration is baked into the padded sprites, including transforms.
-pub fn anchor_offset(_id: usize, _transform: u8) -> (f32, f32) {
-    (0., 0.)
+/// Reveal the body neck under the taller custom heads.
+/// Portraits stay head-only; torso registration remains baked into its pixels.
+pub fn anchor_offset(id: usize, transform: u8) -> (f32, f32) {
+    if ![BASE, KUBAK, RADEK, BURDAS, TEREZA]
+        .into_iter()
+        .any(|base| (base..base + 4).contains(&id))
+    {
+        return (0., 0.);
+    }
+    match transform {
+        0 | 4 => (0., -3.),
+        2 | 5 => (0., 3.),
+        1 | 7 => (3., 0.),
+        3 | 6 => (-3., 0.),
+        _ => (0., 0.),
+    }
 }
 
 /// Shoulder socket and waistband center in the original torso's centered space.

@@ -63,6 +63,7 @@ fn composed_atlas_preserves_original_pixels_and_custom_transparency() {
         .chain(custom::KUBAK..custom::KUBAK + 6)
         .chain(custom::RADEK..custom::RADEK + 6)
         .chain(custom::BURDAS..custom::BURDAS + 6)
+        .chain(custom::TEREZA..custom::TEREZA + 6)
     {
         let [x, y, w, h] = custom::rect(id, 0).unwrap();
         let mut opaque = 0;
@@ -272,6 +273,7 @@ fn custom_head_turns_keep_faces_visible_through_all_animation_poses() {
         (Face::KUBAK, custom::KUBAK),
         (Face::RADEK, custom::RADEK),
         (Face::BURDAS, custom::BURDAS),
+        (Face::TEREZA, custom::TEREZA),
     ] {
         assert_eq!(face.head_sprite(797), base + 1);
         assert_eq!(face.sprite_for_scene(0, 797), base + 1);
@@ -308,7 +310,7 @@ fn burdas_cycles_with_transparent_portraits_and_standard_body() {
     let face = Face::BURDAS;
     assert!(face.is_burdas());
     assert_eq!(face.previous(), Face::RADEK);
-    assert_eq!(face.next().index(), 0);
+    assert_eq!(face.next(), Face::TEREZA);
     assert_eq!(face.portrait(false), custom::BURDAS + 4);
     assert_eq!(face.portrait(true), custom::BURDAS + 5);
     assert_ne!(face.portrait(true), Face::RADEK.portrait(true));
@@ -323,4 +325,94 @@ fn burdas_cycles_with_transparent_portraits_and_standard_body() {
         assert_eq!(face.head_sprite(794 + view), custom::BURDAS + mapped);
     }
     assert_eq!(face.height_percent(), 100);
+}
+
+#[test]
+fn tereza_uses_the_original_female_bank_and_compact_head_views() {
+    let face = Face::TEREZA;
+    assert!(face.is_tereza());
+    assert_eq!(face.previous(), Face::BURDAS);
+    assert_eq!(face.next().index(), 0);
+    assert_eq!(face.scene(), 1);
+    assert_eq!(face.height_percent(), 100);
+    assert_eq!(face.portrait(false), custom::TEREZA + 4);
+    assert_eq!(face.portrait(true), custom::TEREZA + 5);
+    let table = include_bytes!("../assets/tables.bin");
+    for slot in 0..21 {
+        let offset = 514 + slot * 4;
+        let source = i32::from_be_bytes(table[offset..offset + 4].try_into().unwrap()) as usize;
+        assert_eq!(face.sprite_for_scene(1, source), source);
+    }
+    for source in 624..628 {
+        assert_eq!(face.sprite_for_scene(1, source), source);
+    }
+    for (view, mapped) in [0, 1, 2, 1].into_iter().enumerate() {
+        assert_eq!(
+            face.sprite_for_scene(1, 790 + view),
+            custom::TEREZA + mapped
+        );
+    }
+    for view in 0..4 {
+        let (w, h) = custom::dimensions(custom::TEREZA - custom::BASE + view);
+        assert!(
+            w <= 40 && h <= 38,
+            "hair must stay in the original female head envelope"
+        );
+    }
+}
+
+#[test]
+fn custom_heads_reveal_the_existing_body_neck_through_transforms() {
+    let offsets = [
+        (0., -3.),
+        (3., 0.),
+        (0., 3.),
+        (-3., 0.),
+        (0., -3.),
+        (0., 3.),
+        (-3., 0.),
+        (3., 0.),
+    ];
+    let art = Artwork::new();
+    for id in [
+        custom::BASE,
+        custom::KUBAK,
+        custom::RADEK,
+        custom::BURDAS,
+        custom::TEREZA,
+    ]
+    .into_iter()
+    .flat_map(|base| base..base + 4)
+    {
+        for (transform, expected) in offsets.into_iter().enumerate() {
+            assert_eq!(custom::anchor_offset(id, transform as u8), expected);
+            if let Some(playman_rust::assets::artwork::Command::Image { source, dest }) =
+                art.sprite(id, transform as u8, 100., 100., true)
+            {
+                assert_eq!(
+                    dest,
+                    [
+                        100. - (source[2] as i32 / 2) as f32 + expected.0,
+                        100. - (source[3] as i32 / 2) as f32 + expected.1
+                    ]
+                );
+            } else {
+                panic!("missing custom head {id}");
+            }
+        }
+    }
+    for id in [
+        custom::BASE,
+        custom::KUBAK,
+        custom::RADEK,
+        custom::BURDAS,
+        custom::TEREZA,
+    ]
+    .into_iter()
+    .flat_map(|base| base + 4..base + 6)
+    {
+        for transform in 0..8 {
+            assert_eq!(custom::anchor_offset(id, transform), (0., 0.));
+        }
+    }
 }

@@ -1,4 +1,51 @@
-# Brother character assets
+# Custom character assets
+
+## Custom male neck alignment — 2026-11-03
+
+Brother, Kubak, Radek and Burdas now share Tereza’s 3px gameplay head-axis lift,
+including all eight transforms. Compared original male starting stance and checked
+all four custom men standing/running live. Existing body necks are revealed;
+head rasters, transparent menu portraits and Brother’s torso map are unchanged.
+No image generation or raster edits in this correction.
+
+## Tereza — 2026-11-03
+
+`tereza-heads.png` is the final runtime sheet, made with built-in image_gen and
+`transparent_background=true`. Four neckless views are right profile, three-quarter
+right, front and rear. The current revision has **hazel (brown/olive-green) eyes**
+and a slightly longer brown ponytail curling outward/upward beside the jaw.
+Hair remains inside compact female sprite bounds: 39x34,37x36,33x36,36x32.
+The frontal head supplies transparent25x25/50x50 selector portraits. Rear-turn
+poses use the three-quarter face, matching the other custom characters.
+
+Original female runtime heads were inspected (790–793 and806–809): their hair
+stays close to the skull, with short curls beside the jaw. Profile/three-quarter
+rectangles reach37–40px wide without extending hair onto the torso. Tereza uses
+that compact silhouette and the original light-skinned female pose/body bank
+(Face0 metadata, body table514), not the male preset. Joints/equipment stay intact.
+
+Neck alignment correction: isolated original female head/body rendering confirms
+the visible neck is part of the body. Gameplay heads receive a 3px lift along
+the transformed head axis to reveal it. No raster edits or neck extensions;
+menu portraits are unchanged.
+
+References retained unchanged: `tereza-reference.png` (identity photo),
+`tereza-style-reference.png` (lineup), `tereza-hair-reference.png` (original female
+portrait), `tereza-ponytail-reference.png` (user's longer-tail gameplay example).
+`tereza-heads-v1.png` retains the initially approved shorter-tail/gray-blue-eye
+sheet. The user clarified hazel eyes afterward; v1 is superseded.
+
+Final generated source: `/Users/Radek.Burda/.codex/generated_images/01a19e70-a6c1-72f3-87ff-0d545c49e17f/exec-f93c1060-66c4-409c-94f4-8ccd6a39fd62.png`.
+Initial source: `/Users/Radek.Burda/.codex/generated_images/01a19e70-a6c1-72f3-87ff-0d545c49e17f/exec-091158d5-9df2-4e84-a283-bdd9f294d079.png`.
+
+Final corrective prompt (image1=v1 sheet, image2=longer-tail gameplay reference):
+
+> Precisely edit IMAGE1, the approved four-view pixel-art Tereza head sheet. IMAGE2 is a reference ONLY for slightly longer ponytail silhouette, not identity or hair color. Preserve Tereza's same recognizable face, brown hair, warm toothy smile, four views/order, chunky pixel-art shading, no-neck jaw/skull-base endings and transparent background. Make ONLY two changes: (1) change visible irises from gray-blue to HAZEL, an olive-green and warm brown mix, never blue; retain white sclera and dark pupils. (2) Extend her small tied-back brown ponytail modestly, about25 percent longer, curling outward/backward like the original game's girl in IMAGE2. It should read as a small short ponytail rather than a tight bun. Keep it tucked close to the lower back/side of her head and roughly at jaw level, no long tail hanging onto shoulders or chest. Profile and three-quarter tails project a little further to LEFT/back while pointing slightly upward; front gets a small matching side curl; rear gets a short tied tail. Keep face size unchanged; generous transparent gutters around all hair, no clipping. Exactly four isolated HEAD ONLY views in one horizontal row: right profile, three-quarter right, front, rear. No neck stub, shoulders, body, clothing, hats, accessories, text, labels, checkerboard or background.
+
+Initial generation prompt (eye color superseded by the correction above):
+
+> Create a transparent pixel-art HEAD sprite sheet for Tereza. Image1 is identity reference: preserve recognizable long oval face, broad warm friendly toothy smile, gray-blue eyes, natural brown eyebrows, fair warm skin, medium-brown hair parted slightly off-center and tied back. Images2 and3 are STYLE references from the original 2008 mobile athletics game. Match charming expressive female heads, deliberate chunky pixels, bold dark outline and simple three-tone shading, suitable for reduction to about36x35 game pixels. HAIR FIT IS CRITICAL: like the original girl's compact curled ponytail, pull Tereza's hair neatly back into a SMALL FOLDED LOW PONYTAIL tucked tightly against the back/side of the skull. Tail curls UP or inward beside the ear and jaw, entirely ABOVE chin baseline. No long hanging ponytail, no hair below jaw, no huge hair mass. Preserve face size; hair must fit a compact roughly square head rectangle, not extend the bounds vertically. No hat, earrings or new accessories. Exactly FOUR isolated HEAD ONLY views in ONE horizontal row of FOUR evenly spaced cells: strict RIGHT profile, three-quarter RIGHT, full FRONT, full REAR. Consistent identity and face scale across views. NO NECK or neck stub in any view; end at chin/jaw or skull base, no shoulders, clothing, orange hoodie or body. Generous transparent gutters and padding around ALL hair, no clipping/touching. Actual transparent background, no checkerboard, text, labels, flags, frame or UI. Front head also serves as transparent menu portrait.
+
 
 ## Burdas — 2026-11-03
 

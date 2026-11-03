@@ -1,6 +1,6 @@
 # Playman Rust desktop handoff — 2026-11-03
 
-This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. Latest work adds Burdas as the fourth custom character. Await the user's next task after initialization; do not invent cleanup work or commit.
+This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. Latest work extends the neck-revealing head anchor to all four custom male characters. Await the user's next task after initialization; do not invent cleanup work or commit.
 
 ## Start here
 
@@ -17,9 +17,9 @@ Rust/Macroquad reconstruction of Playman Summer Games 3. Browser game `http://12
 
 Workspace root `/Users/Radek.Burda/Documents/Codex/2026-10-25/you-are-an-expert-systems-engineer`. Current chat artifact folder `/Users/Radek.Burda/Documents/Codex/2026-11-01/new-chat/outputs`.
 
-HEAD at start of Burdas pass: `efa2666 Enhance character head-turn mechanics and shorts integration for Brother, Kubak, and Radek; maintain original artwork dimensions and mappings.`
-The checkout was clean on initialization. New work adds Burdas assets, face/atlas
-mapping, selector label, tests and documentation. No staging/commits performed.
+HEAD at start of Tereza pass: `ed8e8db Add Burdas to the game`.
+The checkout was clean before Tereza work. New code/assets and the hazel-eye,
+longer-ponytail follow-up and all custom head neck corrections remain uncommitted. No staging/commits performed.
 
 ## Architecture to preserve
 
@@ -31,11 +31,11 @@ Singleplayer and local turn-based multiplayer (2–6 players) use setup; arrows 
 
 ## Current character implementation
 
-`Face::COUNT=16`: original 12 at 0..11, default Playman index1; BROTHER=12, KUBAK=13, RADEK=14, BURDAS=15. Names editable independently; custom identity shown in setup footer. From default Playman: Left twice Burdas, three times Radek, four times Kubak, five times Brother.
+`Face::COUNT=17`: original 12 at 0..11, default Playman index1; BROTHER=12, KUBAK=13, RADEK=14, BURDAS=15, TEREZA=16. Names editable independently; custom identity shown in setup footer. From default Playman: Left twice Tereza, three times Burdas, four times Radek, five times Kubak, six times Brother.
 
-Original metadata maps sex/body bank, skin and head resources. All custom faces use standard male metadata; Brother uniquely substitutes wider limbs and torso. Kubak, Radek and Burdas use original standard male limbs/uniform. Default original assets remain pixel-identical.
+Original metadata maps sex/body bank, skin and head resources. Tereza uses original light-skinned female preset0; other custom faces use standard male metadata; Brother uniquely substitutes wider limbs and torso. Kubak, Radek and Burdas use original standard male limbs/uniform. Default original assets remain pixel-identical.
 
-`src/assets/custom_character.rs`: virtual IDs BASE4096, COUNT49, CELL96, ATLAS_WIDTH2048, ORIGINAL_HEIGHT1249. Existing original atlas never rewritten. Runtime composite appends all custom sprites in all 8 transforms. GPU and software renderer share it.
+`src/assets/custom_character.rs`: virtual IDs BASE4096, COUNT55, CELL96, ATLAS_WIDTH2048, ORIGINAL_HEIGHT1249. Existing original atlas never rewritten. Runtime composite appends all custom sprites in all 8 transforms. GPU and software renderer share it.
 
 Virtual indices relative to BASE:
 - 0..3 brother head profile / three-quarter / front / rear; 4/5 transparent small/large portrait.
@@ -44,6 +44,7 @@ Virtual indices relative to BASE:
 - 31..34 Kubak heads; 35/36 transparent menu previews using the same neckless FRONT head (not opaque reference portrait).
 - 37..40 Radek heads; 41/42 transparent menu previews using the same neckless FRONT head.
 - 43..46 Burdas heads; 47/48 transparent menu previews from the frontal head.
+- 49..52 Tereza heads; 53/54 transparent menu previews from the frontal head.
 
 `src/rendering/atlas.rs` embeds assets and resizes alpha-bounded views with nearest-neighbor. Original bytes copied unchanged. Brother/Kubak head sheets use quarter-cell bounds. Torso and Radek views use transparent gutters near quarter boundaries before alpha bounding. This is crucial: generated torsos were unevenly spaced, and exact quarter cuts previously picked up neighboring strips and shifted visible centers.
 
@@ -51,12 +52,52 @@ Virtual indices relative to BASE:
 into source landmarks (18%,17%)/(47%,94%). The bottom waistband attaches to the
 shorts/leg joint. Front width scales 1.5x across the body axis, without extending
 body length. The previous 70% anchor caused the belly to cover the legs and is removed.
-`anchor_offset` returns zero; registration is baked into the padded sprites
-before all eight transforms.
+Brother registration is baked into padded sprites before all eight transforms.
+All five custom characters’ gameplay heads receive a 3px offset toward the top of the head,
+rotated/reflected with each transform; portraits, torsos and other assets have zero offset.
 
 Current brother heads: bald under black BACKWARD cap, full brown beard. All heads end at jaw/skull base with NO NECK. Rear cap brim remains backward. Kubak: swept light-brown hair, blue eyes, short beard. Radek: bald, blue eyes, light stubble, smiling.
 
-## Burdas — latest pass
+## Male neck alignment — latest pass
+
+Extended Tereza’s 3px head-axis lift to Brother, Kubak, Radek and Burdas.
+All four were inspected live in the browser in starting stance and Dash running;
+original male starting stance was also compared. Heads stay attached while
+exposing the body neck; Brother’s torso registration is unchanged. Raster
+assets and head-only portraits are unchanged. The transform/render-command
+test now covers all five custom characters and excludes their portraits.
+Screenshots: {brother,kubak,radek,burdas}-neck-{standing,running}.png and
+original-male-neck-standing.png in the visualization directory below.
+Native visuals and every event/pose were not individually inspected live.
+
+## Tereza — prior pass
+
+Added Face16, appending six sprites at BASE+49. Tereza uses the original female
+pose/body/uniform preset0, not the male custom metadata. Heads are neckless and
+transparent, with a compact brown ponytail tucked/curling beside the jaw like
+the original women. Original female runtime heads790..793/806..809 were inspected.
+User requested a slightly longer tail after approving v1, and clarified hazel
+(brown/green) eyes. Final revision uses39x34,37x36,33x36,36x32 head rectangles;
+face size is retained while giving the side curl a little more width.
+
+Runtime tereza-heads.png is the hazel-eye/longer-tail revision. Initial sheet is
+retained as tereza-heads-v1.png. Identity photo and three supplied hair/style
+references are in assets/custom. Exact prompts/provenance are in its README.
+Rear-turn replacement also covers Tereza. No changes to simulation or scoring.
+Live browser selection and female start/Dash running were inspected. Hair fits
+without clipping or extending onto shoulders. Screenshots tereza-selection.png
+and tereza-running.png under
+`/Users/Radek.Burda/.codex/visualizations/2026/11/02/01a19e70-a6c1-72f3-87ff-0d545c49e17f/`.
+The original blonde head/body were also rendered separately: the visible neck
+belongs to the female body, not the head asset. Tereza’s taller head covered it.
+A 3px gameplay-only lift now exposes that existing neck; all eight transforms
+are covered by an anchor/render-command test. No neck pixels were added.
+Live browser starting stance and Dash running were inspected after the fix,
+with screenshots tereza-neck-standing.png and tereza-neck-running.png in the
+same visualization directory; original-female-neck-validation.png records the
+head/body decomposition. Native visuals and all events were not checked live.
+
+## Burdas — prior pass
 
 Added Face15 (16 choices), six sprites at BASE+43, with standard male body and
 unchanged mechanics. Generated burdas-heads.png from supplied identity photo and
@@ -75,11 +116,11 @@ Native visuals and every Burdas event were not individually checked live.
 ## Head turns and celebration shorts — prior pass
 
 Finished validation/documentation of the previously interrupted head-turn change.
-All custom faces (Brother/Kubak/Radek/Burdas) replace original requested rear head view 3
+All custom faces (Brother/Kubak/Radek/Burdas/Tereza) replace original requested rear head view 3
 with existing three-quarter view 1, via shared Face::custom_head used by direct
 head draws and scene remapping. Original 12 mappings remain unchanged. Rear source
 artwork is retained, but no prepared custom pose should draw its atlas cells.
-Automated coverage checks all 318 poses ×4 custom faces and all rear transforms.
+Automated coverage checks all 318 poses ×5 custom faces and all rear transforms.
 
 User's pointed black shape was traced in software celebration frames to widened
 hip/upper-leg shorts parts, not the torso. Slots16 and 23–26 now retain original
@@ -139,12 +180,12 @@ make mac-app
 ```
 Ignored .make.local sets existing wasm toolchain/cache (Cargo1.90); preserve it. Native app output dist/Playman Rust.app. Avoid direct agent launch of native executable (OpenGL environment failures); use LaunchServices if needed. Do not discard native records.
 
-Current logs: /tmp/burdas-tests.log, /tmp/burdas-custom.log,
-/tmp/burdas-clippy.log, /tmp/burdas-web.log, /tmp/burdas-native.log.
-All 82 tests passed, including all 16 character pose/resource checks, Burdas
-standard-body mapping, transparent portraits and custom rear-turn suppression.
-Clippy, formatting/diff, web bundle/storage checks and web/macOS release builds
-passed. Native visuals were not rechecked.
+Current logs: /tmp/male-neck-tests.log, /tmp/male-neck-custom.log,
+/tmp/male-neck-clippy.log, /tmp/male-neck-web.log, /tmp/male-neck-native.log.
+All 84 tests passed, covering all 17 faces/318 poses, female body mapping,
+transparent portraits, compact head bounds and custom rear-turn suppression.
+Clippy, formatting/diff, web bundle/storage checks and web/macOS builds passed.
+Native visuals were not rechecked.
 
 Prior live verification: Radek transparent selector and Dash run with standard body. Screenshots outputs/radek-selection.jpg and outputs/radek-running.jpg. Original 12 + all custom all 318pose/resource checks automated; not all15 characters ×5 events visually inspected. Native custom-character visuals were not individually checked. Audio was user-confirmed earlier, not re-verified for custom faces. Browser settings/appearances reset on reload.
 
@@ -152,7 +193,7 @@ Prior live verification: Radek transparent selector and Dash run with standard b
 
 Use available Browser/CUA tool, not raw browser networking/CDP. IAB is requested/preferred for game testing. Current tabs from old turns may be stale; rebind existing localhost tab or create one. CUA often gives `browser.user is unavailable` after turn changes; reset CUA session and initialize with exactly one documented entry-point call, then read docs. Avoid repeated browser selection.
 
-Canvas needs focus. Fresh AX image index changes after reload; click it before keypresses. Game menu Singleplayer default. Return→setup, Down→player1, Left twice selects Radek from Playman. Four Returns from player row proceed through Continue/event/help to AwaitStart. `5` held5600ms covers countdown. Press4/6 to run.
+Canvas needs focus. Fresh AX image index changes after reload; click it before keypresses. Game menu Singleplayer default. Return→setup, Down→player1, Left twice selects Tereza from Playman. Four Returns from player row proceed through Continue/event/help to AwaitStart. `5` held5600ms covers countdown. Press4/6 to run.
 
 For reproducible first Dash start input sequence, seed1034:
 ```
@@ -166,6 +207,15 @@ for(let i=0;i<12;i++){
 ```
 First screenshot after12 is running. For completion use roughly120 inputs; tool gaps let time advance, so don't claim timing parity from wall-clock automation. Save screenshot with supported API, embed absolute image path in final. Mark deliverable only if user should retain tab; otherwise temporary tabs clean up.
 
+## Commit preparation — 2026-11-03
+
+Reviewed the pending Tereza addition and all custom neck-anchor changes together.
+Cleaned the asset README heading, generalized the head regression diagnostic,
+and covered both portrait sizes for all five custom faces. Retained generated
+v1 and all supplied references as documented provenance. Focused custom tests,
+formatting, diff whitespace and web bundle/storage checks passed after cleanup;
+prior full-suite/build/live results above still apply. Nothing staged or committed.
+
 ## Next model behavior
 
-Read current code, docs and diff first. Report initialization briefly and wait for next requested change. Burdas is the latest requested feature. If user requests commit prep, review all custom-character uncommitted work together, preserve assets and provenance, validate proportionately, provide commit message; don't commit unless explicitly asked. Older appended DEVELOPER/asset notes contain superseded iterations; current code plus latest sections are authoritative.
+Read current code, docs and diff first. Report initialization briefly and wait for next requested change. Tereza is the latest requested feature. If user requests commit prep, review all custom-character uncommitted work together, preserve assets and provenance, validate proportionately, provide commit message; don't commit unless explicitly asked. Older appended DEVELOPER/asset notes contain superseded iterations; current code plus latest sections are authoritative.

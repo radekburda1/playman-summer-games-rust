@@ -7,11 +7,15 @@ impl Default for Face {
     }
 }
 impl Face {
-    pub const COUNT: usize = 16;
+    pub const COUNT: usize = 17;
     pub const BROTHER: Self = Self(12);
     pub const KUBAK: Self = Self(13);
     pub const RADEK: Self = Self(14);
     pub const BURDAS: Self = Self(15);
+    pub const TEREZA: Self = Self(16);
+    pub fn is_tereza(self) -> bool {
+        self == Self::TEREZA
+    }
     pub fn is_burdas(self) -> bool {
         self == Self::BURDAS
     }
@@ -34,7 +38,9 @@ impl Face {
         Self((self.0 + Self::COUNT as u8 - 1) % Self::COUNT as u8)
     }
     pub fn portrait(self, large: bool) -> usize {
-        if self.is_burdas() {
+        if self.is_tereza() {
+            super::custom_character::TEREZA + if large { 5 } else { 4 }
+        } else if self.is_burdas() {
             super::custom_character::BURDAS + if large { 5 } else { 4 }
         } else if self.is_radek() {
             super::custom_character::RADEK + if large { 5 } else { 4 }
@@ -48,7 +54,14 @@ impl Face {
     }
     fn table_value(self, column: usize) -> i32 {
         let table = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/tables.bin"));
-        let offset = 646 + (if self.index() >= 12 { 1 } else { self.index() }) * 20 + column * 4;
+        let preset = if self.is_tereza() {
+            0 // Original light-skinned female body/animation bank.
+        } else if self.index() >= 12 {
+            1
+        } else {
+            self.index()
+        };
+        let offset = 646 + preset * 20 + column * 4;
         i32::from_be_bytes(table[offset..offset + 4].try_into().unwrap())
     }
     pub fn scene(self) -> usize {
@@ -99,6 +112,8 @@ impl Face {
             super::custom_character::RADEK
         } else if self.is_burdas() {
             super::custom_character::BURDAS
+        } else if self.is_tereza() {
+            super::custom_character::TEREZA
         } else {
             return None;
         };

@@ -77,6 +77,10 @@ pub fn image() -> Image {
         env!("CARGO_MANIFEST_DIR"),
         "/assets/custom/burdas-heads.png"
     )));
+    let tereza_heads = decode(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/assets/custom/tereza-heads.png"
+    )));
     let rows = (custom::COUNT * 8).div_ceil(custom::ATLAS_WIDTH / custom::CELL);
     let height = custom::ORIGINAL_HEIGHT + rows * custom::CELL;
     let mut out = Image {
@@ -105,8 +109,12 @@ pub fn image() -> Image {
             torso_bounds(&radek_heads, 2)
         } else if (43..47).contains(&index) {
             torso_bounds(&burdas_heads, index - 43)
-        } else if index >= 47 {
+        } else if (47..49).contains(&index) {
             torso_bounds(&burdas_heads, 2)
+        } else if (49..53).contains(&index) {
+            torso_bounds(&tereza_heads, index - 49)
+        } else if index >= 53 {
+            torso_bounds(&tereza_heads, 2)
         } else {
             let [x, y, w, h] = original_sprite_rect(custom::original_sprite(index)).unwrap();
             (x as usize, y as usize, w as usize, h as usize)
@@ -115,6 +123,8 @@ pub fn image() -> Image {
             &heads
         } else if (27..31).contains(&index) {
             &torsos
+        } else if index >= 49 {
+            &tereza_heads
         } else if index >= 43 {
             &burdas_heads
         } else if index >= 37 {

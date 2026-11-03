@@ -227,7 +227,7 @@ recovers seated. Replays are display-only and do not emit duplicate audio.
 ### Player faces
 
 Both modes open player setup before event selection. Select a player with
-Up/Down, then use Left/Right to cycle the 12 original faces, the custom brother character, Kubak, Radek and Burdas. Type to edit the
+Up/Down, then use Left/Right to cycle the 12 original faces, the custom brother character, Kubak, Radek, Burdas and Tereza. Type to edit the
 name, Backspace to erase, and Enter to advance to Continue. Multiplayer also
 allows changing player count on the first row. Selected faces appear in menu
 portraits and animated athletes, including earlier runners in multiplayer races.
@@ -238,21 +238,26 @@ body/outfit editing and country selection are not implemented. The default Playm
 keeps the established rendering scale. Appearance configuration supports future
 extensions without changing gameplay.
 
-The custom brother character is selected with Left five times from default
+The custom brother character is selected with Left six times from default
 Playman. His selector uses a transparent head preview, gameplay uses generated
 cap-and-beard head views, and a rounded pot belly/broader limbs provide a fuller
 physique. The torso follows the original lean angles through running and crouching. This is cosmetic: movement, scores and equipment controls are unchanged.
 Edit the player name normally. Asset provenance and the generation prompt are in
 `assets/custom/README.md`.
 
-Kubak is selected with Left four times from default Playman. His transparent head
+Kubak is selected with Left five times from default Playman. His transparent head
 is used in the selector, with matching generated animated head views. He uses
 the standard male body and proportions, without the brother's fuller-body
 transform. Names remain independently editable in player setup.
 
-Radek is selected with Left three times from default Playman, using a transparent neckless head and the standard male body. Player names remain independently editable.
+Radek is selected with Left four times from default Playman, using a transparent neckless head and the standard male body. Player names remain independently editable.
 
-Burdas is the final portrait (Left twice from default Playman), with short brown
+Burdas is selected with Left three times from default Playman, with short brown
 hair, gray-blue eyes and a light mustache. His transparent portrait and animated
 head match the game's pixel-art style. He uses the standard male body, with
 three-quarter faces in rear-turn poses. Names remain independently editable.
+
+Tereza is the final portrait (Left twice from default Playman), with hazel eyes,
+a warm smile and brown hair tied into a short curled ponytail. Her hair fits the
+compact head rectangle like the original women. She uses the standard female
+body and a transparent head-only selector portrait. Names are editable separately.
