@@ -12,7 +12,7 @@ fn confirm(app: &mut App) {
     );
 }
 fn multiplayer(count: usize, selected: usize, tournament: bool) -> App {
-    let mut app = App::new([None; 5]);
+    let mut app = App::new([None; 6]);
     app.multiplayer = true;
     app.player_count = count;
     app.selected = selected;
@@ -22,7 +22,7 @@ fn multiplayer(count: usize, selected: usize, tournament: bool) -> App {
 }
 #[test]
 fn mode_selection_and_setup_boundaries() {
-    let mut app = App::new([None; 5]);
+    let mut app = App::new([None; 6]);
     assert!(app.screen == Screen::ModeSelect);
     app.update(
         0.,
@@ -68,7 +68,7 @@ fn mode_selection_and_setup_boundaries() {
 #[test]
 fn every_event_rotates_players_then_attempts_and_preserves_bests() {
     for count in [2, 6] {
-        for (selected, event) in Event::ALL.into_iter().enumerate() {
+        for (selected, event) in Event::SELECTABLE.into_iter().enumerate() {
             let mut app = multiplayer(count, selected, false);
             let rounds = if event.race() { 1 } else { 3 };
             for round in 0..rounds {

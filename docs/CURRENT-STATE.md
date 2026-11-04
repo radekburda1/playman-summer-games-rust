@@ -1,6 +1,6 @@
 # Playman Rust desktop handoff — 2026-11-03
 
-This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. Latest work extends the neck-revealing head anchor to all four custom male characters. Await the user's next task after initialization; do not invent cleanup work or commit.
+This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. Latest work adds an experimental standalone 400m dash. Await the user's next task after initialization; do not invent cleanup work or commit.
 
 ## Start here
 
@@ -17,9 +17,31 @@ Rust/Macroquad reconstruction of Playman Summer Games 3. Browser game `http://12
 
 Workspace root `/Users/Radek.Burda/Documents/Codex/2026-10-25/you-are-an-expert-systems-engineer`. Current chat artifact folder `/Users/Radek.Burda/Documents/Codex/2026-11-01/new-chat/outputs`.
 
-HEAD at start of Tereza pass: `ed8e8db Add Burdas to the game`.
-The checkout was clean before Tereza work. New code/assets and the hazel-eye,
-longer-ponytail follow-up and all custom head neck corrections remain uncommitted. No staging/commits performed.
+HEAD at start of 400m work: `6f7e841 Add Tereza and fix custom character neck alignment`.
+Checkout was clean. Only the new 400m work is pending; prior character work is
+committed by the user. No staging/commits performed by the agent.
+
+## Experimental 400m dash — latest pass
+
+Added Event::Dash400 at selectable/record slot5. The six-event menu includes a
+running icon and EXPERIMENTAL label; tournament moves to menu slot6 and remains
+the original five events. Singleplayer and local 2–6-player flow support 400m.
+The runner equations, input RNG, acceleration, countdown and dive remain shared
+with 100m. Finish400m, prompt cutoff/dive380m, timeout240s; no stamina or bends.
+Points use the original Dash curve on time/4. Finish artwork/camera and multiplayer
+stop/replay targets translate300m. Existing event coordinates remain unchanged.
+Records/results append a sixth slot; old five-line browser/native records load
+without shifting or clearing values. Same storage key/file; writes use six lines.
+
+Live browser: selected400m, inspected start, ran past100m, observed final20m
+prompt cutoff and finish markings, dived, finished35.90s, and saw results. After
+reload, 400m best35.90s persisted and the existing100m8.21s remained. Corrected
+initial trophy-icon mapping and rechecked the running icon at NEXT UP. Screenshots
+`dash400-selection.png`, `dash400-start.png`, `dash400-running.png`,
+`dash400-finish.png` in the visualization directory used below. Earlier running/
+result screenshots predate the icon correction; gameplay geometry is unchanged.
+Two-player400m finish/replay and two/six-player rotation/standings have automated coverage, not a
+complete live multiplayer run. Native build only; audio not re-verified.
 
 ## Architecture to preserve
 
@@ -180,10 +202,12 @@ make mac-app
 ```
 Ignored .make.local sets existing wasm toolchain/cache (Cargo1.90); preserve it. Native app output dist/Playman Rust.app. Avoid direct agent launch of native executable (OpenGL environment failures); use LaunchServices if needed. Do not discard native records.
 
-Current logs: /tmp/male-neck-tests.log, /tmp/male-neck-custom.log,
-/tmp/male-neck-clippy.log, /tmp/male-neck-web.log, /tmp/male-neck-native.log.
-All 84 tests passed, covering all 17 faces/318 poses, female body mapping,
-transparent portraits, compact head bounds and custom rear-turn suppression.
+Current logs: /tmp/400-final-tests.log, /tmp/400-final-regression.log,
+/tmp/400-final-clippy.log, /tmp/400-final-web.log, /tmp/400-final-native.log.
+All 88 tests passed; the final preservation/400m recheck also passed7 tests,
+and expanded two/six-player rotation tests passed in /tmp/400-multiplayer.log.
+Coverage includes four400m regressions, unchanged original-event
+state/pixel fixtures, all17 faces/318 poses and custom asset checks.
 Clippy, formatting/diff, web bundle/storage checks and web/macOS builds passed.
 Native visuals were not rechecked.
 
@@ -218,4 +242,4 @@ prior full-suite/build/live results above still apply. Nothing staged or committ
 
 ## Next model behavior
 
-Read current code, docs and diff first. Report initialization briefly and wait for next requested change. Tereza is the latest requested feature. If user requests commit prep, review all custom-character uncommitted work together, preserve assets and provenance, validate proportionately, provide commit message; don't commit unless explicitly asked. Older appended DEVELOPER/asset notes contain superseded iterations; current code plus latest sections are authoritative.
+Read current code, docs and diff first. Report initialization briefly and wait for next requested change. 400m dash is the latest requested feature. If user requests commit prep, review all custom-character uncommitted work together, preserve assets and provenance, validate proportionately, provide commit message; don't commit unless explicitly asked. Older appended DEVELOPER/asset notes contain superseded iterations; current code plus latest sections are authoritative.

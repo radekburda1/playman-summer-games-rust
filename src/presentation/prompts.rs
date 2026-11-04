@@ -16,13 +16,7 @@ pub fn running_in_lane(g: &Game, lane: i32) -> Vec<Prompt> {
     {
         return Vec::new();
     }
-    let cutoff = if g.event() == Event::Dash {
-        Some(0x500000)
-    } else if g.event() == Event::Hurdles {
-        Some(0x640000)
-    } else {
-        None
-    };
+    let cutoff = g.event().race().then(|| g.event().dive_start());
     if cutoff.is_some_and(|x| g.runner.position >= x) {
         return Vec::new();
     }

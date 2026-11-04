@@ -26,7 +26,7 @@ pub enum Screen {
 pub struct Player {
     pub name: String,
     pub appearance: crate::assets::character::Appearance,
-    pub results: [Option<i32>; 5],
+    pub results: [Option<i32>; Event::COUNT],
     pub total: i32,
 }
 impl Player {
@@ -34,7 +34,7 @@ impl Player {
         Self {
             name: format!("PLAYER {}", index + 1),
             appearance: Default::default(),
-            results: [None; 5],
+            results: [None; Event::COUNT],
             total: 0,
         }
     }
@@ -58,7 +58,7 @@ pub struct App {
     pub total: i32,
     pub attempt: usize,
     pub best: Option<i32>,
-    pub records: [Option<i32>; 5],
+    pub records: [Option<i32>; Event::COUNT],
     pub records_dirty: bool,
     pub save_error: Option<String>,
     pub seed: u64,
@@ -73,7 +73,7 @@ pub struct App {
     race_scene_seed: u64,
 }
 impl App {
-    pub fn new(records: [Option<i32>; 5]) -> Self {
+    pub fn new(records: [Option<i32>; Event::COUNT]) -> Self {
         Self {
             screen: Screen::ModeSelect,
             multiplayer: false,
@@ -233,7 +233,7 @@ impl App {
     }
     pub fn start(&mut self) {
         self.seed = self.seed.wrapping_add(1009);
-        self.game = Game::new(Event::ALL[self.selected], self.seed);
+        self.game = Game::new(Event::SELECTABLE[self.selected], self.seed);
         if self.multiplayer && self.game.event().race() {
             if self.current_player == 0 {
                 self.race_replays = Default::default();
@@ -278,12 +278,13 @@ impl App {
         if self.multiplayer {
             if self.game.event().race() {
                 self.race_recording.result = self.game.result;
-                self.race_recording.finish_at(race_replay::stop_target(
-                    self.race_scene_seed,
-                    self.current_player,
-                    false,
-                    self.game.event() == Event::Hurdles,
-                ));
+                self.race_recording
+                    .finish_at(race_replay::stop_target_for_event(
+                        self.race_scene_seed,
+                        self.current_player,
+                        false,
+                        self.game.event(),
+                    ));
                 self.race_replays[self.current_player] = std::mem::take(&mut self.race_recording);
             }
             self.players[self.current_player].results[self.selected] = self.best;
@@ -329,7 +330,7 @@ mod flow_tests {
     #[test]
     fn field_events_have_three_attempts_and_preserve_best() {
         for selected in [1, 3, 4] {
-            let mut app = App::new([None; 5]);
+            let mut app = App::new([None; Event::COUNT]);
             app.selected = selected;
             app.game = Game::new(Event::ALL[selected], 1);
             app.best = Some(720);
@@ -492,17 +493,17 @@ impl App {
                     self.screen = Screen::ResetRecords;
                 }
                 if previous {
-                    self.selected = (self.selected + 5) % 6
+                    self.selected = (self.selected + Event::COUNT) % (Event::COUNT + 1)
                 }
                 if next {
-                    self.selected = (self.selected + 1) % 6
+                    self.selected = (self.selected + 1) % (Event::COUNT + 1)
                 }
                 if confirm {
-                    self.tournament = self.selected == 5;
+                    self.tournament = self.selected == Event::COUNT;
                     self.selected = if self.tournament { 0 } else { self.selected };
                     self.current_player = 0;
                     for player in &mut self.players {
-                        player.results = [None; 5];
+                        player.results = [None; Event::COUNT];
                         player.total = 0;
                     }
                     self.total = 0;
@@ -513,7 +514,7 @@ impl App {
             }
             Screen::ResetRecords => {
                 if confirm && !esc {
-                    self.records = [None; 5];
+                    self.records = [None; Event::COUNT];
                     self.best = None;
                     self.records_dirty = true;
                     self.save_error = None;
@@ -594,12 +595,13 @@ impl App {
                 while self.clock >= TICK {
                     self.clock -= TICK;
                     if self.multiplayer && self.game.event().race() {
-                        self.game.step_race_finish_to(race_replay::stop_target(
-                            self.race_scene_seed,
-                            self.current_player,
-                            true,
-                            self.game.event() == Event::Hurdles,
-                        ));
+                        self.game
+                            .step_race_finish_to(race_replay::stop_target_for_event(
+                                self.race_scene_seed,
+                                self.current_player,
+                                true,
+                                self.game.event(),
+                            ));
                     } else {
                         gameplay::step_finish(&mut self.game, &mut self.effects);
                     }
@@ -643,7 +645,7 @@ impl App {
         if self.game.event().race() && self.screen == Screen::Play && old_screen == Screen::Ready {
             effects.sounds.push(SoundCue::Gun)
         }
-        if self.game.event() == Event::Dash
+        if self.game.event().dash()
             && matches!(self.screen, Screen::Finish | Screen::Results)
             && old_screen == Screen::Play
         {

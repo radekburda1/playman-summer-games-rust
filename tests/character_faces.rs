@@ -29,7 +29,7 @@ fn all_character_choices_cycle_and_have_portraits_and_animated_views() {
 #[test]
 fn character_banks_preserve_default_rendering_and_equipment_hooks() {
     let art = Artwork::new();
-    for event in Event::ALL {
+    for event in Event::SELECTABLE {
         let game = Game::new(event, 1);
         let (a, b, f) = Animation::for_game(&game).frames(include_bytes!("../assets/tables.bin"));
         let default = art.frame(0, a, b, f, 120., 230.);
@@ -62,7 +62,7 @@ fn character_banks_preserve_default_rendering_and_equipment_hooks() {
 }
 #[test]
 fn players_keep_independent_faces_in_setup_gameplay_and_replays() {
-    let mut app = App::new([None; 5]);
+    let mut app = App::new([None; 6]);
     app.multiplayer = true;
     app.screen = Screen::PlayerSetup;
     app.setup_selection = 1;
@@ -94,7 +94,7 @@ fn players_keep_independent_faces_in_setup_gameplay_and_replays() {
 }
 #[test]
 fn singleplayer_setup_exposes_exactly_one_customizable_player() {
-    let mut app = App::new([None; 5]);
+    let mut app = App::new([None; 6]);
     app.update(
         0.,
         FrameInput {

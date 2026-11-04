@@ -2,6 +2,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::application::records::decode;
 use crate::application::records::encode;
+use crate::simulation::Event;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
@@ -13,11 +14,11 @@ fn record_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("playman-records.txt"))
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn load_records() -> [Option<i32>; 5] {
-    std::fs::read_to_string(record_path()).map_or([None; 5], |text| decode(&text))
+pub(super) fn load_records() -> [Option<i32>; Event::COUNT] {
+    std::fs::read_to_string(record_path()).map_or([None; Event::COUNT], |text| decode(&text))
 }
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn save_records(r: &[Option<i32>; 5]) -> std::io::Result<()> {
+pub(super) fn save_records(r: &[Option<i32>; Event::COUNT]) -> std::io::Result<()> {
     let path = record_path();
     let temp = path.with_extension("tmp");
     std::fs::write(&temp, encode(r))?;
@@ -30,14 +31,14 @@ unsafe extern "C" {
     fn playman_record_save(ptr: *const u8, len: usize) -> i32;
 }
 #[cfg(target_arch = "wasm32")]
-pub(super) fn load_records() -> [Option<i32>; 5] {
+pub(super) fn load_records() -> [Option<i32>; Event::COUNT] {
     std::array::from_fn(|slot| {
         let value = unsafe { playman_record_load(slot as i32) };
         (value >= 0).then_some(value)
     })
 }
 #[cfg(target_arch = "wasm32")]
-pub(super) fn save_records(records: &[Option<i32>; 5]) -> std::io::Result<()> {
+pub(super) fn save_records(records: &[Option<i32>; Event::COUNT]) -> std::io::Result<()> {
     let text = encode(records);
     if unsafe { playman_record_save(text.as_ptr(), text.len()) } == 1 {
         Ok(())

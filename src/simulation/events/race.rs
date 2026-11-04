@@ -1,17 +1,17 @@
+use crate::simulation::Game;
 use crate::simulation::audio::SoundCue;
 use crate::simulation::discipline::RacePhase;
-use crate::{simulation::Event, simulation::Game};
 impl Game {
     pub(in crate::simulation) fn race_step(&mut self) {
         let event = self.event();
         let r = &mut self.runner;
-        if event == Event::Dash {
-            if r.position < 0x500000 {
+        if event.dash() {
+            if r.position < event.dive_start() {
                 r.run(false)
             } else {
                 r.move_by(0)
             }
-            if r.position >= 0x640000 {
+            if r.position >= event.race_finish() {
                 self.finish(Some(self.elapsed_ms * 100 / 1024))
             }
         } else {
@@ -57,11 +57,7 @@ impl Game {
 
 impl Game {
     pub(in crate::simulation) fn race_action(&mut self) {
-        let min = if self.event() == Event::Dash {
-            0x500000
-        } else {
-            0x640000
-        };
+        let min = self.event().dive_start();
         if self.runner.position >= min && self.runner.dive.is_none() {
             self.runner.dive = Some(self.runner.position);
             self.sound_events.push(SoundCue::Action);

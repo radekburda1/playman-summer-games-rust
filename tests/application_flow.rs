@@ -13,7 +13,7 @@ fn confirm() -> FrameInput {
 #[test]
 fn confirmation_slides_without_advancing_simulation_then_race_counts_down() {
     for event in Event::ALL {
-        let mut app = App::new([None; 5]);
+        let mut app = App::new([None; 6]);
         app.selected = Event::ALL.iter().position(|e| *e == event).unwrap();
         app.start();
         for _ in 0..20 {
@@ -43,7 +43,7 @@ fn confirmation_slides_without_advancing_simulation_then_race_counts_down() {
 }
 #[test]
 fn records_are_independent_of_performance_and_equal_results_do_not_overwrite() {
-    let mut app = App::new([Some(1200), None, None, None, None]);
+    let mut app = App::new([Some(1200), None, None, None, None, None]);
     app.game = Game::new(Event::Dash, 1);
     app.game.result = Some(1150);
     app.finish();
@@ -62,7 +62,7 @@ fn records_are_independent_of_performance_and_equal_results_do_not_overwrite() {
 }
 #[test]
 fn paused_frames_never_accumulate_catchup_ticks() {
-    let mut app = App::new([None; 5]);
+    let mut app = App::new([None; 6]);
     app.screen = Screen::Play;
     app.game.runner.speed = 20000;
     app.update(
@@ -90,7 +90,14 @@ fn paused_frames_never_accumulate_catchup_ticks() {
 
 #[test]
 fn reset_records_requires_confirmation_and_cancel_preserves_records() {
-    let records = [Some(1000), Some(600), None, Some(400), Some(7000)];
+    let records = [
+        Some(1000),
+        Some(600),
+        None,
+        Some(400),
+        Some(7000),
+        Some(4000),
+    ];
     let mut app = App::new(records);
     let reset = FrameInput {
         retry: true,
@@ -113,14 +120,14 @@ fn reset_records_requires_confirmation_and_cancel_preserves_records() {
     app.update(0.016, reset);
     app.update(0.016, confirm());
     assert!(app.screen == Screen::Menu);
-    assert_eq!(app.records, [None; 5]);
+    assert_eq!(app.records, [None; 6]);
     assert!(app.records_dirty);
 }
 
 #[test]
 fn background_music_stops_before_attempt_and_resumes_after_finish_confirmation() {
-    for selected in 0..5 {
-        let mut app = App::new([Some(0); 5]);
+    for selected in 0..Event::COUNT {
+        let mut app = App::new([Some(0); 6]);
         app.selected = selected;
         app.screen = Screen::Menu;
         assert!(app.background_music().is_some());

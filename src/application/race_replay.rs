@@ -76,3 +76,13 @@ pub fn stop_target(seed: u64, player: usize, active: bool, hurdles: bool) -> i32
     };
     (position + if hurdles { 5120 } else { 0 }) << 8
 }
+
+/// Preserve original stop spacing, translating the entire finish area for 400m.
+pub fn stop_target_for_event(
+    seed: u64,
+    player: usize,
+    active: bool,
+    event: crate::simulation::Event,
+) -> i32 {
+    stop_target(seed, player, active, false) + (event.race_shift() << 8)
+}

@@ -5,8 +5,10 @@ pub enum Event {
     Hurdles,
     PoleVault,
     Javelin,
+    Dash400,
 }
 impl Event {
+    /// The original five events, used by the unchanged tournament and oracle fixtures.
     pub const ALL: [Self; 5] = [
         Self::Dash,
         Self::LongJump,
@@ -14,9 +16,38 @@ impl Event {
         Self::PoleVault,
         Self::Javelin,
     ];
+    /// Selectable events append experiments without shifting legacy record slots.
+    pub const SELECTABLE: [Self; 6] = [
+        Self::Dash,
+        Self::LongJump,
+        Self::Hurdles,
+        Self::PoleVault,
+        Self::Javelin,
+        Self::Dash400,
+    ];
+    pub const COUNT: usize = Self::SELECTABLE.len();
+    pub fn dash(self) -> bool {
+        matches!(self, Self::Dash | Self::Dash400)
+    }
+    /// Race coordinates use 65536 units per metre.
+    pub fn race_finish(self) -> i32 {
+        match self {
+            Self::Dash400 => 400 << 16,
+            Self::Hurdles => 0x780000,
+            _ => 100 << 16,
+        }
+    }
+    pub fn dive_start(self) -> i32 {
+        self.race_finish() - (20 << 16)
+    }
+    /// Translation of the original 100m finish-area artwork and camera.
+    pub fn race_shift(self) -> i32 {
+        (self.race_finish() >> 8) - 25600
+    }
     pub fn name(self) -> &'static str {
         match self {
             Self::Dash => "100m Dash",
+            Self::Dash400 => "400m Dash",
             Self::LongJump => "Long Jump",
             Self::Hurdles => "110m Hurdles",
             Self::PoleVault => "Pole Vault",
@@ -24,11 +55,13 @@ impl Event {
         }
     }
     pub fn race(self) -> bool {
-        matches!(self, Self::Dash | Self::Hurdles)
+        matches!(self, Self::Dash | Self::Dash400 | Self::Hurdles)
     }
     pub fn instructions(self) -> &'static str {
         match self {
-            Self::Dash => "Follow the blue 4 / green 6 prompts. Press 5 near the finish to dive.",
+            Self::Dash | Self::Dash400 => {
+                "Follow the blue 4 / green 6 prompts. Press 5 near the finish to dive."
+            }
             Self::LongJump => {
                 "Follow 4 / 6. Press 5 before the board, then 5 at the apex to stretch."
             }
@@ -61,6 +94,7 @@ impl Event {
         let Some(n) = result else { return 0 };
         let lerp = |a: i32, b: i32, x: i32, d: i32| (a * (d - x) + b * x) / d;
         match self {
+            Self::Dash400 => Self::Dash.score(Some(n / 4)),
             Self::Dash => {
                 if n < 1120 {
                     lerp(600, 1000, 1120 - n, 146)

@@ -22,7 +22,7 @@ fn input(app: &App, tick: usize) -> FrameInput {
 #[test]
 fn earlier_races_replay_exact_positions_dives_and_hurdles_without_changing_live_game() {
     for selected in [0, 2] {
-        let mut app = App::new([Some(1); 5]);
+        let mut app = App::new([Some(1); 6]);
         app.multiplayer = true;
         app.player_count = 2;
         app.selected = selected;
@@ -66,7 +66,7 @@ fn earlier_races_replay_exact_positions_dives_and_hurdles_without_changing_live_
         app.update(0.1, FrameInput::default());
         assert_eq!(app.race_athletes()[0].position, before);
         app.paused = false;
-        let mut solo = App::new([Some(1); 5]);
+        let mut solo = App::new([Some(1); 6]);
         solo.seed = app.seed - 1009;
         solo.selected = selected;
         solo.start();
@@ -87,7 +87,7 @@ fn earlier_races_replay_exact_positions_dives_and_hurdles_without_changing_live_
 }
 #[test]
 fn lanes_fit_six_players() {
-    let mut app = App::new([None; 5]);
+    let mut app = App::new([None; 6]);
     app.multiplayer = true;
     app.player_count = 6;
     for player in 0..6 {
@@ -134,7 +134,7 @@ fn stopped_replay_extrapolates_reaction_without_retaining_idle_frames() {
 #[test]
 fn finish_crossing_keeps_active_and_replayed_runners_in_view_without_teleporting() {
     for selected in [0, 2] {
-        let mut app = App::new([Some(1); 5]);
+        let mut app = App::new([Some(1); 6]);
         app.multiplayer = true;
         app.player_count = 2;
         app.selected = selected;

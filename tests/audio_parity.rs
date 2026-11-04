@@ -16,7 +16,7 @@ fn original(scenario: &str) -> Vec<(i32, usize)> {
 
 #[test]
 fn dash_finish_uses_executed_original_resource() {
-    let mut app = App::new([Some(0); 5]);
+    let mut app = App::new([Some(0); 6]);
     app.screen = Screen::Play;
     app.game.runner.position = 0x640000 - 1000;
     app.game.runner.speed = 16000;
@@ -67,7 +67,7 @@ fn jump_player_cues_match_executed_original_ticks() {
 
 #[test]
 fn countdown_cue_order_matches_with_at_most_one_display_tick_offset() {
-    let mut app = App::new([None; 5]);
+    let mut app = App::new([None; 6]);
     app.start();
     app.update(
         0.,
@@ -102,7 +102,7 @@ fn good_results_request_original_celebration_once_after_runout() {
         (1282, 900, "result-poor"),
         (965, 1000, "result-good-record"),
     ] {
-        let mut app = App::new([Some(record); 5]);
+        let mut app = App::new([Some(record); 6]);
         app.game.result = Some(result);
         app.game.runner.speed = 10000;
         app.finish();

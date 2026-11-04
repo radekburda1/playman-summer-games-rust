@@ -7,6 +7,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub enum Discipline {
     Dash(RacePhase),
+    Dash400(RacePhase),
     LongJump(LongJump),
     Hurdles(Hurdles),
     PoleVault(Vault),
@@ -16,6 +17,7 @@ impl Discipline {
     pub fn new(event: Event) -> Self {
         match event {
             Event::Dash => Self::Dash(RacePhase::Run),
+            Event::Dash400 => Self::Dash400(RacePhase::Run),
             Event::LongJump => Self::LongJump(LongJump::default()),
             Event::Hurdles => Self::Hurdles(Hurdles::default()),
             Event::PoleVault => Self::PoleVault(Vault::default()),
@@ -25,6 +27,7 @@ impl Discipline {
     pub fn event(&self) -> Event {
         match self {
             Self::Dash(_) => Event::Dash,
+            Self::Dash400(_) => Event::Dash400,
             Self::LongJump(_) => Event::LongJump,
             Self::Hurdles(_) => Event::Hurdles,
             Self::PoleVault(_) => Event::PoleVault,
@@ -284,7 +287,7 @@ impl TryFrom<Phase> for JavelinPhase {
 impl Discipline {
     pub fn phase(&self) -> Phase {
         match self {
-            Self::Dash(phase) => (*phase).into(),
+            Self::Dash(phase) | Self::Dash400(phase) => (*phase).into(),
             Self::LongJump(state) => state.phase.into(),
             Self::Hurdles(state) => state.phase.into(),
             Self::PoleVault(state) => state.phase.into(),
@@ -293,7 +296,7 @@ impl Discipline {
     }
     pub(in crate::simulation) fn set_phase(&mut self, phase: Phase) -> Result<(), InvalidPhase> {
         match self {
-            Self::Dash(current) => *current = phase.try_into()?,
+            Self::Dash(current) | Self::Dash400(current) => *current = phase.try_into()?,
             Self::LongJump(state) => state.phase = phase.try_into()?,
             Self::Hurdles(state) => state.phase = phase.try_into()?,
             Self::PoleVault(state) => state.phase = phase.try_into()?,

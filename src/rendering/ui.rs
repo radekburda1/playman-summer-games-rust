@@ -78,13 +78,19 @@ fn footer(left: &str, right: &str) {
     small(right, 235. - w, 316., RED);
 }
 fn event_index(event: Event) -> usize {
-    Event::ALL.iter().position(|e| *e == event).unwrap_or(0)
+    // The experimental dash reuses the original running icon, not the trophy.
+    if event == Event::Dash400 {
+        0
+    } else {
+        Event::ALL.iter().position(|e| *e == event).unwrap_or(0)
+    }
 }
+
 fn name(selected: usize) -> String {
-    if selected == 5 {
+    if selected == Event::COUNT {
         "TOURNAMENT".into()
     } else {
-        Event::ALL[selected].name().to_uppercase()
+        Event::SELECTABLE[selected].name().to_uppercase()
     }
 }
 fn result(event: Event, value: Option<i32>) -> String {
@@ -125,16 +131,27 @@ fn wrap(art: &Art, text: &str, x: f32, mut y: f32, width: i32) {
 }
 fn menu(art: &Art, app: &App) {
     header(art, "SELECT EVENT", None);
-    for i in 0..6 {
-        let x = 34. + i as f32 * 34.;
+    for i in 0..=Event::COUNT {
+        let x = 31. + i as f32 * 29.5;
         if i == app.selected {
             art.sprite(1, x - 31., 70., false)
         }
-        art.scaled_sprite(25 + i, x, 97., if i == app.selected { 1. } else { 0.65 });
+        art.scaled_sprite(
+            if i == Event::COUNT {
+                30
+            } else if i == 5 {
+                25
+            } else {
+                25 + i
+            },
+            x,
+            97.,
+            if i == app.selected { 1. } else { 0.65 },
+        );
     }
     band(128., 29.);
     art.label(3, &format!("< {} >", name(app.selected)), 120., 132., 1);
-    if app.selected < 5 {
+    if app.selected < Event::COUNT {
         art.label(3, "PERSONAL BEST", 120., 185., 1);
         for (x, y, w, h) in [
             (15., 214., 210., 1.),
@@ -146,13 +163,16 @@ fn menu(art: &Art, app: &App) {
         }
         score(
             art,
-            Event::ALL[app.selected],
+            Event::SELECTABLE[app.selected],
             app.records[app.selected],
             223.,
         );
     } else {
         art.label(3, "ALL FIVE EVENTS", 120., 189., 1);
         art.label(3, "ONE TOURNAMENT", 120., 223., 1);
+    }
+    if app.selected == 5 {
+        art.label(3, "EXPERIMENTAL", 120., 164., 1);
     }
     art.label(3, "4 / 6 TO CHANGE", 120., 265., 1);
     let reset = "R: Reset records";
@@ -217,13 +237,7 @@ pub fn game_hud(art: &Art, app: &App) {
         ) {
             art.sprite(p.sprite, p.x as f32, p.y as f32, true)
         }
-        let dive_zone = g.event().race()
-            && g.runner.position
-                >= if g.event() == Event::Dash {
-                    0x500000
-                } else {
-                    0x640000
-                };
+        let dive_zone = g.event().race() && g.runner.position >= g.event().dive_start();
         let action = (g.event() == Event::PoleVault
             && g.phase() == Phase::VaultPlant
             && !g.discipline().vault().held)
@@ -407,7 +421,13 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             header(art, "INSTRUCTIONS", Some(25 + app.selected));
             band(55., 29.);
             art.label(3, &name(app.selected), 120., 59., 1);
-            wrap(art, Event::ALL[app.selected].instructions(), 16., 100., 208);
+            wrap(
+                art,
+                Event::SELECTABLE[app.selected].instructions(),
+                16.,
+                100.,
+                208,
+            );
             for (i, id) in [470, 471, 472].into_iter().enumerate() {
                 art.sprite(id, 49. + i as f32 * 71., 264., true)
             }

@@ -662,17 +662,13 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
             scenery_time,
         );
         repeat(art, c, scene::TRACK_EQUIPMENT, -2664, 64, scenery_time);
-        let finish = if g.event() == Event::Dash {
-            25600
-        } else {
-            30720
-        };
+        let finish = g.event().race_finish() >> 8;
         let first = ((c.x - 1920).max(0) / 2560) * 2560;
         let finish_props = project(c, finish, 0, -2126);
         art.bottom_center_sprite(sprite::FINISH_CAMERA, finish_props.x, finish_props.y);
         art.bottom_center_sprite(sprite::FINISH_BELL, finish_props.x + 32., finish_props.y);
         for x in (first..first + 12800).step_by(2560) {
-            if (g.event() == Event::Dash && x == 23040) || (g.event() == Event::Hurdles && x != 0) {
+            if (g.event().dash() && x == finish - 2560) || (g.event() == Event::Hurdles && x != 0) {
                 continue;
             }
             line(
@@ -684,7 +680,14 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
             )
         }
         line(c, (finish, 0, -1998), (finish, 0, 0), 3., WHITE);
-        if c.x > 21120 {
+        if c.x
+            > 21120
+                + if g.event() == Event::Dash400 {
+                    g.event().race_shift()
+                } else {
+                    0
+                }
+        {
             for lane in 0..6 {
                 let z0 = (-6 + lane) * 333;
                 for mark in 0..3 {

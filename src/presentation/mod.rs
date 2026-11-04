@@ -65,8 +65,8 @@ impl Camera {
     pub fn for_game(g: &Game) -> Self {
         let p = g.runner.position >> 8;
         match g.event() {
-            Event::Dash | Event::Hurdles => {
-                let shift = if g.event() == Event::Hurdles { 5120 } else { 0 };
+            Event::Dash | Event::Dash400 | Event::Hurdles => {
+                let shift = g.event().race_shift();
                 let mut target = p;
                 if p < 2560 {
                     target += ease(256, 0, p.max(0), 2560)

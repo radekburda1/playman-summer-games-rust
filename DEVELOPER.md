@@ -58,7 +58,7 @@ aliases are sampled once into `FrameInput` by the platform. `App::update` owns t
 32 ms accumulator and returns audio requests without polling devices or writing
 files. Record comparison/encoding is pure; executable-adjacent native file I/O and
 browser localStorage imports are private to the platform. The browser bridge in
-`web/records.js` stores the same five-line format under `playman-records-v1`.
+`web/records.js` stores the original five slots plus an appended optional sixth line for 400m under `playman-records-v1`.
 R on the main menu opens a reset confirmation; Escape cancels without changing
 records. Storage failures remain visible rather than silently reporting success.
 
@@ -443,3 +443,25 @@ All five custom characters’ gameplay heads use a 3px anchor offset toward the 
 through all eight orientations. This reveals the body neck
 that the taller heads otherwise cover. Source heads remain neckless; menu
 portraits, torsos and all other custom assets have no anchor offset.
+
+## Experimental 400m dash
+
+`Event::Dash400` shares the Dash runner, input handling, countdown, dive,
+animations and sound dispatch. Pure event metadata supplies the 400m finish,
+380m input/dive cutoff and finish-area translation. No stamina, bends or new
+running equations are introduced. The attempt timeout is 240s rather than 60s.
+400m points use the original Dash curve on elapsed hundredths divided by four;
+this is an experimental comparison scale, not an original-game scoring rule.
+
+`Event::ALL` retains the original five events for tournament order and oracle
+fixtures. `SELECTABLE` appends 400m at slot 5; `COUNT` sizes records and per-player
+results. Tournament occupies menu slot COUNT. Both storage adapters read old
+five-line records without moving slots and write six lines under the same key/
+filename. The sixth record is independent; no records are reset by migration.
+
+Track finish props, lane markings, camera finish offsets and multiplayer active/
+replay stopping targets shift together by 300m. Existing 100m/Hurdles coordinates
+and reference fixtures remain intact. Original running artwork is reused; 400m
+has an EXPERIMENTAL menu label and the running icon. New regression tests cover
+runner equivalence, dive/finish boundaries, frozen measured time, extended run-out,
+legacy record migration, menu selection and two-player completion/replays.

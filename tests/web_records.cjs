@@ -17,7 +17,11 @@ function save(text) {const bytes = new TextEncoder().encode(text);new Uint8Array
 assert.equal(save('1237\n-\n1450\n500\n7000'),1);
 api = connect(); // A newly initialized game reads persisted slots.
 assert.deepEqual(Array.from({length:5},(_,i)=>api.playman_record_load(i)),[1237,-1,1450,500,7000]);
-assert.equal(save('-\n-\n-\n-\n-'),1);
+assert.equal(api.playman_record_load(5),-1); // Legacy five-line records migrate without shifting.
+assert.equal(save('1237\n-\n1450\n500\n7000\n3900'),1);
+api = connect();
+assert.deepEqual(Array.from({length:6},(_,i)=>api.playman_record_load(i)),[1237,-1,1450,500,7000,3900]);
+assert.equal(save('-\n-\n-\n-\n-\n-'),1);
 assert.equal(api.playman_record_load(0),-1);
 data.set('playman-records-v1','garbage\n-3\n2147483648\n0');
 assert.deepEqual(Array.from({length:5},(_,i)=>api.playman_record_load(i)),[-1,-1,-1,0,-1]);

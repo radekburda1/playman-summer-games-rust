@@ -120,7 +120,7 @@ impl Game {
                 }
                 let hurdle_window = (self.runner.position + 327680) % 983040;
                 let permitted = self.phase() == Phase::Run
-                    && (self.event() != Event::Dash || self.runner.position < 0x500000)
+                    && (!self.event().dash() || self.runner.position < self.event().dive_start())
                     && (self.event() != Event::Hurdles || (0..865280).contains(&hurdle_window));
                 if permitted {
                     let key = usize::from(matches!(input, Input::Right));
@@ -144,7 +144,7 @@ impl Game {
                 }
             }
             Input::ActionDown => match self.event() {
-                Event::Dash | Event::Hurdles => self.race_action(),
+                Event::Dash | Event::Dash400 | Event::Hurdles => self.race_action(),
                 Event::LongJump => self.jump_action(),
                 Event::Javelin => self.javelin_action(),
                 Event::PoleVault => self.vault_down(),
@@ -259,12 +259,18 @@ impl Game {
         self.phase_elapsed_ms += 32;
         self.runner.tick += 1;
         self.feedback_time -= 32;
-        if self.elapsed_ms > 60000 {
+        if self.elapsed_ms
+            > if self.event() == Event::Dash400 {
+                240000
+            } else {
+                60000
+            }
+        {
             self.finish(None);
             return;
         }
         match self.event() {
-            Event::Dash | Event::Hurdles => self.race_step(),
+            Event::Dash | Event::Dash400 | Event::Hurdles => self.race_step(),
             Event::LongJump => self.jump_step(),
             Event::Javelin => {
                 self.javelin_step();

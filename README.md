@@ -2,7 +2,7 @@
 
 A native Rust/Macroquad reconstruction made from the supplied `playmansum_2jvrll9n.jar` (Java ME, version 1.0.21).
 
-**Status: playable implementation of five events, not a complete parity port.** The running model, dive boost, long-jump equations, javelin flight equations and event scoring were translated from the decompiled code. Pole Vault now uses the recovered integer spring/end-point model; see `analysis/POLE-VAULT.md` for verification and remaining visual differences. Original graphics, sampled effects, and offline renders of all twelve MIDI resources are embedded. Long Jump now includes preparation, source-matched flight/landing traces, recovery, pit/ruler/official layers and event sound triggers; see `analysis/LONG-JUMP-UPDATE.md` for evidence and remaining gaps. CPU opponents, original challenge progression, Survival and Minimode are not implemented. Desktop browser checks cover Hurdles collision/recovery/finish and representative states in all five events. The user confirmed audible browser music and effects; full visual/audio parity remains unverified.
+**Status: playable implementation of five original events plus an experimental 400m dash, not a complete parity port.** The running model, dive boost, long-jump equations, javelin flight equations and event scoring were translated from the decompiled code. Pole Vault now uses the recovered integer spring/end-point model; see `analysis/POLE-VAULT.md` for verification and remaining visual differences. Original graphics, sampled effects, and offline renders of all twelve MIDI resources are embedded. Long Jump now includes preparation, source-matched flight/landing traces, recovery, pit/ruler/official layers and event sound triggers; see `analysis/LONG-JUMP-UPDATE.md` for evidence and remaining gaps. CPU opponents, original challenge progression, Survival and Minimode are not implemented. Desktop browser checks cover Hurdles collision/recovery/finish and representative states in all five events. The user confirmed audible browser music and effects; full visual/audio parity remains unverified.
 
 ## Build and run
 
@@ -71,6 +71,7 @@ Running follows the displayed **sequence**, which can repeat a side. Button pres
 
 Menus use the extracted original bitmap fonts and sport icons on white backgrounds with red selection bands. The pause menu supports resume, retry, sound and return to the event menu. Use 4/6 to navigate and 5 to select.
 
+- **400m Dash (experimental):** the same prompt, acceleration and dive mechanics on a four-times-longer straight track. Prompts continue until 380m; dive in the final 20m. Available in singleplayer and 2–6-player local multiplayer with its own persistent record. The original five-event tournament is unchanged.
 - **100m Dash:** follow prompts until the final section, then press the action key near the finish to dive.
 - **Long Jump:** run up, press action before the white board, then press again at the apex to stretch. Crossing the board before takeoff is a foul.
 - **110m Hurdles:** complete each three-button sequence; jumps happen automatically. Incomplete/wrong sequences incur a penalty.

@@ -1,4 +1,4 @@
-// Keep the existing five-line record format, scoped to this browser origin.
+// Keep the legacy record slots; an optional sixth line stores 400m, scoped to this browser origin.
 miniquad_add_plugin({
     name: "playman_records", version: 1,
     register_plugin(imports) {
