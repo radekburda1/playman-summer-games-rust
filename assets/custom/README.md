@@ -226,3 +226,26 @@ Create a production transparent pixel-art HEAD sprite sheet for a 2008 mobile at
 The superseded code-generated brother torso had a 2.6x maximum belly width, a short jersey over a shaded exposed midriff and waistband. Limbs use 1.45x width. Custom atlas cells are 96 pixels to contain the broader silhouettes. Original joint hooks and simulation remain unchanged. The supplied cartoon example guides proportions only.
 
 Kubak menu correction: both preview sizes now sample the transparent neckless frontal head, not the supplied opaque portrait crop. Reference image is retained for provenance only.
+
+## Finch
+
+`finch-heads.png` was generated with built-in ImageGen using the user's
+attached Finch photo as a likeness reference and transparent output enabled.
+The runtime reads the four views in quarter-width cells and uses the front view
+for both portrait sizes. The original photo is not required at runtime.
+
+Prompt:
+
+> Create a transparent 2D retro mobile sports game pixel art sprite sheet based on the attached photo of Finch, using the photo only for facial likeness. Exactly four separate head-only sprites in one evenly spaced horizontal row: right-facing full profile, right-facing three-quarter, straight front smiling, straight rear. Same scale, generous transparent gutters between and around each sprite. Crop at jaw and skull base, absolutely no neck, shoulders or clothing. Preserve swept-up spiky brown hair, blue-gray eyes, broad toothy smile and short goatee/stubble. Compact Playman Summer Games 3 style, dark pixel outlines and warm limited palette, low-resolution 32-pixel-era shapes. No text or backdrop.
+
+## Marian
+
+Generated 2026-11-23 with built-in ImageGen and transparent output enabled.
+The supplied photo is retained as `marian-reference.png`. Finch's sheet was
+used only for style/layout. Runtime source `marian-heads.png` contains four
+head-only quarter-cell views. Both menu sizes use the front view.
+Generated source was exec-bff1f171-7efa-4792-b551-09de9d432521.png.
+
+Prompt:
+
+> Use case: stylized-concept. Create a transparent pixel-art game head sprite sheet for Marian. The small attached circular photo is the identity reference. The four-head Finch sheet is only the style and layout reference. Match that sheet's retro mobile sports game pixel outlines, warm shading and compact proportions. Marian has short dark brown hair with a mildly receding hairline, a small moustache connected to a short dark goatee, light skin, calm friendly expression. Use his face likeness, not Finch's features. Exactly four separate head-only views in one evenly spaced horizontal row, each centered in its own quarter: right-facing full profile, right-facing three-quarter, straight front, straight rear. Generous transparent gutters, same scale. Heads terminate at jaw/skull base. Absolutely no neck extensions, clothing, shoulders, circular frame, status badge, clock, text or background. True alpha transparency.

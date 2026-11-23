@@ -49,27 +49,27 @@ make web
 
 `WEB_CARGO` selects a custom Cargo/toolchain; optional `.make.local` settings are ignored by Git.
 
-Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes the port. The Java reference remains at http://127.0.0.1:8765 (`make java`). Native play is still `make rust`. The browser build stores personal records in localStorage for the current origin. On the main screen, press R to reset all records, then Enter / 5 to confirm or Escape to cancel. Native builds retain executable-adjacent file storage.
+Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes the port. The Java reference remains at http://127.0.0.1:8765 (`make java`). Native play is still `make rust`. The browser build stores personal records in localStorage for the current origin. On the main screen, press R to reset all records, then Space to confirm or Escape to cancel. Native builds retain executable-adjacent file storage.
 
 ## Controls
 
 | Action | Keys |
 |---|---|
-| Navigate menus | Arrows, A / D, 4 / 6, or keypad 4 / 6 |
-| Select / start / continue | Enter, Space, 5, or keypad 5 |
-| Left prompt / right prompt | Left / Right, A / D, 4 / 6, or keypad 4 / 6 |
-| Jump, dive, charge, pole action | Space, 5, or keypad 5 |
+| Navigate menus | Arrow keys |
+| Select / start / continue | Space |
+| Left prompt / right prompt | Left / Right arrows |
+| Jump, dive, charge, pole action | Space |
 | Pause / resume | P |
 | Toggle music and sound effects | M |
 | Retry from result screen / reset records from main menu | R |
-| Next attempt / event | Enter |
+| Next attempt / event | Space |
 | Return to menu | Escape |
 
-Each attempt opens on a stationary **NEXT UP / Start** scene. Press **5 / Space** (or Enter) to begin the countdown; waiting on this screen does not advance the attempt. The dash start includes the original starting blocks and yellow equipment boxes in all six lanes. Background music stops on entering the start scene and stays off through play, pause and the finish screen. It can resume after finish confirmation; effects and explicit record jingles remain separate.
+Each attempt opens on a stationary **NEXT UP / Start** scene. Press **Space** to begin the countdown; waiting on this screen does not advance the attempt. The dash start includes the original starting blocks and yellow equipment boxes in all six lanes. Background music stops on entering the start scene and stays off through play, pause and the finish screen. It can resume after finish confirmation; effects and explicit record jingles remain separate.
 
-Running follows the displayed **sequence**, which can repeat a side. Button presses are edge triggered: holding a direction does not repeatedly run. Correct 4/6 inputs produce the original three-frame white pulse (200 ms), with a short bounce on the next prompt; wrong inputs show a red X (300 ms). Hurdles highlight the consumed sequence slot.
+Running follows the displayed **sequence**, which can repeat a side. Button presses are edge triggered: holding a direction does not repeatedly run. Correct arrow-key inputs produce the original three-frame white pulse (200 ms), with a short bounce on the next prompt; wrong inputs show a red X (300 ms). Hurdles highlight the consumed sequence slot.
 
-Menus use the extracted original bitmap fonts and sport icons on white backgrounds with red selection bands. The pause menu supports resume, retry, sound and return to the event menu. Use 4/6 to navigate and 5 to select.
+Menus use the extracted original bitmap fonts and sport icons on white backgrounds with red selection bands. The pause menu supports resume, retry, sound and return to the event menu. Use arrow keys to navigate and Space to select.
 
 - **400m Dash (experimental):** the same prompt, acceleration and dive mechanics on a four-times-longer straight track. Prompts continue until 380m; dive in the final 20m. Available in singleplayer and 2–6-player local multiplayer with its own persistent record. The original five-event tournament is unchanged.
 - **100m Dash:** follow prompts until the final section, then press the action key near the finish to dive.
@@ -78,7 +78,7 @@ Menus use the extracted original bitmap fonts and sport icons on white backgroun
 - **Pole Vault:** hold action when the pole tip reaches the box, then release near the pole's upright position. This event uses reconstructed physics.
 - **Javelin:** hold action during the final approach; release when the moving marker reaches the tip, before crossing the line. Flight uses the recovered two-ended aerodynamic model.
 
-Long Jump plays its preparation animation after confirmation (without the race countdown). A first 4/6 input can skip preparation. Landing includes the original slide/recovery stage; confirmation on its finish scene advances directly to the next attempt.
+Long Jump plays its preparation animation after confirmation (without the race countdown). A first Left/Right input can skip preparation. Landing includes the original slide/recovery stage; confirmation on its finish scene advances directly to the next attempt.
 
 After a race, the athlete takes slowing steps before reacting in the stadium. Original score bands select the message and reaction: at least 750 points celebrates, 450–749 uses a neutral pose, and lower scores use disappointment. Good results also request the original celebration sound after run-out; the personal-record badge is independent. The finish screen holds until confirmation, then opens the detailed results.
 
@@ -203,8 +203,8 @@ See [DEVELOPER.md](DEVELOPER.md) for architecture, simulation units, asset mappi
 ### Local multiplayer
 
 Choose Multiplayer on the opening mode screen. Use Left/Right to choose 2–6
-players, Up/Down to select a name, type letters/numbers/spaces to edit it, and
-Backspace to erase (10 characters maximum). Enter advances to the next row;
+players, Up/Down to select a name, type letters/numbers to edit it, and
+Backspace to erase (10 characters maximum). Space advances to the next row;
 select Continue to choose an event or tournament. Names and sessions stay in
 memory and are not restored after closing/reloading the game.
 
@@ -228,8 +228,9 @@ recovers seated. Replays are display-only and do not emit duplicate audio.
 ### Player faces
 
 Both modes open player setup before event selection. Select a player with
-Up/Down, then use Left/Right to cycle the 12 original faces, the custom brother character, Kubak, Radek, Burdas and Tereza. Type to edit the
-name, Backspace to erase, and Enter to advance to Continue. Multiplayer also
+Up/Down, then use Left/Right to cycle the 12 original faces, the custom brother character, Kubak, Radek, Burdas, Tereza, Finch and Marian. Type to edit the
+name, Backspace to erase, and Space to advance to Continue. Choosing a custom
+face fills its name automatically. You can edit the name afterward. Multiplayer also
 allows changing player count on the first row. Selected faces appear in menu
 portraits and animated athletes, including earlier runners in multiplayer races.
 Face choices remain in memory for this game session; reloading restores defaults.
@@ -239,26 +240,51 @@ body/outfit editing and country selection are not implemented. The default Playm
 keeps the established rendering scale. Appearance configuration supports future
 extensions without changing gameplay.
 
-The custom brother character is selected with Left six times from default
+The custom brother character is selected with Left eight times from default
 Playman. His selector uses a transparent head preview, gameplay uses generated
 cap-and-beard head views, and a rounded pot belly/broader limbs provide a fuller
 physique. The torso follows the original lean angles through running and crouching. This is cosmetic: movement, scores and equipment controls are unchanged.
 Edit the player name normally. Asset provenance and the generation prompt are in
 `assets/custom/README.md`.
 
-Kubak is selected with Left five times from default Playman. His transparent head
+Kubak is selected with Left seven times from default Playman. His transparent head
 is used in the selector, with matching generated animated head views. He uses
 the standard male body and proportions, without the brother's fuller-body
 transform. Names remain independently editable in player setup.
 
-Radek is selected with Left four times from default Playman, using a transparent neckless head and the standard male body. Player names remain independently editable.
+Radek is selected with Left six times from default Playman, using a transparent neckless head and the standard male body. Player names remain independently editable.
 
-Burdas is selected with Left three times from default Playman, with short brown
+Burdas is selected with Left five times from default Playman, with short brown
 hair, gray-blue eyes and a light mustache. His transparent portrait and animated
 head match the game's pixel-art style. He uses the standard male body, with
 three-quarter faces in rear-turn poses. Names remain independently editable.
 
-Tereza is the final portrait (Left twice from default Playman), with hazel eyes,
+Tereza is four Left presses from default Playman, with hazel eyes,
 a warm smile and brown hair tied into a short curled ponytail. Her hair fits the
 compact head rectangle like the original women. She uses the standard female
 body and a transparent head-only selector portrait. Names are editable separately.
+
+Finch is three Left presses from default Playman. His photo-inspired
+pixel-art head uses the standard male athlete body.
+
+Marian is the final portrait (Left twice from default Playman). His photo-inspired
+pixel-art head uses the standard male athlete body.
+
+
+### Handicap
+
+On the event selection menu, drag or click the Handicap slider, or use
+Down/Up to adjust it.
+Choose 100%, 90%, 80%, 70%, 60% or 50%. The default is 100%.
+At 50%, countdowns and gameplay take twice as long in real time, giving you
+more time to react. Race times use the game clock and records are shared across
+speed settings. The selected speed applies to both modes and stays set between
+events and retries for the current session. Restarting restores 100%.
+
+
+### Multiplayer results
+
+Multiplayer results use portraits, aligned result columns and a highlighted
+leader. Two-player results show a larger winner card. Three to six players use
+compact rows; tournament standings show total points and the completed event.
+Names fit their columns, field results show metres, and fouls remain explicit.

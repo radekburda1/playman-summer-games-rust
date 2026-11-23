@@ -1,3 +1,7 @@
+mod controls;
+mod event_menu;
+mod standings;
+
 use crate::{
     application::{App, Screen},
     rendering::art::Art,
@@ -53,6 +57,37 @@ fn event_header(art: &Art, app: &App, title: &str) {
     art.scaled_sprite(25 + event_index(app.game.event()), 33. - offset, 25.5, 0.82);
     art.label(4, title, 230. + offset, 7., 2);
 }
+// Text is measured within its column so every supported name/result stays clear
+// of its neighbors. Position is the top edge; anchor is 0/0.5/1 for left/center/right.
+fn text(
+    art: &Art,
+    label: &str,
+    position: Vec2,
+    size: f32,
+    color: Color,
+    max_width: f32,
+    anchor: f32,
+) {
+    let font = art.ui_font();
+    let scale = size / 48.;
+    let measured = measure_text(label, font, 48, scale);
+    let fit = (max_width / measured.width.max(1.)).min(1.);
+    let scale = scale * fit;
+    let measured = measure_text(label, font, 48, scale);
+    draw_text_ex(
+        label,
+        position.x - measured.width * anchor,
+        position.y + measured.offset_y,
+        TextParams {
+            font,
+            font_size: 48,
+            font_scale: scale,
+            color,
+            ..Default::default()
+        },
+    );
+}
+
 fn small(text: &str, x: f32, y: f32, color: Color) {
     draw_text(text, x, y, 14., color);
 }
@@ -129,60 +164,6 @@ fn wrap(art: &Art, text: &str, x: f32, mut y: f32, width: i32) {
     }
     art.label(3, &line, x, y, 0);
 }
-fn menu(art: &Art, app: &App) {
-    header(art, "SELECT EVENT", None);
-    for i in 0..=Event::COUNT {
-        let x = 31. + i as f32 * 29.5;
-        if i == app.selected {
-            art.sprite(1, x - 31., 70., false)
-        }
-        art.scaled_sprite(
-            if i == Event::COUNT {
-                30
-            } else if i == 5 {
-                25
-            } else {
-                25 + i
-            },
-            x,
-            97.,
-            if i == app.selected { 1. } else { 0.65 },
-        );
-    }
-    band(128., 29.);
-    art.label(3, &format!("< {} >", name(app.selected)), 120., 132., 1);
-    if app.selected < Event::COUNT {
-        art.label(3, "PERSONAL BEST", 120., 185., 1);
-        for (x, y, w, h) in [
-            (15., 214., 210., 1.),
-            (15., 263., 210., 1.),
-            (15., 214., 1., 50.),
-            (224., 214., 1., 50.),
-        ] {
-            draw_rectangle(x, y, w, h, BLACK);
-        }
-        score(
-            art,
-            Event::SELECTABLE[app.selected],
-            app.records[app.selected],
-            223.,
-        );
-    } else {
-        art.label(3, "ALL FIVE EVENTS", 120., 189., 1);
-        art.label(3, "ONE TOURNAMENT", 120., 223., 1);
-    }
-    if app.selected == 5 {
-        art.label(3, "EXPERIMENTAL", 120., 164., 1);
-    }
-    art.label(3, "4 / 6 TO CHANGE", 120., 265., 1);
-    let reset = "R: Reset records";
-    let reset_width = measure_text(reset, None, 14, 1.).width;
-    small(reset, (240. - reset_width) / 2., 299., RED);
-    if app.save_error.is_some() {
-        art.label(0, "Record could not be saved", 120., 179., 1);
-    }
-    footer("Select", "Back");
-}
 fn pause(art: &Art, app: &App, muted: bool) {
     header(art, "PAUSED", None);
     let items = [
@@ -209,7 +190,7 @@ fn pause(art: &Art, app: &App, muted: bool) {
         art.label(3, item, 48., y, 0);
     }
     art.label(3, "P TO RESUME", 120., 271., 1);
-    footer("Select", "Menu");
+    footer("Space: Select", "Menu");
 }
 pub fn game_hud(art: &Art, app: &App) {
     let g = &app.game;
@@ -235,7 +216,7 @@ pub fn game_hud(art: &Art, app: &App) {
                 Camera::athlete_lane(g.event())
             },
         ) {
-            art.sprite(p.sprite, p.x as f32, p.y as f32, true)
+            controls::prompt(art, p.sprite, p.x as f32, p.y as f32)
         }
         let dive_zone = g.event().race() && g.runner.position >= g.event().dive_start();
         let action = (g.event() == Event::PoleVault
@@ -279,7 +260,8 @@ pub fn game_hud(art: &Art, app: &App) {
                     Camera::athlete_lane(g.event())
                 },
             );
-            art.sprite(
+            controls::prompt(
+                art,
                 if (g.phase() == Phase::Charge
                     || g.event() == Event::LongJump && g.phase() == Phase::Air)
                     && g.elapsed_ms % 200 < 100
@@ -294,7 +276,6 @@ pub fn game_hud(art: &Art, app: &App) {
                     -14
                 }) as f32,
                 (y - 124) as f32,
-                true,
             );
         }
     }
@@ -311,7 +292,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 art.label(3, title, 120., y, 1);
             }
             small("Multiplayer: share this device", 27., 235., BLACK);
-            footer("Select", "");
+            footer("Space: Select", "");
         }
         Screen::PlayerSetup => {
             header(art, "PLAYERS", None);
@@ -344,78 +325,26 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 }
             }
             small("Left/right: face. Type: name.", 20., 278., BLACK);
-            small("Up/down: player. Enter: next.", 20., 294., BLACK);
+            small("Up/down: player. Space: next.", 20., 294., BLACK);
             let character = app
                 .setup_selection
                 .checked_sub(1)
                 .filter(|index| *index < app.setup_player_count())
                 .map(|index| app.players[index].appearance.face);
-            footer(
-                if character.is_some_and(|face| face.is_tereza()) {
-                    "Tereza / Next"
-                } else if character.is_some_and(|face| face.is_burdas()) {
-                    "Burdas / Next"
-                } else if character.is_some_and(|face| face.is_radek()) {
-                    "Radek / Next"
-                } else if character.is_some_and(|face| face.is_kubak()) {
-                    "Kubak / Next"
-                } else if character.is_some_and(|face| face.is_brother()) {
-                    "Brother / Next"
-                } else {
-                    "Next"
-                },
-                "Back",
-            );
+            let next_label = character
+                .and_then(|face| face.custom_name())
+                .map_or_else(|| "Space: Next".into(), |name| format!("{name} / Space"));
+            footer(&next_label, "Back");
         }
-        Screen::Standings => {
-            header(art, "STANDINGS", None);
-            small(
-                if app.tournament {
-                    "TOURNAMENT POINTS"
-                } else {
-                    "EVENT RESULTS"
-                },
-                50.,
-                65.,
-                BLACK,
-            );
-            for (rank, index) in app.standings().into_iter().enumerate() {
-                let player = &app.players[index];
-                let y = 90. + rank as f32 * 32.;
-                if rank == 0 {
-                    band(y - 2., 30.);
-                }
-                small(
-                    &format!("{}. {}", rank + 1, player.name),
-                    15.,
-                    y + 12.,
-                    BLACK,
-                );
-                let value = if app.tournament {
-                    player.total.to_string()
-                } else {
-                    result(app.game.event(), player.results[app.selected])
-                };
-                let width = measure_text(&value, None, 14, 1.).width;
-                small(&value, 230. - width, y + 12., BLACK);
-            }
-            footer(
-                if app.tournament && app.selected < 4 {
-                    "Next event"
-                } else {
-                    "Menu"
-                },
-                "Menu",
-            );
-        }
-        Screen::Menu => menu(art, app),
+        Screen::Standings => standings::draw(art, app),
+        Screen::Menu => event_menu::draw(art, app),
         Screen::ResetRecords => {
             header(art, "RESET RECORDS", None);
             art.label(3, "CLEAR ALL RECORDS?", 120., 100., 1);
             art.label(0, "This cannot be undone.", 120., 155., 1);
-            art.label(0, "Enter / 5: Reset", 120., 205., 1);
+            art.label(0, "Space: Reset", 120., 205., 1);
             art.label(0, "Esc: Cancel", 120., 235., 1);
-            footer("Reset", "Cancel");
+            footer("Space: Reset", "Cancel");
         }
         Screen::Help => {
             header(art, "INSTRUCTIONS", Some(25 + app.selected));
@@ -429,9 +358,9 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 208,
             );
             for (i, id) in [470, 471, 472].into_iter().enumerate() {
-                art.sprite(id, 49. + i as f32 * 71., 264., true)
+                controls::prompt(art, id, 49. + i as f32 * 71., 264.)
             }
-            footer("Start", "Back");
+            footer("Space: Start", "Back");
         }
         Screen::AwaitStart => {
             event_header(art, app, "NEXT UP");
@@ -453,10 +382,10 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             );
             if app.outgoing.is_none() && app.screen_age >= 0.4 && app.wait_time % 0.6 < 0.3 {
                 art.label(3, "Start", (x + 32) as f32, (y - 132) as f32, 1);
-                art.sprite(472, (x + 32) as f32, (y - 92) as f32, true);
+                controls::prompt(art, 472, (x + 32) as f32, (y - 92) as f32);
             }
             if app.outgoing.is_none() {
-                footer("5 / Space: Start", "Esc: Menu");
+                footer("Space: Start", "Esc: Menu");
             }
         }
         Screen::Ready => art.label(
@@ -516,7 +445,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                     art.label(4, "HIGH SCORE!", 120. + offset, 126., 1);
                 }
                 if app.outgoing.is_none() {
-                    footer("OK", "Menu");
+                    footer("Space: OK", "Menu");
                 }
             }
         }
@@ -542,7 +471,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             if app.save_error.is_some() {
                 small("Record could not be saved", 30., 299., RED);
             }
-            footer("Next", "Menu");
+            footer("Space: Next", "Menu");
         }
         Screen::Complete => {
             header(art, "RESULTS", Some(30));
@@ -550,7 +479,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             art.label(3, "COMPLETE!", 120., 119., 1);
             art.label(6, &app.total.to_string(), 120., 181., 1);
             art.label(3, "POINTS", 120., 222., 1);
-            footer("Menu", "");
+            footer("Space: Menu", "");
         }
     }
 }

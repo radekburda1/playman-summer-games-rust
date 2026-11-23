@@ -163,3 +163,147 @@ fn background_music_stops_before_attempt_and_resumes_after_finish_confirmation()
         assert!(app.background_music().is_some());
     }
 }
+
+#[test]
+fn speed_menu_bounds_and_half_speed_preserve_simulation_ticks() {
+    let mut slow = App::new([None; Event::COUNT]);
+    slow.screen = Screen::Menu;
+    for expected in [90, 80, 70, 60, 50, 50] {
+        slow.update(
+            0.,
+            FrameInput {
+                down: true,
+                ..Default::default()
+            },
+        );
+        assert_eq!(slow.speed_percent(), expected);
+        assert_eq!(slow.selected, 0);
+    }
+    for (selected, _) in Event::SELECTABLE.into_iter().enumerate() {
+        let mut normal = App::new([None; Event::COUNT]);
+        normal.seed = slow.seed;
+        normal.selected = selected;
+        slow.selected = selected;
+        normal.start();
+        slow.start();
+        normal.screen = Screen::Play;
+        slow.screen = Screen::Play;
+        for _ in 0..50 {
+            let input = FrameInput {
+                left: true,
+                ..Default::default()
+            };
+            normal.update(0.032, input);
+            slow.update(0.032, input);
+            slow.update(0.032, FrameInput::default());
+        }
+        assert_eq!(slow.game.elapsed_ms, normal.game.elapsed_ms);
+        assert_eq!(slow.game.runner.position, normal.game.runner.position);
+        assert_eq!(slow.game.runner.speed, normal.game.runner.speed);
+        assert_eq!(
+            slow.game.runner.expected_key,
+            normal.game.runner.expected_key
+        );
+    }
+    slow.screen = Screen::Ready;
+    slow.ready = 0.;
+    slow.update(0.1, FrameInput::default());
+    assert_eq!(slow.ready, 0.05);
+    slow.screen = Screen::Menu;
+    for expected in [60, 70, 80, 90, 100, 100] {
+        slow.update(
+            0.,
+            FrameInput {
+                up: true,
+                ..Default::default()
+            },
+        );
+        assert_eq!(slow.speed_percent(), expected);
+    }
+}
+
+#[test]
+fn handicap_pointer_snaps_clamps_and_requires_a_drag_started_on_the_slider() {
+    use playman_rust::application::{PointerInput, menu};
+
+    let mut app = App::new([None; Event::COUNT]);
+    app.screen = Screen::Menu;
+    let pointer = |x, y, pressed, down| FrameInput {
+        pointer: Some(PointerInput {
+            x,
+            y,
+            pressed,
+            down,
+        }),
+        ..Default::default()
+    };
+    app.update(0., pointer(0., 265., true, true));
+    app.update(0., pointer(26., 265., false, true));
+    assert_eq!(app.speed_percent(), 100);
+
+    let [left, right] = menu::HANDICAP_TRACK;
+    for stop in 0..=5 {
+        let x = left + stop as f32 / 5. * (right - left);
+        app.update(0., pointer(x, 265., true, true));
+        assert_eq!(app.speed_percent(), 50 + stop * 10);
+        assert_eq!(app.selected, 0);
+    }
+    app.update(0., pointer(120., 265., true, true));
+    assert_eq!(app.speed_percent(), 80);
+    app.update(0., pointer(-100., 500., false, true));
+    assert_eq!(app.speed_percent(), 50);
+    app.update(0., pointer(1000., 0., false, true));
+    assert_eq!(app.speed_percent(), 100);
+    app.update(0., pointer(left, 265., false, false));
+    app.update(0., pointer(left, 265., false, true));
+    assert_eq!(app.speed_percent(), 100);
+
+    app.update(0., pointer(120., 265., true, true));
+    app.screen = Screen::Help;
+    app.update(0., pointer(left, 265., false, true));
+    app.screen = Screen::Menu;
+    app.update(0., pointer(left, 265., false, true));
+    assert_eq!(app.speed_percent(), 80);
+
+    app.update(0., pointer(left, 265., true, false));
+    assert_eq!(app.speed_percent(), 50);
+    app.update(0., pointer(right, 265., false, true));
+    assert_eq!(app.speed_percent(), 50);
+}
+
+#[test]
+fn space_advances_every_setup_row_without_appending_to_names() {
+    for multiplayer in [false, true] {
+        let mut app = App::new([None; Event::COUNT]);
+        app.mode_selection = usize::from(multiplayer);
+        app.update(0., confirm());
+        assert!(app.screen == Screen::PlayerSetup);
+        let player_count = app.setup_player_count();
+        for row in 0..=player_count + 1 {
+            assert_eq!(app.setup_selection, row);
+            app.update(
+                0.,
+                FrameInput {
+                    action: true,
+                    text: Some(' '),
+                    ..Default::default()
+                },
+            );
+            app.update(
+                0.,
+                FrameInput {
+                    text: Some(' '),
+                    ..Default::default()
+                },
+            );
+        }
+        assert!(app.screen == Screen::Menu);
+        for (index, player) in app.players.iter().enumerate() {
+            assert_eq!(player.name, format!("PLAYER {}", index + 1));
+        }
+        app.update(0., confirm());
+        assert!(app.screen == Screen::Help);
+        app.update(0., confirm());
+        assert!(app.screen == Screen::AwaitStart);
+    }
+}

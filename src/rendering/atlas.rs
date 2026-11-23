@@ -81,6 +81,14 @@ pub fn image() -> Image {
         env!("CARGO_MANIFEST_DIR"),
         "/assets/custom/tereza-heads.png"
     )));
+    let finch_heads = decode(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/assets/custom/finch-heads.png"
+    )));
+    let marian_heads = decode(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/assets/custom/marian-heads.png"
+    )));
     let rows = (custom::COUNT * 8).div_ceil(custom::ATLAS_WIDTH / custom::CELL);
     let height = custom::ORIGINAL_HEIGHT + rows * custom::CELL;
     let mut out = Image {
@@ -113,6 +121,14 @@ pub fn image() -> Image {
             torso_bounds(&burdas_heads, 2)
         } else if (49..53).contains(&index) {
             torso_bounds(&tereza_heads, index - 49)
+        } else if (55..59).contains(&index) {
+            bounds(&finch_heads, index - 55)
+        } else if (61..65).contains(&index) {
+            bounds(&marian_heads, index - 61)
+        } else if index >= 65 {
+            bounds(&marian_heads, 2)
+        } else if index >= 59 {
+            bounds(&finch_heads, 2)
         } else if index >= 53 {
             torso_bounds(&tereza_heads, 2)
         } else {
@@ -123,6 +139,10 @@ pub fn image() -> Image {
             &heads
         } else if (27..31).contains(&index) {
             &torsos
+        } else if index >= 61 {
+            &marian_heads
+        } else if index >= 55 {
+            &finch_heads
         } else if index >= 49 {
             &tereza_heads
         } else if index >= 43 {

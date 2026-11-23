@@ -1,6 +1,6 @@
-# Playman Rust desktop handoff — 2026-11-03
+# Playman Rust desktop handoff — 2026-11-23
 
-This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing. Latest work adds an experimental standalone 400m dash. Await the user's next task after initialization; do not invent cleanup work or commit.
+This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing.
 
 ## Start here
 
@@ -17,9 +17,175 @@ Rust/Macroquad reconstruction of Playman Summer Games 3. Browser game `http://12
 
 Workspace root `/Users/Radek.Burda/Documents/Codex/2026-10-25/you-are-an-expert-systems-engineer`. Current chat artifact folder `/Users/Radek.Burda/Documents/Codex/2026-11-01/new-chat/outputs`.
 
-HEAD at start of 400m work: `6f7e841 Add Tereza and fix custom character neck alignment`.
-Checkout was clean. Only the new 400m work is pending; prior character work is
-committed by the user. No staging/commits performed by the agent.
+## Final commit verification — 2026-11-23
+
+The user authorized committing and pushing all pending character and desktop UI
+work on main. Full cargo test --locked passed all 92 tests, including original
+state/pixel preservation, all character assets/poses, multiplayer flows, handicap
+timing/dragging and Space setup. Formatting, Clippy with warnings denied, diff
+whitespace and web bundle/storage checks passed. Web and macOS release builds
+passed after the final keycap fix. Native visuals/input remain unverified for
+these desktop UI changes. Asset/font provenance and licenses are included.
+
+## Keycap outline correction — latest implementation change
+
+Removed the heavy white outer outline from the shared desktop keycaps.
+They now use a thin dark edge and bottom shadow around the colored face.
+This applies consistently to Space and both arrow prompts. Clippy, formatting,
+diff whitespace and web/macOS release builds passed. Inspected the updated
+Space keycap against stadium scenery in the live browser start screen.
+Screenshot keycaps-dark-edge.png is in the visualization results-design folder.
+Native visuals were not rechecked.
+
+## Space confirmation in all menus — prior change
+
+Space now advances every player-setup row and Continue, matching all other
+menus. Platform setup input keeps Space as an action while other numeric action
+aliases remain text, so names can still include digits such as 5. Space text
+events, including repeat/queued characters, are consumed during setup; existing
+names are preserved. New typed edits accept letters and digits. Enter remains
+a compatible alternative. Setup hints and menu footers consistently show Space.
+
+All 18 focused application, multiplayer and character tests passed, including
+Space through singleplayer/multiplayer setup without stray name spaces. Clippy,
+formatting/diff, web bundle/storage checks and web/macOS builds passed. Production
+browser checks used only Space from mode selection through setup, event/help
+and NEXT UP, checked multiplayer setup, and verified numeric name entry and
+Backspace. Native input was not checked live. Audio stayed muted.
+Screenshot space-menu-setup.png is in this chat's visualization results-design
+directory.
+
+## Desktop control labels — prior change
+
+Replaced displayed phone-key numbers with blue Left-arrow, green Right-arrow
+and orange SPACE keycaps in help, start and live gameplay. ui/controls.rs maps
+the existing prompt sprite IDs at the rendering boundary. White pulses and
+red-X feedback retain their existing artwork/timing. Instructions preserve
+their event guidance with desktop key names. Menu/standings footers, reset/start
+labels, README controls and browser sidebar now use Space/arrow keys.
+Player-name setup also uses Space to advance.
+The platform still accepts its existing input aliases.
+
+All 21 focused prompt-feedback, application, multiplayer and layer-boundary
+tests passed. Formatting/diff checks, Clippy, web bundle/storage checks and
+web/macOS release builds passed. Browser checks covered instructions/keycaps,
+Space-to-start, Dash arrow-key running, and the three-key Hurdles prompt.
+Field-event help was checked for fitting copy. Native visuals and all field
+action phases were not individually checked live. Audio was muted during checks.
+Screenshots desktop-controls-help.png and desktop-controls-running.png are in
+this chat's visualization results-design directory.
+
+## Event selection Handicap slider — prior change
+
+Implemented the approved event-selection mockup in ui/event_menu.rs.
+Personal best is a compact card. The old event-direction hint is removed.
+HANDICAP has a six-stop slider (50–100%), percentage readout, endpoint labels
+and drawn Up/Down arrows. Reset remains a small R action with confirmation.
+100% retains normal game pace; 50% gives twice the real time to react.
+
+The existing timing setting remains in App. Pointer input is sampled by the
+platform in logical canvas coordinates using the shared rendering viewport.
+App captures drags begun in the slider panel, snaps to 10% stops, clamps outside
+the track, and releases capture on pointer release or menu exit. Quick clicks
+between frames are also handled. Geometry/quantization live in application/menu.rs.
+The Barlow UI font and fitted text helper are shared by event menu and standings.
+
+All 16 focused application, multiplayer, 400m and layer-boundary tests passed.
+Coverage includes pointer snapping/clamping, click/release, dragging from outside,
+menu exit cancellation, keyboard limits and existing half-speed timing.
+Clippy, formatting, diff whitespace, web bundle/storage checks and web/macOS
+release builds passed. Browser checks used the production game at 8767, including
+dragging/clicking, Up/Down, 50/70/80/100%, tournament/experimental layouts, reset
+confirmation/cancel, and clicking at the correct position after narrow-window
+letterboxing. Browser audio was muted during verification. Native visuals/input
+and touch input were not checked live.
+
+Screenshots handicap-100.png, handicap-70.png, handicap-tournament-50.png and
+event-selection-implemented.png are in this chat's visualization results-design
+directory. Existing records were preserved.
+
+## Multiplayer results redesign — prior change
+
+Implemented the user-approved mockups in src/rendering/ui/standings.rs.
+Two-player results use a large winner card and second-player row. Three to six
+players use portraits, place markers, alternating rows and aligned result columns.
+Tournament standings show cumulative points and the last completed event.
+Text fits available widths, units are separated from values, and all-foul
+results use neutral styling. Barlow Semi Condensed SemiBold is bundled in
+assets/ui with its license and provenance. App ranking/progression supplies data.
+
+All 31 focused application, multiplayer, character, atlas and layer-boundary
+tests passed. Clippy, formatting, diff whitespace, web bundle/storage checks,
+web release and macOS app builds passed. Live GPU browser verification used
+a temporary external harness invoking the real App::finish/advance and ui::draw
+with sample results. Inspected two-player, six-player, tournament, ten-character
+names, original/custom portraits, field units, foul and all-foul layouts, plus
+Enter returning to the event menu and advancing to the next tournament event. This is renderer/flow verification with
+sample data. A complete live multiplayer match and native visuals/audio were
+not rechecked for this redesign.
+
+Screenshots results-design/results-implemented.png and implemented-{two,six,
+tournament,long-names,fouls}.png are in this chat's visualization directory.
+The preview harness lives under /tmp/playman-results-preview and does not ship
+with the game. Production game is served at 8767. The implemented comparison
+is at http://127.0.0.1:8768/implemented.html while the local server is running.
+
+## Custom names and game speed — prior change
+
+Custom portrait selection now fills the player's uppercase identity name from
+Face::custom_name, also shared by the setup footer. Names remain editable.
+Switching to an original face clears an unedited custom identity to PLAYER N.
+Manually edited names remain when switching to original faces.
+
+The event menu uses Left/Right for events and Up/Down for speed. Speed is
+100%, 90%, 80%, 70%, 60% or 50%, bounded at each end. Default is 100%.
+App scales countdown/gameplay/finish/reaction/replay time before accumulating
+the original 32ms simulation ticks. At 50% players get twice the real time to
+react. Menus/transitions and audio playback remain on real time. Records use
+game time and are shared across speeds. Settings are session-local.
+This applies to singleplayer, multiplayer, all events, retries and tournaments.
+
+All 90 Rust tests passed, including application, setup, multiplayer and 400m
+coverage for
+autofill/manual editing and equal simulation state at 100% versus twice as
+many half-speed frames across all six events. Clippy, formatting, diff whitespace,
+web bundle/storage checks and web/macOS release builds passed.
+Live browser checks covered Marian autofill, clear menu layout, 50% selection,
+slower countdown and running with the filled name. Native behavior and audio
+were not checked live. Screenshots auto-player-name.png and speed-menu-50.png
+are in this chat's visualization directory.
+
+## Marian — prior change
+
+Added Marian at face index 18, with six virtual sprites at BASE+61 through
+BASE+66. Standard male body, shared transformed 3px head offset and custom
+three-quarter rear-turn behavior apply. Both transparent selector sizes use
+the frontal head. All four source views were inspected, with clear quarter-cell
+gutters and head-only silhouettes. Source photo and generated sheet are retained
+in assets/custom, alongside the exact ImageGen prompt and provenance.
+
+Passed all 14 custom-character tests, including all faces/318 poses, transforms,
+head anchors, portrait transparency and original atlas preservation. Clippy,
+formatting, diff whitespace, web bundle/storage checks and web/macOS release
+builds passed. Browser inspection covered selector, starting stance and 100m
+running. Native visuals, audio and other event poses were not checked live.
+Screenshot is marian-running.png in this chat's visualization directory.
+Existing uncommitted Finch work was preserved.
+
+## Finch — prior change
+
+Added Finch at face index 17 and virtual sprite slots BASE+55 through BASE+60.
+He uses the standard male body, the shared 3px head offset in all transforms,
+and the shared three-quarter substitution for rear turns. The two transparent
+portraits use the frontal sprite. Prompt and provenance are in
+`assets/custom/README.md`. The 400m change was already committed at `d710f4d`
+when Finch work began.
+
+Live browser checks covered the setup portrait, the 100m starting stance and
+running. The full test suite, Clippy, formatting, diff whitespace, web bundle
+and storage checks, and web and macOS release builds passed. The web build
+used a checkout-local Cargo target directory because the configured cache
+was read-only. Native visuals, audio and other event poses were not checked live.
 
 ## Experimental 400m dash — latest pass
 
@@ -49,15 +215,15 @@ Simulation owns mechanics and logical audio; no graphics, platform, application,
 
 Appearance is independent of scoring, RNG and physics. Player names and appearances are currently in memory only (reload resets setup). Shared records persist. Do not make cosmetic character choices alter mechanics.
 
-Singleplayer and local turn-based multiplayer (2–6 players) use setup; arrows select rows/face/count, typing edits name, Backspace erases, Enter advances. Race replays show previous athletes live and at finish. Measured race time freezes during original-style coast/brake run-out. Winner celebrates, loser recovers. Non-original running NICE!/WRONG BUTTON/DIVE! text was removed; finish feedback remains. Music stops during a run and returns after result confirmation. User confirmed music/effects and celebration audible; agent cannot independently hear browser audio.
+Singleplayer and local turn-based multiplayer (2–6 players) use setup; arrows select rows/face/count, typing edits name, Backspace erases, Space advances. Race replays show previous athletes live and at finish. Measured race time freezes during original-style coast/brake run-out. Winner celebrates, loser recovers. Non-original running NICE!/WRONG BUTTON/DIVE! text was removed; finish feedback remains. Music stops during a run and returns after result confirmation. User confirmed music/effects and celebration audible; agent cannot independently hear browser audio.
 
 ## Current character implementation
 
-`Face::COUNT=17`: original 12 at 0..11, default Playman index1; BROTHER=12, KUBAK=13, RADEK=14, BURDAS=15, TEREZA=16. Names editable independently; custom identity shown in setup footer. From default Playman: Left twice Tereza, three times Burdas, four times Radek, five times Kubak, six times Brother.
+`Face::COUNT=19`: original 12 at 0..11, default Playman index1; BROTHER=12, KUBAK=13, RADEK=14, BURDAS=15, TEREZA=16, FINCH=17, MARIAN=18. Custom identities autofill on face selection and names remain editable; custom identity shown in setup footer. From default Playman: Left twice Marian, three times Finch, four times Tereza, five times Burdas, six times Radek, seven times Kubak, eight times Brother.
 
 Original metadata maps sex/body bank, skin and head resources. Tereza uses original light-skinned female preset0; other custom faces use standard male metadata; Brother uniquely substitutes wider limbs and torso. Kubak, Radek and Burdas use original standard male limbs/uniform. Default original assets remain pixel-identical.
 
-`src/assets/custom_character.rs`: virtual IDs BASE4096, COUNT55, CELL96, ATLAS_WIDTH2048, ORIGINAL_HEIGHT1249. Existing original atlas never rewritten. Runtime composite appends all custom sprites in all 8 transforms. GPU and software renderer share it.
+`src/assets/custom_character.rs`: virtual IDs BASE4096, COUNT67, CELL96, ATLAS_WIDTH2048, ORIGINAL_HEIGHT1249. Existing original atlas never rewritten. Runtime composite appends all custom sprites in all 8 transforms. GPU and software renderer share it.
 
 Virtual indices relative to BASE:
 - 0..3 brother head profile / three-quarter / front / rear; 4/5 transparent small/large portrait.
@@ -67,6 +233,8 @@ Virtual indices relative to BASE:
 - 37..40 Radek heads; 41/42 transparent menu previews using the same neckless FRONT head.
 - 43..46 Burdas heads; 47/48 transparent menu previews from the frontal head.
 - 49..52 Tereza heads; 53/54 transparent menu previews from the frontal head.
+- 55..58 Finch heads; 59/60 transparent menu previews from the frontal head.
+- 61..64 Marian heads; 65/66 transparent menu previews from the frontal head.
 
 `src/rendering/atlas.rs` embeds assets and resizes alpha-bounded views with nearest-neighbor. Original bytes copied unchanged. Brother/Kubak head sheets use quarter-cell bounds. Torso and Radek views use transparent gutters near quarter boundaries before alpha bounding. This is crucial: generated torsos were unevenly spaced, and exact quarter cuts previously picked up neighboring strips and shifted visible centers.
 
@@ -75,7 +243,7 @@ into source landmarks (18%,17%)/(47%,94%). The bottom waistband attaches to the
 shorts/leg joint. Front width scales 1.5x across the body axis, without extending
 body length. The previous 70% anchor caused the belly to cover the legs and is removed.
 Brother registration is baked into padded sprites before all eight transforms.
-All five custom characters’ gameplay heads receive a 3px offset toward the top of the head,
+All seven custom characters’ gameplay heads receive a 3px offset toward the top of the head,
 rotated/reflected with each transform; portraits, torsos and other assets have zero offset.
 
 Current brother heads: bald under black BACKWARD cap, full brown beard. All heads end at jaw/skull base with NO NECK. Rear cap brim remains backward. Kubak: swept light-brown hair, blue eyes, short beard. Radek: bald, blue eyes, light stubble, smiling.
@@ -217,7 +385,7 @@ Prior live verification: Radek transparent selector and Dash run with standard b
 
 Use available Browser/CUA tool, not raw browser networking/CDP. IAB is requested/preferred for game testing. Current tabs from old turns may be stale; rebind existing localhost tab or create one. CUA often gives `browser.user is unavailable` after turn changes; reset CUA session and initialize with exactly one documented entry-point call, then read docs. Avoid repeated browser selection.
 
-Canvas needs focus. Fresh AX image index changes after reload; click it before keypresses. Game menu Singleplayer default. Return→setup, Down→player1, Left twice selects Tereza from Playman. Four Returns from player row proceed through Continue/event/help to AwaitStart. `5` held5600ms covers countdown. Press4/6 to run.
+Canvas needs focus. Fresh AX image index changes after reload; click it before keypresses. Game menu Singleplayer default. Space→setup, Down→player1, Left twice selects Marian from Playman. Four Space presses from the player row proceed through Continue/event/help to AwaitStart. `5` held5600ms covers countdown. Press4/6 to run.
 
 For reproducible first Dash start input sequence, seed1034:
 ```
@@ -242,4 +410,6 @@ prior full-suite/build/live results above still apply. Nothing staged or committ
 
 ## Next model behavior
 
-Read current code, docs and diff first. Report initialization briefly and wait for next requested change. 400m dash is the latest requested feature. If user requests commit prep, review all custom-character uncommitted work together, preserve assets and provenance, validate proportionately, provide commit message; don't commit unless explicitly asked. Older appended DEVELOPER/asset notes contain superseded iterations; current code plus latest sections are authoritative.
+Read current code, docs and diff first, then await the next requested task.
+The user authorized committing and pushing the complete character and desktop UI
+work on 2026-11-23. Current code and the latest sections above are authoritative.

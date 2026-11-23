@@ -1,15 +1,26 @@
 use super::audio as sound;
 use crate::{
-    application::{App, FrameInput, Screen},
+    application::{App, FrameInput, PointerInput, Screen},
     platform::records::{load_records, save_records},
     simulation::Event,
     simulation::Game,
 };
 use crate::{rendering::art::Art, rendering::ui, rendering::world};
 use macroquad::prelude::*;
+fn game_viewport() -> Rect {
+    let scale = (screen_width() / 240.).min(screen_height() / 320.);
+    Rect::new(
+        (screen_width() - 240. * scale) / 2.,
+        (screen_height() - 320. * scale) / 2.,
+        240. * scale,
+        320. * scale,
+    )
+}
 fn frame_input(editing_players: bool) -> FrameInput {
     let pressed = |keys: &[KeyCode]| keys.iter().any(|key| is_key_pressed(*key));
     let action_keys = [KeyCode::Space, KeyCode::Key5, KeyCode::Kp5];
+    let viewport = game_viewport();
+    let (mouse_x, mouse_y) = mouse_position();
     let mut input = FrameInput {
         enter: pressed(&[KeyCode::Enter]),
         action: pressed(&action_keys),
@@ -23,9 +34,15 @@ fn frame_input(editing_players: bool) -> FrameInput {
         retry: pressed(&[KeyCode::R]),
         text: get_char_pressed(),
         backspace: pressed(&[KeyCode::Backspace]),
+        pointer: Some(PointerInput {
+            x: (mouse_x - viewport.x) * 240. / viewport.w,
+            y: (mouse_y - viewport.y) * 320. / viewport.h,
+            pressed: is_mouse_button_pressed(MouseButton::Left),
+            down: is_mouse_button_down(MouseButton::Left),
+        }),
     };
     if editing_players {
-        input.action = false;
+        input.action = pressed(&[KeyCode::Space]);
         input.left = pressed(&[KeyCode::Left]);
         input.right = pressed(&[KeyCode::Right]);
     }
@@ -132,14 +149,14 @@ pub async fn run() {
         ui::draw(&art, &app, sounds.muted);
         set_default_camera();
         clear_background(BLACK);
-        let scale = (screen_width() / 240.).min(screen_height() / 320.);
+        let viewport = game_viewport();
         draw_texture_ex(
             &target.texture,
-            (screen_width() - 240. * scale) / 2.,
-            (screen_height() - 320. * scale) / 2.,
+            viewport.x,
+            viewport.y,
             WHITE,
             DrawTextureParams {
-                dest_size: Some(vec2(240. * scale, 320. * scale)),
+                dest_size: Some(vec2(viewport.w, viewport.h)),
                 flip_y: true,
                 ..Default::default()
             },

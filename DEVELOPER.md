@@ -234,8 +234,8 @@ No multiplayer state enters simulation or changes the 32ms mechanics.
 The active best is saved only when confirming a completed turn. Field events
 rotate players before advancing the round. Standings gates the next tournament
 event; points are awarded once after the final turn. Setup names are ASCII,
-limited to 10 characters and kept in memory. The platform suppresses gameplay
-letter aliases, Space confirmation and M mute while editing names.
+limited to 10 characters and kept in memory. The platform suppresses gameplay letter aliases and M mute while editing
+names. Space advances setup; typed name edits accept letters and digits.
 
 `tests/multiplayer_flow.rs` covers mode/setup boundaries, two/six-player rotation
 for all five events, best preservation through fouls, stable ties, retry and
@@ -309,7 +309,7 @@ viewport visibility. These checks do not establish complete original-game parity
 ## Player appearance
 
 Player owns assets::character::Appearance separately from simulation state. Its
-bounded Face value cycles the 12 original character sets plus the custom brother, Kubak, Radek, Burdas and Tereza; default is Playman
+bounded Face value cycles the 12 original character sets plus Brother, Kubak, Radek, Burdas, Tereza, Finch and Marian; default is Playman
 (index 1), preserving existing software/GPU fixtures. Original d.Y uses portrait
 sprites 41 + face (small) and 53 + face (selected). Original b0 character metadata
 at byte 646 contains five i32 values per face; the fourth value maps animation
@@ -355,7 +355,7 @@ multiplayer finish reactions and native custom bodies remain unverified live.
 
 Face index 12 selects a custom male preset, with unchanged gameplay. Pure
 assets::custom_character defines virtual sprites 4096 onward: four generated
-head views, two supplied-reference portrait crops, 21 broader body parts and
+head views, two transparent frontal-head portraits, 21 broader body parts and
 four round-belly uniform views. Rendering::atlas assembles these below the
 original atlas at startup for both GPU and software renderers, preserving every
 original atlas byte and coordinate. All eight original sprite transforms are
@@ -365,7 +365,7 @@ The fuller build affects sprite silhouettes only, never Game or collision state.
 The reference image is copied unchanged to assets/custom. Head views were made
 with built-in image_gen; the exact prompt is in assets/custom/README.md. Generated
 heads are alpha-bounded and sampled down to game sprite dimensions. The portrait
-uses the reference crop directly. No generated asset is referenced outside the
+uses the generated frontal head. No generated asset is referenced outside the
 checkout. Tests check selectable assets, transforms, fuller torso widths, custom
 head alpha and byte-for-byte preservation of the original atlas region.
 
@@ -376,7 +376,7 @@ all character pose decoding checks still pass.
 
 Kubak is face index 13. His six custom sprites follow the brother's existing
 virtual sprites, so all prior custom coordinates remain stable. Four generated
-head views and two crops of the supplied portrait use the same atlas compositor.
+head views and two transparent frontal-head portraits use the same atlas compositor.
 His body, uniform and height use the standard Playman preset; the rounded torso
 warp is restricted to the brother's indices 27–30, never custom head sprites.
 Tests check the independent heads/portraits, all sprite transforms, custom alpha
@@ -389,7 +389,7 @@ visuals and every event were not individually inspected in this pass.
 
 Brother head revision: all four views end at jaw/skull base without a neck. Both selector sizes sample the alpha-bounded frontal head, retaining transparent corners instead of the original opaque portrait crop. Rear head height is 28 pixels to preserve its compact silhouette.
 
-Kubak also uses neckless jaw/skull-base silhouettes in all four views; rear-view height is 28 pixels. Standard body and supplied selector portrait are preserved.
+Kubak also uses neckless jaw/skull-base silhouettes in all four views; rear-view height is 28 pixels. The standard body is retained; both selector sizes sample the frontal head.
 
 Brother torso slots 612–615 represent successive lean poses, not camera views.
 Runtime samples the profile of `brother-torsos-shoulders.png`, drawn with a compact
@@ -408,11 +408,11 @@ The open shoulder socket replaces a tall closed loop, with a transparent arm-joi
 regression alongside the hem-to-leg regression. Previous generated sheets remain in the checkout. Prompts/provenance are in
 assets/custom/README.md.
 
-Radek is Face 14 (17 total choices including Burdas and Tereza); his six virtual sprites append at BASE+37. Four neckless head views and two transparent menu sizes share radek-heads.png. Body/uniform mapping remains standard male, independent of simulation. Generated heads are separated by transparent gutters to avoid neighboring strips.
+Radek is Face 14 (19 total choices); his six virtual sprites append at BASE+37. Four neckless head views and two transparent menu sizes share radek-heads.png. Body/uniform mapping remains standard male, independent of simulation. Generated heads are separated by transparent gutters to avoid neighboring strips.
 
 Radek verification: transparent menu preview and Dash running pose inspected live; all 76 tests, Clippy, formatting, web storage/bundle checks and web/macOS builds pass. Other events and native visuals were not individually inspected in this pass.
 
-Custom head turns: Brother, Kubak, Radek, Burdas and Tereza map requested rear head view 3 to
+Custom head turns: Brother, Kubak, Radek, Burdas, Tereza, Finch and Marian map requested rear head view 3 to
 existing three-quarter view 1 through one shared Face helper. Both head_sprite
 and sprite_for_scene use it, so prepared animation frames and direct head draws
 agree. Rear artwork remains stored for provenance; original 12 characters retain
@@ -420,7 +420,7 @@ original view mappings. The all 318-pose regression checks every custom face for
 absence of the rear atlas rectangle, including its transforms. This is cosmetic
 and does not alter pose clocks, equipment hooks, replay or mechanics.
 
-Burdas is Face15, appending six sprites at BASE+43 (current COUNT55): four neckless heads
+Burdas is Face15, appending six sprites at BASE+43 (current COUNT67): four neckless heads
 and two transparent menu previews sampling the frontal head. Source is
 assets/custom/burdas-heads.png, alpha-bounded through transparent gutters before
 nearest-neighbor resizing. Existing virtual IDs are unchanged. Standard male
@@ -430,7 +430,7 @@ covered by decoding/equipment checks; Burdas selection and Dash were inspected
 live. Exact generation prompt and identity/style reference provenance are in
 assets/custom/README.md.
 
-Tereza is Face 16, with six virtual sprites at BASE+49 (COUNT55). table_value uses
+Tereza is Face 16, with six virtual sprites at BASE+49 (COUNT67). table_value uses
 original female preset 0 for her: female scene 1, light-skin body bank 514 and
 standard female uniform 624..627. Other custom presets remain male. Her neckless
 heads use compact curled hair at 39x34 / 37x36 / 33x36 / 36x32, inside the original
@@ -439,7 +439,7 @@ three-quarter face. Source tereza-heads.png uses
 transparent-gutter segmentation. Hazel eyes and slightly longer ponytail are
 recorded in assets/custom/README.md with both generation prompts and references.
 
-All five custom characters’ gameplay heads use a 3px anchor offset toward the head top, transformed
+All seven custom characters’ gameplay heads use a 3px anchor offset toward the head top, transformed
 through all eight orientations. This reveals the body neck
 that the taller heads otherwise cover. Source heads remain neckless; menu
 portraits, torsos and all other custom assets have no anchor offset.
@@ -465,3 +465,52 @@ and reference fixtures remain intact. Original running artwork is reused; 400m
 has an EXPERIMENTAL menu label and the running icon. New regression tests cover
 runner equivalence, dive/finish boundaries, frozen measured time, extended run-out,
 legacy record migration, menu selection and two-player completion/replays.
+
+
+Finch is Face 17, with six sprites at BASE+55. Marian is Face 18, with six
+sprites at BASE+61. Both use standard male body metadata, four generated
+head views, transparent frontal-head portraits, the shared rear-turn mapping
+and transformed head offsets. Runtime sheets and provenance are in assets/custom.
+
+## Handicap and custom names
+
+App owns a bounded speed percentage (50–100 in steps of 10, default 100).
+The event menu labels speed as Handicap. Left/Right selects events; Up/Down
+or a pointer drag adjusts the six slider stops. application::menu owns logical
+slider geometry and quantization. FrameInput carries pointer coordinates in
+the 240×320 canvas. The platform uses the same viewport for pointer conversion
+and rendering, including letterboxing. Drag capture ends on release or menu exit.
+Scaled frame time feeds countdowns, fixed-tick gameplay, finish movement and
+results reactions/replays. Simulation ticks remain 32ms and records use game
+time across speeds. Menus, transitions and audio playback use real time.
+The setting is session-local and applies to both modes, retries and tournaments.
+
+Face::custom_name supplies custom identity names to setup and the footer.
+Choosing a custom face fills its uppercase name. Leaving a custom face restores
+PLAYER N when its name still matches that identity. Manually edited names remain
+when switching to original faces, and all names stay editable.
+
+
+## Multiplayer standings rendering
+
+The shared ui::text helper measures and fits the embedded UI font for menu and
+standings text. The standings layout lives in src/rendering/ui/standings.rs. ui::draw dispatches
+the existing Screen::Standings state to it, and App::standings remains the source
+of ordering and result data. Two-player layouts show a large leader card;
+three to six players use fixed columns and 34px rows. Names and results are
+measured and scaled to their column widths. All-foul event results use neutral
+styling. Tournament context comes from the completed event and cumulative totals.
+Art owns the GPU font alongside the atlas. Barlow Semi Condensed SemiBold is
+embedded from assets/ui with its SIL Open Font License and source provenance.
+
+
+## Desktop control labels
+
+ui/controls.rs draws blue Left, green Right and orange Space keycaps at the
+original prompt positions. ui::game_hud maps the existing numeric resource IDs
+at the rendering boundary, preserving presentation feedback timing and layout.
+Instructions, start/reset labels, menu/standings footers and the web sidebar
+use desktop keys. Space confirms player setup as well as other menus. Space characters are
+consumed as confirmation rather than appended to names. Legacy input aliases
+remain accepted by the platform.
+Original atlas pixels and simulation input/RNG behavior are preserved.

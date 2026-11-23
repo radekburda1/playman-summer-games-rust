@@ -60,19 +60,19 @@ impl Event {
     pub fn instructions(self) -> &'static str {
         match self {
             Self::Dash | Self::Dash400 => {
-                "Follow the blue 4 / green 6 prompts. Press 5 near the finish to dive."
+                "Follow the blue LEFT / green RIGHT prompts. Press SPACE near the finish to dive."
             }
             Self::LongJump => {
-                "Follow 4 / 6. Press 5 before the board, then 5 at the apex to stretch."
+                "Follow LEFT / RIGHT. Press SPACE before the board, then SPACE at the apex to stretch."
             }
             Self::Hurdles => {
-                "Complete each three-button 4 / 6 sequence. Hurdle jumps are automatic."
+                "Complete each three-key LEFT / RIGHT sequence. Hurdle jumps are automatic."
             }
             Self::PoleVault => {
-                "Follow 4 / 6. Hold 5 as the pole tip reaches the box; release as it straightens."
+                "Follow LEFT / RIGHT. Hold SPACE as the pole tip reaches the box; release as it straightens."
             }
             Self::Javelin => {
-                "Follow 4 / 6. Hold 5 to charge; release when the marker reaches the tip."
+                "Follow LEFT / RIGHT. Hold SPACE to charge; release when the marker reaches the tip."
             }
         }
     }

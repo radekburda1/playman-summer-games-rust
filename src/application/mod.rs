@@ -1,4 +1,5 @@
 pub mod gameplay;
+pub mod menu;
 pub mod race_replay;
 pub mod records;
 // Application flow. Simulation and record decisions require no window or filesystem.
@@ -48,6 +49,8 @@ pub struct App {
     pub current_player: usize,
     pub screen: Screen,
     pub selected: usize,
+    speed_percent: u8,
+    handicap_dragging: bool,
     pub game: Game,
     pub effects: crate::presentation::effects::TimingEffect,
     pub paused: bool,
@@ -83,6 +86,8 @@ impl App {
             players: (0..6).map(Player::new).collect(),
             current_player: 0,
             selected: 0,
+            speed_percent: 100,
+            handicap_dragging: false,
             game: Game::new(Event::Dash, 25),
             effects: Default::default(),
             paused: false,
@@ -122,6 +127,9 @@ impl App {
             | Screen::Complete => Some(1 + (self.seed as usize / 1009) % 3),
             Screen::AwaitStart | Screen::Ready | Screen::Play | Screen::Finish => None,
         }
+    }
+    pub fn speed_percent(&self) -> u8 {
+        self.speed_percent
     }
     pub fn setup_player_count(&self) -> usize {
         if self.multiplayer {
@@ -346,7 +354,16 @@ mod flow_tests {
     }
 }
 
-/// Edge-triggered platform input, sampled once per display frame.
+/// Pointer coordinates in the 240 × 320 logical game canvas.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PointerInput {
+    pub x: f32,
+    pub y: f32,
+    pub pressed: bool,
+    pub down: bool,
+}
+
+/// Platform input sampled once per display frame. Keys are edge-triggered.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FrameInput {
     pub enter: bool,
@@ -361,6 +378,7 @@ pub struct FrameInput {
     pub retry: bool,
     pub text: Option<char>,
     pub backspace: bool,
+    pub pointer: Option<PointerInput>,
 }
 #[derive(Default)]
 pub struct FrameEffects {
@@ -390,6 +408,7 @@ impl App {
                 self.outgoing = Some((target, elapsed + dt));
             }
         }
+        let game_dt = dt * (f32::from(self.speed_percent) / 100.);
         let old_screen = self.screen;
         let old_ready = self.ready;
         let old_feedback = self.game.feedback_time;
@@ -407,6 +426,9 @@ impl App {
             };
             self.paused = false;
             self.clock = 0.;
+        }
+        if self.screen != Screen::Menu {
+            self.handicap_dragging = false;
         }
         match self.screen {
             Screen::ModeSelect => {
@@ -445,11 +467,22 @@ impl App {
                     }
                 } else if self.setup_selection <= self.setup_player_count() {
                     let player = &mut self.players[self.setup_selection - 1];
+                    let previous_face = player.appearance.face;
                     if input.left {
                         player.appearance.face = player.appearance.face.previous();
                     }
                     if input.right {
                         player.appearance.face = player.appearance.face.next();
+                    }
+                    if player.appearance.face != previous_face {
+                        if let Some(name) = player.appearance.face.custom_name() {
+                            player.name = name.to_uppercase();
+                        } else if previous_face
+                            .custom_name()
+                            .is_some_and(|name| player.name.eq_ignore_ascii_case(name))
+                        {
+                            player.name = format!("PLAYER {}", self.setup_selection);
+                        }
                     }
                     let name = &mut player.name;
                     if input.backspace {
@@ -457,7 +490,7 @@ impl App {
                     }
                     if let Some(c) = input
                         .text
-                        .filter(|c| name.len() < 10 && (c.is_ascii_alphanumeric() || *c == ' '))
+                        .filter(|c| name.len() < 10 && c.is_ascii_alphanumeric())
                     {
                         name.push(c.to_ascii_uppercase());
                     }
@@ -492,11 +525,32 @@ impl App {
                 if input.retry && !esc {
                     self.screen = Screen::ResetRecords;
                 }
-                if previous {
+                if input.left {
                     self.selected = (self.selected + Event::COUNT) % (Event::COUNT + 1)
                 }
-                if next {
+                if input.right {
                     self.selected = (self.selected + 1) % (Event::COUNT + 1)
+                }
+                if input.down {
+                    self.speed_percent = self.speed_percent.saturating_sub(10).max(50);
+                }
+                if input.up {
+                    self.speed_percent = (self.speed_percent + 10).min(100);
+                }
+                if let Some(pointer) = input.pointer {
+                    let [x, y, width, height] = menu::HANDICAP_PANEL;
+                    if pointer.pressed {
+                        self.handicap_dragging = pointer.x >= x
+                            && pointer.x <= x + width
+                            && pointer.y >= y
+                            && pointer.y <= y + height;
+                    }
+                    if self.handicap_dragging && (pointer.down || pointer.pressed) {
+                        self.speed_percent = menu::handicap_at(pointer.x);
+                    }
+                    self.handicap_dragging &= pointer.down;
+                } else {
+                    self.handicap_dragging = false;
                 }
                 if confirm {
                     self.tournament = self.selected == Event::COUNT;
@@ -534,7 +588,7 @@ impl App {
                 }
             }
             Screen::Ready => {
-                self.ready += dt;
+                self.ready += game_dt;
                 if self.ready >= if self.game.event().race() { 5. } else { 0. } {
                     self.screen = Screen::Play;
                 }
@@ -578,7 +632,7 @@ impl App {
                     if input.action_released {
                         gameplay::input(&mut self.game, &mut self.effects, Input::ActionUp)
                     }
-                    self.clock += dt;
+                    self.clock += game_dt;
                     while self.clock >= TICK {
                         self.clock -= TICK;
                         gameplay::step(&mut self.game, &mut self.effects);
@@ -591,7 +645,7 @@ impl App {
                 }
             }
             Screen::Finish => {
-                self.clock += dt;
+                self.clock += game_dt;
                 while self.clock >= TICK {
                     self.clock -= TICK;
                     if self.multiplayer && self.game.event().race() {
@@ -613,9 +667,9 @@ impl App {
                 }
             }
             Screen::Results => {
-                self.game.phase_elapsed_ms += (dt * 1000.) as i32;
+                self.game.phase_elapsed_ms += (game_dt * 1000.) as i32;
                 if self.multiplayer && self.game.event().race() {
-                    self.clock += dt;
+                    self.clock += game_dt;
                     while self.clock >= TICK {
                         self.clock -= TICK;
                         self.race_tick += 1;

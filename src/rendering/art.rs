@@ -9,6 +9,7 @@ use macroquad::prelude::*;
 pub struct Art {
     appearance: crate::assets::character::Appearance,
     atlas: Option<Texture2D>,
+    ui_font: Option<Font>,
     artwork: Artwork,
 }
 impl Default for Art {
@@ -20,8 +21,14 @@ impl Art {
     pub fn new() -> Self {
         let atlas = Texture2D::from_image(&crate::rendering::atlas::image());
         atlas.set_filter(FilterMode::Nearest);
+        let ui_font = load_ttf_font_from_bytes(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/ui/BarlowSemiCondensed-SemiBold.ttf"
+        )))
+        .expect("bundled UI font");
         Self {
             atlas: Some(atlas),
+            ui_font: Some(ui_font),
             artwork: Artwork::new(),
             appearance: Default::default(),
         }
@@ -30,9 +37,13 @@ impl Art {
         crate::rendering::backend::begin_software();
         Self {
             atlas: None,
+            ui_font: None,
             artwork: Artwork::new(),
             appearance: Default::default(),
         }
+    }
+    pub fn ui_font(&self) -> Option<&Font> {
+        self.ui_font.as_ref()
     }
     fn draw(&self, command: Command) {
         match command {

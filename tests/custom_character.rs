@@ -64,6 +64,8 @@ fn composed_atlas_preserves_original_pixels_and_custom_transparency() {
         .chain(custom::RADEK..custom::RADEK + 6)
         .chain(custom::BURDAS..custom::BURDAS + 6)
         .chain(custom::TEREZA..custom::TEREZA + 6)
+        .chain(custom::FINCH..custom::FINCH + 6)
+        .chain(custom::MARIAN..custom::MARIAN + 6)
     {
         let [x, y, w, h] = custom::rect(id, 0).unwrap();
         let mut opaque = 0;
@@ -274,6 +276,8 @@ fn custom_head_turns_keep_faces_visible_through_all_animation_poses() {
         (Face::RADEK, custom::RADEK),
         (Face::BURDAS, custom::BURDAS),
         (Face::TEREZA, custom::TEREZA),
+        (Face::FINCH, custom::FINCH),
+        (Face::MARIAN, custom::MARIAN),
     ] {
         assert_eq!(face.head_sprite(797), base + 1);
         assert_eq!(face.sprite_for_scene(0, 797), base + 1);
@@ -332,7 +336,9 @@ fn tereza_uses_the_original_female_bank_and_compact_head_views() {
     let face = Face::TEREZA;
     assert!(face.is_tereza());
     assert_eq!(face.previous(), Face::BURDAS);
-    assert_eq!(face.next().index(), 0);
+    assert_eq!(face.next(), Face::FINCH);
+    assert_eq!(Face::FINCH.next(), Face::MARIAN);
+    assert_eq!(Face::MARIAN.next().index(), 0);
     assert_eq!(face.scene(), 1);
     assert_eq!(face.height_percent(), 100);
     assert_eq!(face.portrait(false), custom::TEREZA + 4);
@@ -380,6 +386,8 @@ fn custom_heads_reveal_the_existing_body_neck_through_transforms() {
         custom::RADEK,
         custom::BURDAS,
         custom::TEREZA,
+        custom::FINCH,
+        custom::MARIAN,
     ]
     .into_iter()
     .flat_map(|base| base..base + 4)
@@ -407,6 +415,8 @@ fn custom_heads_reveal_the_existing_body_neck_through_transforms() {
         custom::RADEK,
         custom::BURDAS,
         custom::TEREZA,
+        custom::FINCH,
+        custom::MARIAN,
     ]
     .into_iter()
     .flat_map(|base| base + 4..base + 6)

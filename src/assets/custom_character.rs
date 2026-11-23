@@ -1,15 +1,29 @@
 //! Virtual sprites appended to the immutable original atlas at load time.
 pub const BASE: usize = 4096;
-pub const COUNT: usize = 55;
+pub const COUNT: usize = 67;
 pub const KUBAK: usize = BASE + 31;
 pub const RADEK: usize = BASE + 37;
 pub const BURDAS: usize = BASE + 43;
 pub const TEREZA: usize = BASE + 49;
+pub const FINCH: usize = BASE + 55;
+pub const MARIAN: usize = BASE + 61;
 pub const CELL: usize = 96;
 pub const ATLAS_WIDTH: usize = 2048;
 pub const ORIGINAL_HEIGHT: usize = 1249;
 pub fn dimensions(index: usize) -> (usize, usize) {
     match index {
+        61 => (32, 35),
+        62 => (30, 36),
+        63 => (29, 36),
+        64 => (28, 33),
+        65 => (25, 25),
+        66 => (50, 50),
+        55 => (32, 35),
+        56 => (30, 36),
+        57 => (29, 36),
+        58 => (28, 33),
+        59 => (25, 25),
+        60 => (50, 50),
         49 => (39, 34),
         50 => (37, 36),
         51 => (33, 36),
@@ -86,7 +100,7 @@ pub fn rect(id: usize, transform: u8) -> Option<[f32; 4]> {
 /// Reveal the body neck under the taller custom heads.
 /// Portraits stay head-only; torso registration remains baked into its pixels.
 pub fn anchor_offset(id: usize, transform: u8) -> (f32, f32) {
-    if ![BASE, KUBAK, RADEK, BURDAS, TEREZA]
+    if ![BASE, KUBAK, RADEK, BURDAS, TEREZA, FINCH, MARIAN]
         .into_iter()
         .any(|base| (base..base + 4).contains(&id))
     {

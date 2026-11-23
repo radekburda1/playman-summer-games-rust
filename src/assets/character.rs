@@ -7,12 +7,32 @@ impl Default for Face {
     }
 }
 impl Face {
-    pub const COUNT: usize = 17;
+    pub const COUNT: usize = 19;
     pub const BROTHER: Self = Self(12);
     pub const KUBAK: Self = Self(13);
     pub const RADEK: Self = Self(14);
     pub const BURDAS: Self = Self(15);
     pub const TEREZA: Self = Self(16);
+    pub const FINCH: Self = Self(17);
+    pub const MARIAN: Self = Self(18);
+    pub fn custom_name(self) -> Option<&'static str> {
+        match self {
+            Self::BROTHER => Some("Brother"),
+            Self::KUBAK => Some("Kubak"),
+            Self::RADEK => Some("Radek"),
+            Self::BURDAS => Some("Burdas"),
+            Self::TEREZA => Some("Tereza"),
+            Self::FINCH => Some("Finch"),
+            Self::MARIAN => Some("Marian"),
+            _ => None,
+        }
+    }
+    pub fn is_marian(self) -> bool {
+        self == Self::MARIAN
+    }
+    pub fn is_finch(self) -> bool {
+        self == Self::FINCH
+    }
     pub fn is_tereza(self) -> bool {
         self == Self::TEREZA
     }
@@ -38,7 +58,11 @@ impl Face {
         Self((self.0 + Self::COUNT as u8 - 1) % Self::COUNT as u8)
     }
     pub fn portrait(self, large: bool) -> usize {
-        if self.is_tereza() {
+        if self.is_marian() {
+            super::custom_character::MARIAN + if large { 5 } else { 4 }
+        } else if self.is_finch() {
+            super::custom_character::FINCH + if large { 5 } else { 4 }
+        } else if self.is_tereza() {
             super::custom_character::TEREZA + if large { 5 } else { 4 }
         } else if self.is_burdas() {
             super::custom_character::BURDAS + if large { 5 } else { 4 }
@@ -114,6 +138,10 @@ impl Face {
             super::custom_character::BURDAS
         } else if self.is_tereza() {
             super::custom_character::TEREZA
+        } else if self.is_finch() {
+            super::custom_character::FINCH
+        } else if self.is_marian() {
+            super::custom_character::MARIAN
         } else {
             return None;
         };

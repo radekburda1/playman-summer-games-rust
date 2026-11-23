@@ -150,3 +150,65 @@ fn original_character_metadata_selects_matching_body_and_skin_banks() {
         face = face.next();
     }
 }
+
+#[test]
+fn selecting_custom_faces_fills_names_and_allows_manual_edits() {
+    let mut app = App::new([None; Event::COUNT]);
+    app.screen = Screen::PlayerSetup;
+    app.multiplayer = true;
+    app.setup_selection = 2;
+    app.players[1].appearance.face = Face::BROTHER.previous();
+    for expected in [
+        "BROTHER", "KUBAK", "RADEK", "BURDAS", "TEREZA", "FINCH", "MARIAN",
+    ] {
+        app.update(
+            0.,
+            FrameInput {
+                right: true,
+                ..Default::default()
+            },
+        );
+        assert_eq!(app.players[1].name, expected);
+        assert_eq!(app.players[0].name, "PLAYER 1");
+    }
+    app.update(
+        0.,
+        FrameInput {
+            backspace: true,
+            ..Default::default()
+        },
+    );
+    app.update(
+        0.,
+        FrameInput {
+            text: Some('o'),
+            ..Default::default()
+        },
+    );
+    app.update(0., FrameInput::default());
+    assert_eq!(app.players[1].name, "MARIAO");
+    app.update(
+        0.,
+        FrameInput {
+            right: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(app.players[1].name, "MARIAO");
+    app.update(
+        0.,
+        FrameInput {
+            left: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(app.players[1].name, "MARIAN");
+    app.update(
+        0.,
+        FrameInput {
+            right: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(app.players[1].name, "PLAYER 2");
+}
