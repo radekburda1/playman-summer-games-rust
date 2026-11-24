@@ -26,12 +26,14 @@ pub(super) fn draw(art: &Art, app: &App) {
         art.scaled_sprite(icon, x, 97., if i == app.selected { 1. } else { 0.65 });
     }
     super::band(128., 29.);
-    art.label(
-        3,
+    text(
+        art,
         &format!("< {} >", super::name(app.selected)),
-        120.,
-        132.,
-        1,
+        vec2(120., 136.),
+        21.,
+        WHITE,
+        210.,
+        0.5,
     );
 
     draw_rectangle(12., 172., 216., 48., Color::from_rgba(241, 243, 246, 255));

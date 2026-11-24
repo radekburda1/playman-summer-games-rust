@@ -120,6 +120,14 @@ simulation cues follow it. The existing offline MIDI renders and mixing settings
 are unchanged. Pole/projectile `reference_values()` methods retain only the oracle
 CSV order. Java names, equations and trace provenance remain in reference notes.
 
+The interactive renderer uses 240×320 logical coordinates and rasterizes the UI
+into a 480×640 target. By default the world is drawn separately at 240×320 and
+composited with nearest-neighbor filtering. V switches the session to a world pass
+drawn directly into the 480×640 target. World sprite draws in that pass use
+alpha-weighted bilinear sampling clamped to the current source rectangle. Menus,
+HUD and other overlays use their normal materials. The software replay renderer
+draws the world at reference resolution.
+
 ## Arithmetic and clocks
 
 One simulation tick is exactly 32 ms. `elapsed_ms` freezes after measurement;
@@ -499,8 +507,8 @@ App owns a bounded speed percentage (50–100 in steps of 10, default 100).
 The event menu labels speed as Handicap. Left/Right selects events; Up/Down
 or a pointer drag adjusts the six slider stops. application::menu owns logical
 slider geometry and quantization. FrameInput carries pointer coordinates in
-the 240×320 canvas. The platform uses the same viewport for pointer conversion
-and rendering, including letterboxing. Drag capture ends on release or menu exit.
+the 240×320 logical canvas. The platform uses the same viewport for pointer
+conversion and rendering, including letterboxing. Drag capture ends on release or menu exit.
 Scaled frame time feeds countdowns, fixed-tick gameplay, finish movement and
 results reactions/replays. Simulation ticks remain 32ms and records use game
 time across speeds. Menus, transitions and audio playback use real time.

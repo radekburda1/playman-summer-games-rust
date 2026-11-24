@@ -1,3 +1,4 @@
+use super::sprite_filter;
 use crate::rendering::backend::{draw_line, draw_rectangle};
 use crate::{
     assets::artwork::{Artwork, Command},
@@ -10,6 +11,7 @@ pub struct Art {
     appearance: crate::assets::character::Appearance,
     atlas: Option<Texture2D>,
     ui_font: Option<Font>,
+    sprite_filter: Option<Material>,
     artwork: Artwork,
 }
 impl Default for Art {
@@ -30,6 +32,7 @@ impl Art {
             atlas: Some(atlas),
             ui_font: Some(ui_font),
             artwork: Artwork::new(),
+            sprite_filter: None,
             appearance: Default::default(),
         }
     }
@@ -39,6 +42,7 @@ impl Art {
             atlas: None,
             ui_font: None,
             artwork: Artwork::new(),
+            sprite_filter: None,
             appearance: Default::default(),
         }
     }
@@ -52,20 +56,7 @@ impl Art {
                 source: [x, y, w, h],
                 dest: [dx, dy],
             } => {
-                if self.atlas.is_none() {
-                    crate::rendering::backend::blit([x, y, w, h], [dx, dy], 1.);
-                    return;
-                }
-                draw_texture_ex(
-                    self.atlas.as_ref().unwrap(),
-                    dx,
-                    dy,
-                    WHITE,
-                    DrawTextureParams {
-                        source: Some(Rect::new(x, y, w, h)),
-                        ..Default::default()
-                    },
-                )
+                self.draw_sprite(Rect::new(x, y, w, h), vec2(dx, dy), 1.);
             }
             Command::Rect {
                 bounds: [x, y, w, h],
@@ -137,26 +128,45 @@ impl Art {
             ..
         }) = self.artwork.sprite(id, 0, 0., 0., false)
         {
-            if self.atlas.is_none() {
-                crate::rendering::backend::blit(
-                    [sx, sy, w, h],
-                    [x - w * scale / 2., y - h * scale / 2.],
-                    scale,
-                );
-                return;
-            }
-            draw_texture_ex(
-                self.atlas.as_ref().unwrap(),
-                x - w * scale / 2.,
-                y - h * scale / 2.,
-                WHITE,
-                DrawTextureParams {
-                    source: Some(Rect::new(sx, sy, w, h)),
-                    dest_size: Some(vec2(w * scale, h * scale)),
-                    ..Default::default()
-                },
-            )
+            self.draw_sprite(
+                Rect::new(sx, sy, w, h),
+                vec2(x - w * scale / 2., y - h * scale / 2.),
+                scale,
+            );
         }
+    }
+    fn draw_sprite(&self, source: Rect, position: Vec2, scale: f32) {
+        let Some(atlas) = &self.atlas else {
+            crate::rendering::backend::blit(
+                [source.x, source.y, source.w, source.h],
+                position.to_array(),
+                scale,
+            );
+            return;
+        };
+        if let Some(filter) = &self.sprite_filter {
+            sprite_filter::begin(filter, atlas, source);
+        }
+        draw_texture_ex(
+            atlas,
+            position.x,
+            position.y,
+            WHITE,
+            DrawTextureParams {
+                source: Some(source),
+                dest_size: Some(vec2(source.w * scale, source.h * scale)),
+                ..Default::default()
+            },
+        );
+        if self.sprite_filter.is_some() {
+            gl_use_default_material();
+        }
+    }
+    pub fn with_filtered_sprites(&self) -> Result<Self, macroquad::Error> {
+        Ok(Self {
+            sprite_filter: Some(sprite_filter::load()?),
+            ..self.clone()
+        })
     }
     pub fn rounded_panel(&self, x: f32, y: f32, w: f32, h: f32) {
         draw_rectangle(x + 8., y, w - 16., 8., WHITE);

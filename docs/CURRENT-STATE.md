@@ -17,6 +17,38 @@ Rust/Macroquad reconstruction of Playman Summer Games 3. Browser game `http://12
 
 Workspace root `/Users/Radek.Burda/Documents/Codex/2026-10-25/you-are-an-expert-systems-engineer`. Current chat artifact folder `/Users/Radek.Burda/Documents/Codex/2026-11-01/new-chat/outputs`.
 
+## Filtered 480×640 gameplay preview — 2026-11-24
+
+Press V outside player setup to switch between the default crisp 240×320 world
+scaled 2× and a world drawn directly at 480×640. The filtered mode interpolates
+each sprite within its atlas bounds and weights samples by alpha. UI rendering
+and gameplay input/timing are independent of the toggle. The selection lasts
+until reload. A shader initialization error logs a warning and keeps crisp mode
+available.
+
+All 101 Rust tests, strict Clippy, formatting, web bundle/storage checks and
+native/WASM release builds passed.
+Live browser checks covered both directions of the toggle on the stationary
+100m Dash start scene and running with the filtered renderer. The preview was
+left on that start scene in filtered mode. Comparison captures are
+gameplay-crisp.jpg and gameplay-filtered.jpg in the current chat's visualization
+directory. Native rendering and other events were not checked live.
+
+## 480×640 UI rendering — 2026-11-24
+
+The native and web renderers composite a 480×640 frame.
+Menu headings, selection rows, instructions, footer controls and the HUD name
+and timer use the bundled scalable font. Decorative bitmap callouts and original
+artwork remain in use. Layout and pointer input retain 240×320 logical coordinates.
+
+All 101 Rust tests, including the reference-pixel checks, passed. Formatting,
+strict Clippy, web bundle/storage checks and native/WASM release builds passed.
+Live browser verification covered mode and player setup, event selection, Dash
+instructions, the starting scene and active running with the timer and prompts.
+The preview is left on event selection at http://127.0.0.1:8767/. The screenshots
+are event-menu-480.jpg and race-480.jpg in the current chat's visualization
+directory. Native presentation, audio and other events were not checked live.
+
 ## Replay/Misa commit verification — 2026-11-24
 
 The user authorized committing and pushing the pending replay feature and Misa

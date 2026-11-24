@@ -87,13 +87,21 @@ fn draw_game(art: &Art, app: &App, time: f32) {
         &art.with_appearance(app.players[app.current_player].appearance),
         &frame,
     );
-    ui::game_hud(art, app);
 }
 
 pub async fn run() {
     let art = Art::new();
+    let filtered_art = art
+        .with_filtered_sprites()
+        .map_err(|error| {
+            warn!("Filtered gameplay unavailable: {error}");
+        })
+        .ok();
+    let mut filtered = false;
     let mut sounds = sound::Sounds::load().await;
-    let target = render_target(240, 320);
+    let world_target = render_target(240, 320);
+    world_target.texture.set_filter(FilterMode::Nearest);
+    let target = render_target(480, 640);
     target.texture.set_filter(FilterMode::Nearest);
     let mut app = App::new(load_records());
     let smoke = std::env::args().any(|s| s == "--smoke-test");
@@ -102,6 +110,10 @@ pub async fn run() {
         let dt = get_frame_time().min(0.125);
         if app.screen != Screen::PlayerSetup && is_key_pressed(KeyCode::M) {
             sounds.muted = !sounds.muted;
+        }
+        if app.screen != Screen::PlayerSetup && is_key_pressed(KeyCode::V) && filtered_art.is_some()
+        {
+            filtered = !filtered;
         }
         let previous_seed = app.seed;
         let effects = app.update(dt, frame_input(app.screen == Screen::PlayerSetup));
@@ -140,11 +152,8 @@ pub async fn run() {
                 app.selected = 0;
             }
         }
-        set_camera(&Camera2D {
-            render_target: Some(target.clone()),
-            ..Camera2D::from_display_rect(Rect::new(0., 0., 240., 320.))
-        });
-        if matches!(
+        let canvas = Rect::new(0., 0., 240., 320.);
+        let has_world = matches!(
             app.screen,
             Screen::AwaitStart
                 | Screen::Ready
@@ -152,10 +161,40 @@ pub async fn run() {
                 | Screen::Finish
                 | Screen::Results
                 | Screen::FieldReplay
-        ) {
-            draw_game(&art, &app, get_time() as f32)
-        } else {
-            clear_background(WHITE)
+        );
+        if has_world && !filtered {
+            set_camera(&Camera2D {
+                render_target: Some(world_target.clone()),
+                ..Camera2D::from_display_rect(canvas)
+            });
+            draw_game(&art, &app, get_time() as f32);
+        }
+
+        // Keep UI coordinates and hit areas in logical pixels while rasterizing
+        // into the larger target. The world texture is composited at exactly 2×.
+        set_camera(&Camera2D {
+            render_target: Some(target.clone()),
+            ..Camera2D::from_display_rect(canvas)
+        });
+        clear_background(WHITE);
+        if has_world {
+            if let Some(world_art) = filtered_art.as_ref().filter(|_| filtered) {
+                draw_game(world_art, &app, get_time() as f32);
+            } else {
+                draw_texture_ex(
+                    &world_target.texture,
+                    0.,
+                    0.,
+                    WHITE,
+                    DrawTextureParams {
+                        flip_y: true,
+                        ..Default::default()
+                    },
+                );
+            }
+            if app.screen != Screen::FieldReplay {
+                ui::game_hud(&art, &app);
+            }
         }
         ui::transition_wash(&art, &app);
         ui::draw(&art, &app, sounds.muted);

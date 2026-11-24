@@ -60,6 +60,7 @@ Open http://127.0.0.1:8767. Click the game to focus input. `WEB_PORT` changes th
 | Left prompt / right prompt | Left / Right arrows |
 | Jump, dive, charge, pole action | Space |
 | Pause / resume | P |
+| Toggle crisp pixels / filtered 480 × 640 gameplay | V |
 | Toggle music and sound effects | M |
 | Retry from result screen / reset records from main menu | R |
 | Next attempt / event | Space |
@@ -69,7 +70,7 @@ Each attempt opens on a stationary **NEXT UP / Start** scene. Press **Space** to
 
 Running follows the displayed **sequence**, which can repeat a side. Button presses are edge triggered: holding a direction does not repeatedly run. Correct arrow-key inputs produce the original three-frame white pulse (200 ms), with a short bounce on the next prompt; wrong inputs show a red X (300 ms). Hurdles highlight the consumed sequence slot.
 
-Menus use the extracted original bitmap fonts and sport icons on white backgrounds with red selection bands. The pause menu supports resume, retry, sound and return to the event menu. Use arrow keys to navigate and Space to select.
+Menus use a scalable font and the original sport icons on white backgrounds with red selection bands. The game starts in crisp pixel mode. Press V on the stationary NEXT UP screen to compare the two gameplay renderers without starting the attempt. The pause menu supports resume, retry, sound and return to the event menu. Use arrow keys to navigate and Space to select.
 
 - **400m Dash (experimental):** the same prompt, acceleration and dive mechanics on a four-times-longer straight track. Prompts continue until 380m; dive in the final 20m. Available in singleplayer and 2–6-player local multiplayer with its own persistent record. The original five-event tournament is unchanged.
 - **100m Dash:** follow prompts until the final section, then press the action key near the finish to dive.

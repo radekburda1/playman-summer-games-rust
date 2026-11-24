@@ -55,7 +55,7 @@ fn event_header(art: &Art, app: &App, title: &str) {
     draw_line(-offset, 36., 240. - offset, 36., 2., RED);
     art.sprite(1, -offset, 0., false);
     art.scaled_sprite(25 + event_index(app.game.event()), 33. - offset, 25.5, 0.82);
-    art.label(4, title, 230. + offset, 7., 2);
+    text(art, title, vec2(230. + offset, 9.), 24., BLACK, 160., 1.);
 }
 // Text is measured within its column so every supported name/result stays clear
 // of its neighbors. Position is the top edge; anchor is 0/0.5/1 for left/center/right.
@@ -88,8 +88,8 @@ fn text(
     );
 }
 
-fn small(text: &str, x: f32, y: f32, color: Color) {
-    draw_text(text, x, y, 14., color);
+fn small(art: &Art, label: &str, x: f32, y: f32, color: Color) {
+    text(art, label, vec2(x, y - 9.), 13., color, 235. - x, 0.);
 }
 fn band(y: f32, h: f32) {
     draw_triangle(vec2(12., y), vec2(240., y), vec2(240., y + h), RED);
@@ -104,13 +104,13 @@ fn header(art: &Art, title: &str, icon: Option<usize>) {
     } else {
         art.sprite(0, 0., 0., false);
     }
-    art.label(4, title, 230., 7., 2);
+    text(art, title, vec2(230., 9.), 24., BLACK, 160., 1.);
 }
-fn footer(left: &str, right: &str) {
+fn footer(art: &Art, left: &str, right: &str) {
     draw_rectangle(0., 303., 240., 17., BLACK);
-    small(left, 5., 316., RED);
-    let w = measure_text(right, None, 14, 1.).width;
-    small(right, 235. - w, 316., RED);
+    let color = Color::from_rgba(255, 160, 170, 255);
+    text(art, left, vec2(5., 307.), 13., color, 145., 0.);
+    text(art, right, vec2(235., 307.), 13., color, 80., 1.);
 }
 fn event_index(event: Event) -> usize {
     // The experimental dash reuses the original running icon, not the trophy.
@@ -145,24 +145,25 @@ fn score(art: &Art, event: Event, value: Option<i32>, y: f32) {
         art.label(3, "NO RECORD", 120., y + 3., 1)
     }
 }
-fn wrap(art: &Art, text: &str, x: f32, mut y: f32, width: i32) {
-    let font = BitmapFont::get(3);
+fn wrap(art: &Art, description: &str, x: f32, mut y: f32, width: f32) {
+    let font = art.ui_font();
+    let size = 20.;
     let mut line = String::new();
-    for word in text.split_whitespace() {
+    for word in description.split_whitespace() {
         let candidate = if line.is_empty() {
             word.into()
         } else {
             format!("{line} {word}")
         };
-        if font.width(&candidate) > width && !line.is_empty() {
-            art.label(3, &line, x, y, 0);
+        if measure_text(&candidate, font, 48, size / 48.).width > width && !line.is_empty() {
+            text(art, &line, vec2(x, y), size, BLACK, width, 0.);
             y += 25.;
             line = word.into()
         } else {
             line = candidate
         }
     }
-    art.label(3, &line, x, y, 0);
+    text(art, &line, vec2(x, y), size, BLACK, width, 0.);
 }
 fn pause(art: &Art, app: &App, muted: bool) {
     header(art, "PAUSED", None);
@@ -187,22 +188,43 @@ fn pause(art: &Art, app: &App, muted: bool) {
                 GRAY
             },
         );
-        art.label(3, item, 48., y, 0);
+        let color = if i == app.pause_selection {
+            WHITE
+        } else {
+            BLACK
+        };
+        text(art, item, vec2(48., y + 4.), 20., color, 175., 0.);
     }
-    art.label(3, "P TO RESUME", 120., 271., 1);
-    footer("Space: Select", "Menu");
+    text(art, "P TO RESUME", vec2(120., 271.), 18., BLACK, 210., 0.5);
+    footer(art, "Space: Select", "Menu");
 }
 pub fn game_hud(art: &Art, app: &App) {
     let g = &app.game;
     draw_rectangle(0., 0., 240., 36., WHITE);
     draw_line(0., 36., 240., 36., 1., RED);
     art.scaled_sprite(25 + event_index(g.event()), 21., 20., 0.72);
-    art.label(3, app.player_name(), 42., 5., 0);
+    text(art, app.player_name(), vec2(42., 10.), 20., BLACK, 120., 0.);
     if g.event().race() {
         let n = g.elapsed_ms * 100 / 1024;
-        art.label(5, &format!("{}.{:02}", n / 100, n % 100), 235., 9., 2)
+        text(
+            art,
+            &format!("{}.{:02}", n / 100, n % 100),
+            vec2(235., 10.),
+            20.,
+            BLACK,
+            67.,
+            1.,
+        )
     } else {
-        art.label(3, &format!("{}/3", app.attempt + 1), 235., 6., 2)
+        text(
+            art,
+            &format!("{}/3", app.attempt + 1),
+            vec2(235., 10.),
+            20.,
+            BLACK,
+            67.,
+            1.,
+        )
     }
     if g.feedback_time > 0 {
         art.label(3, &g.feedback, 120., 53., 1)
@@ -289,10 +311,15 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 if i == app.mode_selection {
                     band(y - 4., 29.);
                 }
-                art.label(3, title, 120., y, 1);
+                let color = if i == app.mode_selection {
+                    WHITE
+                } else {
+                    BLACK
+                };
+                text(art, title, vec2(120., y + 4.), 22., color, 212., 0.5);
             }
-            small("Multiplayer: share this device", 27., 235., BLACK);
-            footer("Space: Select", "");
+            small(art, "Multiplayer: share this device", 27., 235., BLACK);
+            footer(art, "Space: Select", "");
         }
         Screen::PlayerSetup => {
             header(art, "PLAYERS", None);
@@ -301,6 +328,11 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 if i == app.setup_selection {
                     band(y - 2., 27.);
                 }
+                let color = if i == app.setup_selection {
+                    WHITE
+                } else {
+                    BLACK
+                };
                 let label = if i == 0 {
                     format!("< PLAYERS: {} >", app.setup_player_count())
                 } else if i == app.setup_player_count() + 1 {
@@ -316,16 +348,24 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                         y + 11.,
                         if i == app.setup_selection { 0.65 } else { 0.8 },
                     );
-                    art.label(3, &app.players[i - 1].name, 58., y, 0);
+                    text(
+                        art,
+                        &app.players[i - 1].name,
+                        vec2(58., y + 4.),
+                        20.,
+                        color,
+                        143.,
+                        0.,
+                    );
                     if i == app.setup_selection {
-                        small("< >", 209., y + 15., BLACK);
+                        small(art, "< >", 209., y + 15., WHITE);
                     }
                 } else {
-                    art.label(3, &label, 120., y, 1);
+                    text(art, &label, vec2(120., y + 4.), 20., color, 214., 0.5);
                 }
             }
-            small("Left/right: face. Type: name.", 20., 278., BLACK);
-            small("Up/down: player. Space: next.", 20., 294., BLACK);
+            small(art, "Left/right: face. Type: name.", 20., 278., BLACK);
+            small(art, "Up/down: player. Space: next.", 20., 294., BLACK);
             let character = app
                 .setup_selection
                 .checked_sub(1)
@@ -334,7 +374,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             let next_label = character
                 .and_then(|face| face.custom_name())
                 .map_or_else(|| "Space: Next".into(), |name| format!("{name} / Space"));
-            footer(&next_label, "Back");
+            footer(art, &next_label, "Back");
         }
         Screen::Standings | Screen::RoundResults => standings::draw(art, app),
         Screen::Menu => event_menu::draw(art, app),
@@ -344,23 +384,31 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             art.label(0, "This cannot be undone.", 120., 155., 1);
             art.label(0, "Space: Reset", 120., 205., 1);
             art.label(0, "Esc: Cancel", 120., 235., 1);
-            footer("Space: Reset", "Cancel");
+            footer(art, "Space: Reset", "Cancel");
         }
         Screen::Help => {
             header(art, "INSTRUCTIONS", Some(25 + app.selected));
             band(55., 29.);
-            art.label(3, &name(app.selected), 120., 59., 1);
+            text(
+                art,
+                &name(app.selected),
+                vec2(120., 63.),
+                21.,
+                WHITE,
+                210.,
+                0.5,
+            );
             wrap(
                 art,
                 Event::SELECTABLE[app.selected].instructions(),
                 16.,
                 100.,
-                208,
+                208.,
             );
             for (i, id) in [470, 471, 472].into_iter().enumerate() {
                 controls::prompt(art, id, 49. + i as f32 * 71., 264.)
             }
-            footer("Space: Start", "Back");
+            footer(art, "Space: Start", "Back");
         }
         Screen::AwaitStart => {
             event_header(art, app, "NEXT UP");
@@ -385,7 +433,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 controls::prompt(art, 472, (x + 32) as f32, (y - 92) as f32);
             }
             if app.outgoing.is_none() {
-                footer("Space: Start", "Esc: Menu");
+                footer(art, "Space: Start", "Esc: Menu");
             }
         }
         Screen::Ready => art.label(
@@ -445,7 +493,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                     art.label(4, "HIGH SCORE!", 120. + offset, 126., 1);
                 }
                 if app.outgoing.is_none() {
-                    footer("Space: OK", "Menu");
+                    footer(art, "Space: OK", "Menu");
                 }
             }
         }
@@ -516,12 +564,20 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                     );
                 }
             }
-            footer("Space: Results", "R: Replay");
+            footer(art, "Space: Results", "R: Replay");
         }
         Screen::Results => {
             header(art, "RESULTS", Some(25 + event_index(app.game.event())));
             band(58., 29.);
-            art.label(3, &app.game.event().name().to_uppercase(), 120., 62., 1);
+            text(
+                art,
+                &app.game.event().name().to_uppercase(),
+                vec2(120., 66.),
+                21.,
+                WHITE,
+                210.,
+                0.5,
+            );
             if app.game.result.is_some() {
                 score(art, app.game.event(), app.game.result, 109.)
             } else {
@@ -538,9 +594,9 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             score(art, app.game.event(), app.best, 229.);
             art.label(3, "R: RETRY", 120., 270., 1);
             if app.save_error.is_some() {
-                small("Record could not be saved", 30., 299., RED);
+                small(art, "Record could not be saved", 30., 299., RED);
             }
-            footer("Space: Next", "Menu");
+            footer(art, "Space: Next", "Menu");
         }
         Screen::Complete => {
             header(art, "RESULTS", Some(30));
@@ -548,7 +604,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
             art.label(3, "COMPLETE!", 120., 119., 1);
             art.label(6, &app.total.to_string(), 120., 181., 1);
             art.label(3, "POINTS", 120., 222., 1);
-            footer("Space: Menu", "");
+            footer(art, "Space: Menu", "");
         }
     }
 }
