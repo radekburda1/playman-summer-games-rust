@@ -84,8 +84,23 @@ fn every_event_rotates_players_then_attempts_and_preserves_bests() {
                     app.finish();
                     app.advance();
                 }
+                if !event.race() {
+                    assert!(app.screen == Screen::FieldReplay);
+                    confirm(&mut app);
+                    assert!(app.screen == Screen::RoundResults);
+                    if round < 2 {
+                        confirm(&mut app);
+                    }
+                }
             }
-            assert!(app.screen == Screen::Standings);
+            assert!(
+                app.screen
+                    == if event.race() {
+                        Screen::Standings
+                    } else {
+                        Screen::RoundResults
+                    }
+            );
             for player in 0..count {
                 assert_eq!(
                     app.players[player].results[selected],
@@ -104,11 +119,22 @@ fn tournament_totals_are_awarded_once_per_event() {
     for (selected, event) in Event::ALL.into_iter().enumerate() {
         assert_eq!(app.selected, selected);
         app.game = Game::new(event, 1);
-        for _ in 0..if event.race() { 1 } else { 3 } {
+        for round in 0..if event.race() { 1 } else { 3 } {
             for _ in 0..6 {
                 app.game.result = Some(1000);
                 app.finish();
                 app.advance();
+            }
+            if !event.race() {
+                assert!(app.screen == Screen::FieldReplay);
+                confirm(&mut app);
+                assert!(app.screen == Screen::RoundResults);
+                let expected: i32 = Event::ALL[..if round < 2 { selected } else { selected + 1 }]
+                    .iter()
+                    .map(|e| e.score(Some(1000)))
+                    .sum();
+                assert!(app.players.iter().all(|p| p.total == expected));
+                confirm(&mut app);
             }
         }
         assert!(app.screen == Screen::Standings);
@@ -149,4 +175,54 @@ fn retry_does_not_advance_turn_and_fouls_rank_last() {
     app.finish();
     app.advance();
     assert_eq!(app.standings(), vec![0, 1]);
+}
+
+#[test]
+fn field_round_results_use_event_bests_before_tournament_totals() {
+    for selected in [1, 3, 4] {
+        let mut app = multiplayer(2, selected, true);
+        app.players[0].total = 100;
+        app.players[1].total = 10000;
+        for round in 0..3 {
+            for player in 0..2 {
+                app.game.result = if round == 1 {
+                    None
+                } else {
+                    Some(1500 - player * 500)
+                };
+                app.finish();
+                app.advance();
+            }
+            assert!(app.screen == Screen::FieldReplay);
+            if round == 1 {
+                assert!(
+                    app.field_replay
+                        .as_ref()
+                        .unwrap()
+                        .athletes
+                        .iter()
+                        .all(|a| a.result().is_none())
+                );
+            }
+            confirm(&mut app);
+            assert!(app.screen == Screen::RoundResults);
+            assert_eq!(app.standings(), vec![0, 1]);
+            assert_eq!(app.players[0].results[selected], Some(1500));
+            assert_eq!(app.players[1].results[selected], Some(1000));
+            confirm(&mut app);
+            if round < 2 {
+                assert!(app.screen == Screen::AwaitStart);
+            }
+        }
+        assert!(app.screen == Screen::Standings);
+        assert_eq!(app.standings(), vec![1, 0]);
+        assert_eq!(
+            app.players[0].total,
+            100 + app.game.event().score(Some(1500))
+        );
+        assert_eq!(
+            app.players[1].total,
+            10000 + app.game.event().score(Some(1000))
+        );
+    }
 }

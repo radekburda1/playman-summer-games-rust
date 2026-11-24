@@ -1,5 +1,8 @@
 # Extending the game
 
+Use source-verified original behavior as the default for reconstruction work.
+Keep the desktop controls and UI adaptations already requested by the user.
+
 ## Layout and dependency direction
 
 ```text
@@ -9,6 +12,7 @@ src/
   application/
     mod.rs                  Menu, attempts, tournament, pause and transitions
     gameplay.rs             Fixed-step physics/effects choreography and flight skip
+    field_replay.rs         Round input logs and isolated shared summaries
     records.rs              Record decisions and pure text codec
   simulation/
     mod.rs                  Game state, inputs and fixed-step dispatch
@@ -72,7 +76,24 @@ raw physics steps in a replay intended to verify visual effects or flight skip.
 
 Flow remains Menu → Help → AwaitStart → Ready → Play → Finish. Races continue to
 Results; field events advance through three attempts before returning to the menu
-or continuing a tournament. Finish movement does not advance measured race time.
+or continuing a tournament. Multiplayer field events insert FieldReplay →
+RoundResults after every round,
+matching original states 15 → 16/20. Each current attempt retains its initial Game
+and ordered tick-indexed inputs, including fouls and results worse than an earlier
+round. Player results independently retain best marks across all three attempts.
+RoundResults ranks those event bests even in a tournament. Space starts player
+zero in the next round; after round three, final event results precede cumulative
+tournament Standings. Points are awarded once after the final round. Starting
+player zero clears the previous round's logs. Playback owns independent games
+and effects, restores the near-action lead-in, and advances complete gameplay
+ticks. Javelin flight-skip input is a viewing shortcut and is omitted during
+playback so the flight remains visible.
+Playback leaves the live attempt, records, RNG seed, scores and rotation untouched.
+Rewind reconstructs playback from the same recordings. SceneFrame carries a
+summary camera and per-athlete depth; shared scenery is drawn once, followed by
+each athlete and their equipment. Field summaries do not request audio. Original
+summary source and intentional adaptations are documented in
+analysis/FIELD-REPLAY.md. Finish movement does not advance measured race time.
 Javelin foul results can appear while the rod still flies. Performance feedback
 and record detection are independent decisions.
 
@@ -309,7 +330,7 @@ viewport visibility. These checks do not establish complete original-game parity
 ## Player appearance
 
 Player owns assets::character::Appearance separately from simulation state. Its
-bounded Face value cycles the 12 original character sets plus Brother, Kubak, Radek, Burdas, Tereza, Finch and Marian; default is Playman
+bounded Face value cycles the 12 original character sets plus Misa, Kubak, Radek, Burdas, Tereza, Finch and Marian; default is Playman
 (index 1), preserving existing software/GPU fixtures. Original d.Y uses portrait
 sprites 41 + face (small) and 53 + face (selected). Original b0 character metadata
 at byte 646 contains five i32 values per face; the fourth value maps animation
@@ -351,9 +372,9 @@ preparation with the pole attached to the selected character. All 12 characters'
 318 pose frames decode in automated checks; complete custom-body field attempts,
 multiplayer finish reactions and native custom bodies remain unverified live.
 
-## Custom brother character
+## Custom Misa character (legacy brother assets)
 
-Face index 12 selects a custom male preset, with unchanged gameplay. Pure
+Face index 12 is displayed as Misa (formerly Brother) and selects a custom male preset, with unchanged gameplay. Pure
 assets::custom_character defines virtual sprites 4096 onward: four generated
 head views, two transparent frontal-head portraits, 21 broader body parts and
 four round-belly uniform views. Rendering::atlas assembles these below the

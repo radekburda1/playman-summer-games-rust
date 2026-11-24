@@ -336,7 +336,7 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                 .map_or_else(|| "Space: Next".into(), |name| format!("{name} / Space"));
             footer(&next_label, "Back");
         }
-        Screen::Standings => standings::draw(art, app),
+        Screen::Standings | Screen::RoundResults => standings::draw(art, app),
         Screen::Menu => event_menu::draw(art, app),
         Screen::ResetRecords => {
             header(art, "RESET RECORDS", None);
@@ -448,6 +448,75 @@ pub fn draw(art: &Art, app: &App, muted: bool) {
                     footer("Space: OK", "Menu");
                 }
             }
+        }
+        Screen::FieldReplay => {
+            draw_rectangle(0., 0., 240., 36., WHITE);
+            draw_line(0., 36., 240., 36., 2., RED);
+            art.scaled_sprite(25 + event_index(app.game.event()), 20., 20., 0.72);
+            text(
+                art,
+                &format!("ROUND {} REPLAY", app.attempt + 1),
+                vec2(42., 5.),
+                16.,
+                BLACK,
+                190.,
+                0.,
+            );
+            text(
+                art,
+                "ALL PLAYERS · CURRENT ATTEMPTS",
+                vec2(42., 23.),
+                8.,
+                DARKGRAY,
+                190.,
+                0.,
+            );
+            if let Some(replay) = &app.field_replay {
+                let rows = replay.athletes.len().div_ceil(2);
+                let top = 300. - rows as f32 * 16.;
+                draw_rectangle(
+                    0.,
+                    top - 4.,
+                    240.,
+                    304. - top,
+                    Color::new(0.04, 0.08, 0.13, 0.88),
+                );
+                for (rank, athlete) in replay.athletes.iter().enumerate() {
+                    let x = 5. + (rank % 2) as f32 * 120.;
+                    let y = top + (rank / 2) as f32 * 16.;
+                    let player = &app.players[athlete.player];
+                    text(
+                        art,
+                        &format!("{}. {}", rank + 1, player.name),
+                        vec2(x, y),
+                        9.,
+                        WHITE,
+                        77.,
+                        0.,
+                    );
+                    text(
+                        art,
+                        &result(app.game.event(), athlete.result()),
+                        vec2(x + 110., y),
+                        9.,
+                        YELLOW,
+                        33.,
+                        1.,
+                    );
+                }
+                if replay.complete() {
+                    text(
+                        art,
+                        "R: WATCH AGAIN",
+                        vec2(120., top - 21.),
+                        10.,
+                        BLACK,
+                        210.,
+                        0.5,
+                    );
+                }
+            }
+            footer("Space: Results", "R: Replay");
         }
         Screen::Results => {
             header(art, "RESULTS", Some(25 + event_index(app.game.event())));

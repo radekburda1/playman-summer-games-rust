@@ -216,6 +216,13 @@ the existing event score formula once per event. Retry repeats the current
 player's turn; Escape abandons the session to event selection. Escape from event
 selection returns to mode selection. Records remain shared across both modes.
 
+After each round of Long Jump, Pole Vault or Javelin, all players replay that
+round's attempts together, including fouls, as in the original game. Space opens
+the results table, which keeps each player's best mark so far; Space again starts
+the next round. After round three, it shows final event results and then tournament
+standings when applicable. R watches the current round again. Replays honor the
+Handicap setting, are silent, and cannot change scores or records.
+
 This multiplayer version has human players only. CPU opponents, independent body/outfit and
 country selection, online play and saved multiplayer sessions are not included.
 
@@ -228,7 +235,7 @@ recovers seated. Replays are display-only and do not emit duplicate audio.
 ### Player faces
 
 Both modes open player setup before event selection. Select a player with
-Up/Down, then use Left/Right to cycle the 12 original faces, the custom brother character, Kubak, Radek, Burdas, Tereza, Finch and Marian. Type to edit the
+Up/Down, then use Left/Right to cycle the 12 original faces, Misa, Kubak, Radek, Burdas, Tereza, Finch and Marian. Type to edit the
 name, Backspace to erase, and Space to advance to Continue. Choosing a custom
 face fills its name automatically. You can edit the name afterward. Multiplayer also
 allows changing player count on the first row. Selected faces appear in menu
@@ -240,7 +247,7 @@ body/outfit editing and country selection are not implemented. The default Playm
 keeps the established rendering scale. Appearance configuration supports future
 extensions without changing gameplay.
 
-The custom brother character is selected with Left eight times from default
+Misa is selected with Left eight times from default
 Playman. His selector uses a transparent head preview, gameplay uses generated
 cap-and-beard head views, and a rounded pot belly/broader limbs provide a fuller
 physique. The torso follows the original lean angles through running and crouching. This is cosmetic: movement, scores and equipment controls are unchanged.
@@ -249,7 +256,7 @@ Edit the player name normally. Asset provenance and the generation prompt are in
 
 Kubak is selected with Left seven times from default Playman. His transparent head
 is used in the selector, with matching generated animated head views. He uses
-the standard male body and proportions, without the brother's fuller-body
+the standard male body and proportions, without Misa's fuller-body
 transform. Names remain independently editable in player setup.
 
 Radek is selected with Left six times from default Playman, using a transparent neckless head and the standard male body. Player names remain independently editable.

@@ -1,3 +1,4 @@
+pub mod field_replay;
 pub mod gameplay;
 pub mod menu;
 pub mod race_replay;
@@ -13,6 +14,8 @@ pub enum Screen {
     ModeSelect,
     PlayerSetup,
     Standings,
+    FieldReplay,
+    RoundResults,
     Menu,
     ResetRecords,
     Help,
@@ -70,6 +73,9 @@ pub struct App {
     pub outgoing: Option<(Screen, f32)>,
     pub advance_after_transition: bool,
     finish_audio_started: bool,
+    field_recording: Option<field_replay::Recording>,
+    field_round: [Option<field_replay::Recording>; 6],
+    pub field_replay: Option<field_replay::FieldReplay>,
     race_recording: race_replay::RaceReplay,
     race_replays: [race_replay::RaceReplay; 6],
     race_tick: usize,
@@ -107,6 +113,9 @@ impl App {
             outgoing: None,
             advance_after_transition: false,
             finish_audio_started: false,
+            field_recording: None,
+            field_round: Default::default(),
+            field_replay: None,
             race_recording: Default::default(),
             race_replays: Default::default(),
             race_tick: 0,
@@ -120,12 +129,17 @@ impl App {
             Screen::ModeSelect
             | Screen::PlayerSetup
             | Screen::Standings
+            | Screen::RoundResults
             | Screen::Menu
             | Screen::ResetRecords
             | Screen::Help
             | Screen::Results
             | Screen::Complete => Some(1 + (self.seed as usize / 1009) % 3),
-            Screen::AwaitStart | Screen::Ready | Screen::Play | Screen::Finish => None,
+            Screen::AwaitStart
+            | Screen::Ready
+            | Screen::Play
+            | Screen::Finish
+            | Screen::FieldReplay => None,
         }
     }
     pub fn speed_percent(&self) -> u8 {
@@ -144,7 +158,7 @@ impl App {
     pub fn standings(&self) -> Vec<usize> {
         let mut order: Vec<_> = (0..self.player_count).collect();
         order.sort_by(|&a, &b| {
-            if self.tournament {
+            if self.tournament && self.screen != Screen::RoundResults {
                 self.players[b].total.cmp(&self.players[a].total)
             } else {
                 let a = self.players[a].results[self.selected];
@@ -256,6 +270,14 @@ impl App {
         }
         self.effects = Default::default();
         self.game.record_distance = self.records[self.selected];
+        self.field_replay = None;
+        self.field_recording = None;
+        if self.multiplayer && !self.game.event().race() {
+            if self.current_player == 0 {
+                self.field_round = Default::default();
+            }
+            self.field_recording = Some(field_replay::Recording::new(&self.game, self.attempt));
+        }
         self.outgoing = None;
         self.screen = Screen::AwaitStart;
         self.ready = 0.;
@@ -269,6 +291,14 @@ impl App {
         let result = self.game.result;
         self.game.finish_record = better(e, result, self.records[self.selected]);
         self.game.finish_good = e.score(result) >= 750;
+        if self.multiplayer
+            && !e.race()
+            && let Some(mut recording) = self.field_recording.take()
+        {
+            recording.result = result;
+            recording.final_position = self.game.runner.position;
+            self.field_round[self.current_player] = Some(recording);
+        }
         if better(e, result, self.best) {
             self.best = result
         }
@@ -298,14 +328,24 @@ impl App {
             self.players[self.current_player].results[self.selected] = self.best;
             if self.current_player + 1 < self.player_count {
                 self.current_player += 1;
-            } else if !self.game.event().race() && self.attempt < 2 {
-                self.current_player = 0;
-                self.attempt += 1;
             } else {
-                for player in self.players.iter_mut().take(self.player_count) {
-                    player.total += self.game.event().score(player.results[self.selected]);
+                // Original state 15 replays every completed field round; state 16
+                // shows bests so far before resetting input logs for the next one.
+                if self.game.event().race() || self.attempt == 2 {
+                    for player in self.players.iter_mut().take(self.player_count) {
+                        player.total += self.game.event().score(player.results[self.selected]);
+                    }
                 }
-                self.screen = Screen::Standings;
+                if !self.game.event().race() {
+                    self.field_replay = Some(field_replay::FieldReplay::new(
+                        &self.field_round,
+                        self.player_count,
+                    ));
+                    self.screen = Screen::FieldReplay;
+                    self.clock = 0.;
+                } else {
+                    self.screen = Screen::Standings;
+                }
                 return;
             }
             self.best = self.players[self.current_player].results[self.selected];
@@ -508,6 +548,38 @@ impl App {
                     }
                 }
             }
+            Screen::FieldReplay => {
+                if confirm && !esc {
+                    self.screen = Screen::RoundResults;
+                    self.clock = 0.;
+                } else if input.retry {
+                    self.field_replay = Some(field_replay::FieldReplay::new(
+                        &self.field_round,
+                        self.player_count,
+                    ));
+                    self.clock = 0.;
+                } else if let Some(replay) = &mut self.field_replay {
+                    self.clock += game_dt;
+                    while self.clock >= TICK {
+                        self.clock -= TICK;
+                        replay.step();
+                    }
+                }
+            }
+            Screen::RoundResults => {
+                if confirm && !esc {
+                    if self.attempt < 2 {
+                        self.attempt += 1;
+                        self.current_player = 0;
+                        self.best = self.players[0].results[self.selected];
+                        self.start();
+                    } else if self.tournament {
+                        self.screen = Screen::Standings;
+                    } else {
+                        self.screen = Screen::Menu;
+                    }
+                }
+            }
             Screen::Standings => {
                 if confirm && !esc {
                     if self.tournament && self.selected < 4 {
@@ -621,15 +693,27 @@ impl App {
                 }
                 if !self.paused && !was_paused && self.screen == Screen::Play {
                     if input.left {
+                        if let Some(recording) = &mut self.field_recording {
+                            recording.input(Input::Left);
+                        }
                         gameplay::input(&mut self.game, &mut self.effects, Input::Left)
                     }
                     if input.right {
+                        if let Some(recording) = &mut self.field_recording {
+                            recording.input(Input::Right);
+                        }
                         gameplay::input(&mut self.game, &mut self.effects, Input::Right)
                     }
                     if input.action {
+                        if let Some(recording) = &mut self.field_recording {
+                            recording.input(Input::ActionDown);
+                        }
                         gameplay::input(&mut self.game, &mut self.effects, Input::ActionDown)
                     }
                     if input.action_released {
+                        if let Some(recording) = &mut self.field_recording {
+                            recording.input(Input::ActionUp);
+                        }
                         gameplay::input(&mut self.game, &mut self.effects, Input::ActionUp)
                     }
                     self.clock += game_dt;
@@ -637,6 +721,9 @@ impl App {
                         self.clock -= TICK;
                         gameplay::step(&mut self.game, &mut self.effects);
                         self.record_race_tick();
+                        if let Some(recording) = &mut self.field_recording {
+                            recording.tick();
+                        }
                         if self.game.finished {
                             self.finish();
                             break;

@@ -159,7 +159,7 @@ fn selecting_custom_faces_fills_names_and_allows_manual_edits() {
     app.setup_selection = 2;
     app.players[1].appearance.face = Face::BROTHER.previous();
     for expected in [
-        "BROTHER", "KUBAK", "RADEK", "BURDAS", "TEREZA", "FINCH", "MARIAN",
+        "MISA", "KUBAK", "RADEK", "BURDAS", "TEREZA", "FINCH", "MARIAN",
     ] {
         app.update(
             0.,

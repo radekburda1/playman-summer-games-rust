@@ -1,6 +1,6 @@
 use super::text;
 use crate::{
-    application::{App, Player},
+    application::{App, Player, Screen},
     rendering::art::Art,
 };
 use macroquad::prelude::*;
@@ -34,7 +34,8 @@ fn rank(art: &Art, place: usize, position: Vec2, winner: bool) {
 }
 
 fn value(app: &App, player: &Player) -> String {
-    if app.tournament {
+    let tournament = app.tournament && app.screen != Screen::RoundResults;
+    if tournament {
         if player.total >= 1000 {
             format!("{},{:03}", player.total / 1000, player.total % 1000)
         } else {
@@ -56,22 +57,18 @@ fn value(app: &App, player: &Player) -> String {
 }
 
 pub(super) fn draw(art: &Art, app: &App) {
-    super::header(
-        art,
-        if app.tournament {
-            "STANDINGS"
-        } else {
-            "RESULTS"
-        },
-        None,
-    );
-    let title = if app.tournament {
+    let round = app.screen == Screen::RoundResults;
+    let tournament = app.tournament && !round;
+    super::header(art, if tournament { "STANDINGS" } else { "RESULTS" }, None);
+    let title = if tournament {
         "TOURNAMENT".into()
     } else {
         app.game.event().name().to_uppercase()
     };
     text(art, &title, vec2(12., 55.), 12., INK, 113., 0.);
-    let context = if app.tournament {
+    let context = if round {
+        format!("ROUND {} / 3", app.attempt + 1)
+    } else if tournament {
         format!("AFTER {}", app.game.event().name()).to_uppercase()
     } else {
         format!("{} PLAYERS", app.player_count)
@@ -80,7 +77,7 @@ pub(super) fn draw(art: &Art, app: &App) {
 
     let order = app.standings();
     let leader = &app.players[order[0]];
-    let has_winner = app.tournament || leader.results[app.selected].is_some();
+    let has_winner = tournament || leader.results[app.selected].is_some();
     if app.player_count == 2 {
         let color = if has_winner { WHITE } else { INK };
         draw_rectangle(
@@ -93,7 +90,9 @@ pub(super) fn draw(art: &Art, app: &App) {
         art.scaled_sprite(leader.appearance.face.portrait(true), 47., 126., 1.06);
         let caption = if !has_winner {
             "NO VALID RESULT"
-        } else if app.tournament && app.selected < 4 {
+        } else if round && app.attempt < 2 {
+            "BEST SO FAR"
+        } else if tournament && app.selected < 4 {
             "LEADING"
         } else {
             "1ST PLACE"
@@ -130,7 +129,7 @@ pub(super) fn draw(art: &Art, app: &App) {
         text(art, "PLAYER", vec2(64., 74.), 9., MUTED, 90., 0.);
         text(
             art,
-            if app.tournament {
+            if tournament {
                 "TOTAL PTS"
             } else if app.game.event().race() {
                 "TIME"
@@ -182,7 +181,11 @@ pub(super) fn draw(art: &Art, app: &App) {
     );
     text(
         art,
-        if app.tournament && app.selected < 4 {
+        if round && app.attempt < 2 {
+            "NEXT ROUND"
+        } else if round && app.tournament {
+            "STANDINGS"
+        } else if tournament && app.selected < 4 {
             "NEXT EVENT"
         } else {
             "CONTINUE"

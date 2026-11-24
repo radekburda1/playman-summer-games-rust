@@ -17,7 +17,7 @@ impl Face {
     pub const MARIAN: Self = Self(18);
     pub fn custom_name(self) -> Option<&'static str> {
         match self {
-            Self::BROTHER => Some("Brother"),
+            Self::BROTHER => Some("Misa"),
             Self::KUBAK => Some("Kubak"),
             Self::RADEK => Some("Radek"),
             Self::BURDAS => Some("Burdas"),

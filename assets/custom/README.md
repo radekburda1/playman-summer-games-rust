@@ -1,5 +1,9 @@
 # Custom character assets
 
+The character originally labeled Brother is now displayed as Misa. Existing
+`brother-*` asset filenames and historical prompts below retain their original
+names; this is a display-name change only.
+
 ## Custom male neck alignment — 2026-11-03
 
 Brother, Kubak, Radek and Burdas now share Tereza’s 3px gameplay head-axis lift,

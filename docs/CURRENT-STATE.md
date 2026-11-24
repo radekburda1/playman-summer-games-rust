@@ -1,4 +1,4 @@
-# Playman Rust desktop handoff — 2026-11-23
+# Playman Rust desktop handoff — 2026-11-24
 
 This snapshot records completed work and constraints, not authorization for new features. Inspect live files/diff before editing.
 
@@ -17,6 +17,81 @@ Rust/Macroquad reconstruction of Playman Summer Games 3. Browser game `http://12
 
 Workspace root `/Users/Radek.Burda/Documents/Codex/2026-10-25/you-are-an-expert-systems-engineer`. Current chat artifact folder `/Users/Radek.Burda/Documents/Codex/2026-11-01/new-chat/outputs`.
 
+## Replay/Misa commit verification — 2026-11-24
+
+The user authorized committing and pushing the pending replay feature and Misa
+rename on main. Final cargo test --locked passed all 101 tests. Formatting,
+Clippy with warnings denied, diff whitespace and web bundle/storage checks passed.
+Production web and macOS app builds passed after the name change. Prior live
+browser evidence and native verification limits are recorded below. No reference
+fixtures or artwork were regenerated. Original replay overlap mitigations remain
+incomplete as documented; this commit does not claim exact visual parity.
+
+## Misa display name — 2026-11-24
+
+Renamed the custom face formerly labeled Brother to Misa. Face index 12 and
+legacy BROTHER/internal brother-* asset identifiers are retained. Selecting the
+face now fills MISA; manual names remain editable. Updated the existing custom
+name-selection test and current player documentation; historical asset prompts
+are unchanged. Focused name-selection test, formatting/diff checks and web/macOS
+builds passed. Live browser player setup showed MISA with the existing portrait.
+Native UI was not inspected live. The user authorized committing and pushing
+this rename together with the replay work.
+
+## Hotseat field round replays — 2026-11-24
+
+Long Jump, Pole Vault and Javelin now follow the original hotseat round flow:
+after everyone completes a round, all players replay that round together;
+round results show their best marks so far; Space starts player zero in the next
+round. Round three ends with final event results, then cumulative tournament
+standings where applicable. This replaces the earlier end-of-event best-attempt
+variant. Original behavior is the default for further reconstruction work; retain
+the desktop UI/control adaptations already requested by the user.
+
+Confirmed against original d.java: aG cases 13/15/16 enter replay every round,
+z(16/20) calls aH to sort best-so-far result slot 3, and aG(16) resets logs and
+advances the round. bi/bv/bJ restore seeded athletes/timestamped inputs near the
+decisive action; bj/bw/bK run them together; bk/bx/bL provide shared cameras.
+See analysis/FIELD-REPLAY.md for source mapping and display adaptations.
+
+App keeps current-round recordings separate from best marks. A worse attempt or
+foul replaces that player's replay for the round without changing their best.
+FieldReplay → RoundResults occurs after rounds 1, 2 and 3. Standings retains its
+existing race/tournament role. RoundResults always ranks event bests, including
+in tournaments. Points are awarded once only after round three. Space advances,
+R rewinds the current round, Escape leaves. Playback honors Handicap, is bounded
+and silent, and owns independent Game/effects state. It cannot change the live
+attempt, RNG seed, marks, records or totals. Javelin flight skip replays the whole
+flight. The shared renderer/camera corrections and original fixture pixels are
+unchanged by this flow correction.
+Overlap remains possible: fixed depth offsets and staggered starts are present;
+the original random depth variation and exact ranking-based draw order are not
+yet reproduced. The user asked about this difference; no spacing change was made.
+
+Verification: full cargo test --locked passed all 101 tests, including original
+state/pixel preservation; current-round input playback and effects; 2/6-player
+rotation through every field round; current fouls after earlier successful rounds;
+best-so-far ranking versus tournament totals; replay reset/exit; immutable rendering;
+and point/record/seed isolation. Formatting, Clippy with warnings denied, diff
+whitespace, web bundle/storage checks, production web build and macOS app build
+passed. No reference fixtures were regenerated.
+
+Live production browser: played both players' first Long Jump round (fouls),
+confirmed immediate ROUND 1 REPLAY, then ROUND 1/3 results with NEXT ROUND and
+player one's next NEXT UP handoff. An isolated temporary WASM fixture drove real
+App attempts through all three rounds, with deliberate round-two fouls after
+successful first-round attempts, to inspect replay/table labels and retained best
+marks with Finch/Marian. Additional fixture checks cover six players, Pole Vault,
+Javelin and final event results before tournament totals. Browser audio stayed
+muted. Native replay visuals/input/audio remain unverified live.
+
+Fixture source was removed from the checkout. Temporary build:
+/tmp/round-replay-preview (temporary localhost:8771 server stopped after checking).
+Screenshots are in this
+chat's visualization field-replay/ directory, including round-2-fouls.png and
+round-2-results.png. Earlier screenshots named *-browser.png show the superseded
+best-attempt header. The user authorized committing and pushing this feature.
+
 ## Final commit verification — 2026-11-23
 
 The user authorized committing and pushing all pending character and desktop UI
@@ -27,7 +102,7 @@ whitespace and web bundle/storage checks passed. Web and macOS release builds
 passed after the final keycap fix. Native visuals/input remain unverified for
 these desktop UI changes. Asset/font provenance and licenses are included.
 
-## Keycap outline correction — latest implementation change
+## Keycap outline correction — prior change
 
 Removed the heavy white outer outline from the shared desktop keycaps.
 They now use a thin dark edge and bottom shadow around the colored face.

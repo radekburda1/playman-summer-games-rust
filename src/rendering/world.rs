@@ -604,12 +604,36 @@ fn javelin_scene(art: &Art, g: &Game, c: Camera, time: i32) {
     }
 }
 pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
+    draw_background(art, frame);
+    draw_foreground(art, frame, true);
+}
+
+/// Shared scenery/camera, separate athletes, equipment and immutable timelines.
+pub fn draw_field_replay(
+    art: &Art,
+    frames: &[(
+        crate::presentation::SceneFrame<'_>,
+        crate::assets::character::Appearance,
+    )],
+) {
+    let Some((lead, _)) = frames.first() else {
+        return;
+    };
+    draw_background(art, lead);
+    for (index, (frame, appearance)) in frames.iter().enumerate() {
+        draw_foreground(
+            &art.with_appearance(*appearance),
+            frame,
+            index + 1 == frames.len(),
+        );
+    }
+}
+
+fn draw_background(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
     let g = frame.game;
     let c = frame.camera;
     let waiting_highlight = frame.waiting_highlight;
-    let countdown = frame.countdown;
     let scenery_time = frame.scenery_time;
-    let starter_time = frame.starter_time;
     let ci = 12934952u32;
     let cj = 14715962;
     let ck = 13666640;
@@ -1127,6 +1151,21 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
             vault_mat(art, c, g);
         }
     }
+}
+
+fn draw_foreground(art: &Art, frame: &crate::presentation::SceneFrame<'_>, shared: bool) {
+    let g = frame.game;
+    let mut c = frame.camera;
+    c.z -= frame.athlete_depth;
+    let countdown = frame.countdown;
+    let scenery_time = frame.scenery_time;
+    let starter_time = frame.starter_time;
+    // Screen-space particles originate in the attempt's own camera.
+    let own = Camera::for_game(g);
+    let anchor = (g.runner.position >> 8, g.runner.height >> 8);
+    let a = project(own, anchor.0, anchor.1, 0);
+    let b = project(c, anchor.0, anchor.1, 0);
+    let shift = b - a;
     let x = g.runner.position >> 8;
     if !frame.race_athletes.is_empty() {
         // Far lanes first, matching the original athlete/shadow draw order.
@@ -1255,11 +1294,14 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
                 );
             }
         }
-        vault_pillar(art, c, 256);
-        let official = project(c, 500, 0, 256);
-        art.sprite(691, official.x, official.y, true);
-        art.sprite(693, official.x + 60., official.y + 10., true);
-        art.sprite(693, official.x + 100., official.y, true);
+        if shared {
+            let c = frame.camera;
+            vault_pillar(art, c, 256);
+            let official = project(c, 500, 0, 256);
+            art.sprite(691, official.x, official.y, true);
+            art.sprite(693, official.x + 60., official.y + 10., true);
+            art.sprite(693, official.x + 100., official.y, true);
+        }
     }
     if g.event().race() {
         let (a, b, fraction) = match starter_time {
@@ -1300,15 +1342,15 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
     }
     if g.event() == Event::PoleVault {
         for (sprite, [x, y], _) in frame.effects.sprites() {
-            art.sprite(sprite, x as f32, y as f32, true);
+            art.sprite(sprite, x as f32 + shift.x, y as f32 + shift.y, true);
         }
         // Keep the timing cursor legible over the accumulated particle glow.
         if let Some(marker) = crate::presentation::vault_marker::timing_marker(g) {
             art.transformed_sprite(
                 sprite::TIMING_CURSOR,
                 ((scenery_time >> 7) & 3) as u8,
-                marker.position[0] as f32,
-                marker.position[1] as f32,
+                marker.position[0] as f32 + shift.x,
+                marker.position[1] as f32 + shift.y,
             );
         }
     }
@@ -1317,7 +1359,7 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
             let p = if world {
                 project(c, x, y, 0)
             } else {
-                vec2(x as f32, y as f32)
+                vec2(x as f32, y as f32) + shift
             };
             art.sprite(sprite, p.x, p.y, true);
         }
@@ -1325,8 +1367,8 @@ pub fn draw(art: &Art, frame: &crate::presentation::SceneFrame<'_>) {
             art.transformed_sprite(
                 sprite::TIMING_CURSOR,
                 ((scenery_time >> 7) & 3) as u8,
-                (x >> 10) as f32,
-                (y >> 10) as f32,
+                (x >> 10) as f32 + shift.x,
+                (y >> 10) as f32 + shift.y,
             );
         }
     }

@@ -58,6 +58,13 @@ pub fn config() -> Conf {
     }
 }
 fn draw_game(art: &Art, app: &App, time: f32) {
+    if app.screen == Screen::FieldReplay {
+        if let Some(replay) = &app.field_replay {
+            let frames = replay.frames(&app.players, (time * 1000.) as i32);
+            world::draw_field_replay(art, &frames);
+        }
+        return;
+    }
     let g = &app.game;
     let mut frame = crate::presentation::SceneFrame::new(
         g,
@@ -139,7 +146,12 @@ pub async fn run() {
         });
         if matches!(
             app.screen,
-            Screen::AwaitStart | Screen::Ready | Screen::Play | Screen::Finish | Screen::Results
+            Screen::AwaitStart
+                | Screen::Ready
+                | Screen::Play
+                | Screen::Finish
+                | Screen::Results
+                | Screen::FieldReplay
         ) {
             draw_game(&art, &app, get_time() as f32)
         } else {

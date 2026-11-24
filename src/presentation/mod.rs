@@ -211,6 +211,39 @@ impl Camera {
             }
         }
     }
+    /// Original field-summary cameras: d.bk/M, d.bx/Q and d.bL/m (state 15).
+    /// These frame the shared action rather than following one participant.
+    pub fn field_summary(event: Event, best: Option<i32>, time_ms: i32) -> Self {
+        let t = time_ms.max(0);
+        match event {
+            Event::LongJump => {
+                let landing = best.unwrap_or(0).max(0) * 416 / 100;
+                let x = ease(0, landing, t.min(3000), 3000);
+                Self::new(x, 896, 2304, 2560)
+            }
+            Event::PoleVault => {
+                let x = if t < 1000 {
+                    -512
+                } else {
+                    ease(-512, 768, (t - 1000).min(4000), 4000)
+                };
+                let y = if t < 1000 {
+                    0
+                } else if t < 3000 {
+                    ease(0, 937, t - 1000, 2000)
+                } else if t < 5000 {
+                    ease(937, 0, t - 3000, 2000)
+                } else {
+                    0
+                };
+                Self::new(x, 1408 + y, 2304, 6144)
+            }
+            Event::Javelin => {
+                Self::new(ease(-2422, -1384, t.min(2000), 2000) + 256, 768, 2816, 1280)
+            }
+            _ => Self::race_at(0),
+        }
+    }
     pub fn athlete_lane(event: Event) -> i32 {
         if event.race() { -833 } else { 0 }
     }
@@ -581,6 +614,8 @@ pub struct SceneFrame<'a> {
     pub scenery_time: i32,
     pub starter_time: Option<i32>,
     pub race_athletes: Vec<RaceAthlete>,
+    /// Depth separation for a field-summary athlete; scenery stays shared.
+    pub athlete_depth: i32,
 }
 impl<'a> SceneFrame<'a> {
     pub fn new(
@@ -622,6 +657,7 @@ impl<'a> SceneFrame<'a> {
             scenery_time,
             starter_time,
             race_athletes: Vec::new(),
+            athlete_depth: 0,
         }
     }
 }
